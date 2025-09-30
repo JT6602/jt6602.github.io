@@ -318,6 +318,43 @@
       animation-delay: -9s;
     }
 
+    .confetti-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 1600;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      top: -8%;
+      width: 0.4rem;
+      height: 1.1rem;
+      border-radius: 0.2rem;
+      background: var(--confetti-color, #ffffff);
+      opacity: 0;
+      transform-origin: center;
+      animation: confettiFall var(--confetti-duration, 2400ms) cubic-bezier(0.24, 0.02, 0.19, 0.99) forwards;
+    }
+
+    @keyframes confettiFall {
+      0% {
+        transform: translate3d(0, -12vh, 0) rotate(0deg) scale(0.9);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      50% {
+        transform: translate3d(var(--confetti-travel, 6vw), 55vh, 0) rotate(180deg) scale(1);
+      }
+      100% {
+        transform: translate3d(calc(var(--confetti-travel, 6vw) * 1.4), 108vh, 0) rotate(360deg) scale(0.95);
+        opacity: 0;
+      }
+    }
+
     @keyframes auroraDrift {
       0% {
         transform: translate3d(0, 0, 0) scale(1);
@@ -562,6 +599,9 @@
         scroll-behavior: auto !important;
       }
       .waiting-aurora {
+        display: none !important;
+      }
+      .confetti-layer {
         display: none !important;
       }
     }
@@ -1109,6 +1149,26 @@
     let jsQrLoadPromise = null;
 
     const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
+    const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
+    let prefersReducedMotion = Boolean(prefersReducedMotionQuery.matches);
+
+    if (typeof prefersReducedMotionQuery.addEventListener === "function") {
+      prefersReducedMotionQuery.addEventListener("change", event => {
+        prefersReducedMotion = event.matches;
+      });
+    } else if (typeof prefersReducedMotionQuery.addListener === "function") {
+      prefersReducedMotionQuery.addListener(event => {
+        prefersReducedMotion = event.matches;
+      });
+    }
+
+    const CONFETTI_THEMES = Object.freeze({
+      general: ["#6ff0eb", "#54c8f2", "#ffe066", "#f29b9b"],
+      start: ["#6ff0eb", "#8ef5a2", "#ffe066", "#9d65ff"],
+      unlock: ["#54f2f2", "#f2c94c", "#f29b9b", "#9d65ff"],
+      solve: ["#6ff0eb", "#ffe066", "#ff9a76", "#8ef5a2"],
+      finale: ["#6ff0eb", "#ff6f91", "#ffd460", "#9d65ff", "#f8f4ff"]
+    });
 
     initialize();
 
@@ -1592,6 +1652,36 @@
       }
     }
 
+    function triggerConfetti({ theme = "general", pieces = 120, spread = 12 } = {}) {
+      if (prefersReducedMotion || typeof document === "undefined" || !document.body) {
+        return;
+      }
+
+      const colors = CONFETTI_THEMES[theme] ?? CONFETTI_THEMES.general;
+      const layer = document.createElement("div");
+      layer.className = "confetti-layer";
+
+      const baseDuration = 2400;
+
+      for (let index = 0; index < pieces; index += 1) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+        piece.style.setProperty("--confetti-travel", `${(Math.random() * 2 - 1) * spread}vw`);
+        piece.style.setProperty("--confetti-duration", `${baseDuration + Math.random() * 900}ms`);
+        piece.style.animationDelay = `${Math.random() * 180}ms`;
+        piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+        layer.append(piece);
+      }
+
+      document.body.append(layer);
+
+      window.setTimeout(() => {
+        layer.remove();
+      }, baseDuration + 1400);
+    }
+
     function setPuzzleFeedback(message, tone) {
       if (!puzzleFeedback) return;
       puzzleFeedback.className = "answer-feedback";
@@ -1907,6 +1997,7 @@
 
       closeScanner(`Location confirmed: ${floorName}.`, "success");
       showStatus(`${floorName} puzzle unlocked.`, "success");
+      triggerConfetti({ theme: "unlock", pieces: 95, spread: 8 });
 
       window.setTimeout(() => {
         if (answerInput && !answerInput.disabled) {
@@ -1940,6 +2031,7 @@
 
       closeScanner(`${sourceLabel} code accepted for ${teamName}.`, "success");
       showStatus(statusMessage, "success");
+      triggerConfetti({ theme: "start", pieces: hadProgress ? 140 : 110, spread: 10 });
       return true;
     }
 
@@ -2002,6 +2094,11 @@
       const summary = parts.join(" ");
       setPuzzleFeedback(summary, "success");
       showStatus(summary, "success");
+      if (nextIndex === null) {
+        triggerConfetti({ theme: "finale", pieces: 180, spread: 16 });
+      } else {
+        triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
+      }
     }
 
     function closeScanner(message, tone) {
