@@ -25,6 +25,196 @@
       display: none !important;
     }
 
+    body.is-gm-sheet {
+      justify-content: center;
+      align-items: flex-start;
+      padding: clamp(1rem, 3vw, 2rem);
+      background: linear-gradient(180deg, rgba(6, 12, 24, 0.95), rgba(3, 6, 14, 0.98));
+    }
+
+    body.is-gm-sheet main {
+      display: none;
+    }
+
+    .gm-sheet {
+      width: min(1100px, 100%);
+      display: none;
+      margin: 0 auto;
+    }
+
+    body.is-gm-sheet .gm-sheet {
+      display: block;
+    }
+
+    .gm-sheet-card {
+      position: relative;
+      border-radius: 28px;
+      border: 1px solid rgba(91, 192, 190, 0.28);
+      background: linear-gradient(180deg, rgba(10, 22, 46, 0.92), rgba(4, 10, 24, 0.96));
+      padding: clamp(1.8rem, 4vw, 3rem);
+      box-shadow: 0 30px 80px -45px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+
+    .gm-sheet-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 20% 20%, rgba(91, 192, 190, 0.22), transparent 45%),
+        radial-gradient(circle at 80% 10%, rgba(140, 96, 255, 0.18), transparent 50%);
+      opacity: 0.65;
+      mix-blend-mode: screen;
+    }
+
+    .gm-sheet-card header {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: clamp(1.5rem, 4vw, 2.4rem);
+    }
+
+    .gm-sheet-card h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    }
+
+    .gm-sheet-card p {
+      margin: 0;
+      color: rgba(224, 241, 255, 0.7);
+      font-size: 0.98rem;
+      max-width: 68ch;
+      line-height: 1.65;
+    }
+
+    .gm-grid {
+      position: relative;
+      display: grid;
+      gap: clamp(1.4rem, 3vw, 2rem);
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .gm-block {
+      position: relative;
+      border: 1px solid rgba(91, 192, 190, 0.26);
+      border-radius: 18px;
+      background: rgba(6, 16, 36, 0.8);
+      padding: 1.2rem clamp(1rem, 3vw, 1.6rem);
+      box-shadow: 0 18px 45px -40px rgba(91, 192, 190, 0.8);
+      backdrop-filter: blur(8px);
+    }
+
+    .gm-block h2 {
+      margin: 0 0 0.9rem;
+      font-size: 1.05rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.85);
+    }
+
+    .gm-block table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    .gm-block th,
+    .gm-block td {
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid rgba(91, 192, 190, 0.15);
+      text-align: left;
+      color: rgba(224, 241, 255, 0.82);
+    }
+
+    .gm-block th {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.55);
+    }
+
+    .gm-block tbody tr:hover {
+      background: rgba(91, 192, 190, 0.1);
+    }
+
+    .gm-block code {
+      font-family: "Fira Code", monospace;
+      font-size: 0.88rem;
+      background: rgba(5, 16, 36, 0.75);
+      padding: 0.25rem 0.35rem;
+      border-radius: 6px;
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      display: inline-block;
+      letter-spacing: 0.05em;
+    }
+
+    .gm-section-footer {
+      margin-top: clamp(1.5rem, 4vw, 2.5rem);
+      padding: 1rem 1.25rem;
+      border-radius: 16px;
+      border: 1px dashed rgba(91, 192, 190, 0.35);
+      background: rgba(6, 18, 34, 0.6);
+      color: rgba(224, 241, 255, 0.65);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .gm-orders {
+      display: grid;
+      gap: 0.85rem;
+      max-height: clamp(260px, 45vh, 360px);
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .gm-order-card {
+      border: 1px solid rgba(91, 192, 190, 0.22);
+      border-radius: 14px;
+      background: rgba(8, 18, 38, 0.72);
+      padding: 0.85rem 1rem;
+      display: grid;
+      gap: 0.55rem;
+      box-shadow: inset 0 0 18px -16px rgba(91, 192, 190, 0.6);
+    }
+
+    .gm-order-card h3 {
+      margin: 0;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.7);
+    }
+
+    .gm-order-list {
+      margin: 0;
+      padding-left: 1.25rem;
+      color: rgba(224, 241, 255, 0.85);
+      font-size: 0.88rem;
+    }
+
+    .gm-order-list li + li {
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 720px) {
+      .gm-sheet-card {
+        padding: 1.6rem 1.2rem 2rem;
+      }
+
+      .gm-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .gm-orders {
+        max-height: none;
+      }
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -1086,8 +1276,70 @@
     <footer class="footer-note">
       Tip: want to stage new puzzle text? Update the placeholders here and commit the file to GitHub Pages. Cookie storage lasts
       one year and is scoped to this page.
-    </footer>
+  </footer>
   </main>
+
+  <section class="gm-sheet is-hidden" id="gmSheet" aria-labelledby="gmSheetTitle">
+    <div class="gm-sheet-card">
+      <header>
+        <h1 id="gmSheetTitle">GM Reference Sheet</h1>
+        <p>
+          Private control log for game masters. Use these codes to validate player progress, issue team resets, or troubleshoot
+          location locks. Keep this view secure—participant devices should never access this page.
+        </p>
+      </header>
+
+      <div class="gm-grid">
+        <article class="gm-block" aria-labelledby="gmStartCodesHeading">
+          <h2 id="gmStartCodesHeading">Team Start Codes</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Team</th>
+                <th scope="col">Start QR Code</th>
+              </tr>
+            </thead>
+            <tbody id="gmStartCodes"></tbody>
+          </table>
+        </article>
+
+        <article class="gm-block" aria-labelledby="gmOverrideCodesHeading">
+          <h2 id="gmOverrideCodesHeading">GM Override Codes</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Team</th>
+                <th scope="col">Override Code</th>
+              </tr>
+            </thead>
+            <tbody id="gmOverrideCodes"></tbody>
+          </table>
+        </article>
+
+        <article class="gm-block" aria-labelledby="gmPuzzleCodesHeading">
+          <h2 id="gmPuzzleCodesHeading">Location QR Inventory</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Floor</th>
+                <th scope="col">QR Code</th>
+              </tr>
+            </thead>
+            <tbody id="gmPuzzleCodes"></tbody>
+          </table>
+        </article>
+      </div>
+
+      <section class="gm-section-footer" aria-labelledby="gmTeamOrdersHeading">
+        <h2 id="gmTeamOrdersHeading">Team Mission Orders</h2>
+        <p>
+          Each team follows a unique tower path. Use this matrix to direct players if they lose their order or if you need to
+          verify progress.
+        </p>
+        <div class="gm-orders" id="gmTeamOrders"></div>
+      </section>
+    </div>
+  </section>
 
   <div class="modal-backdrop" id="scannerModal" hidden>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
@@ -1226,6 +1478,12 @@
     const progressList = document.getElementById("progressList");
     const progressPanel = document.getElementById("progressPanel");
     const towerLevels = document.getElementById("towerLevels");
+    const rootMain = document.querySelector("main");
+    const gmSheet = document.getElementById("gmSheet");
+    const gmStartCodes = document.getElementById("gmStartCodes");
+    const gmOverrideCodes = document.getElementById("gmOverrideCodes");
+    const gmPuzzleCodes = document.getElementById("gmPuzzleCodes");
+    const gmTeamOrders = document.getElementById("gmTeamOrders");
 
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
@@ -1277,13 +1535,69 @@
       solve: ["#6ff0eb", "#ffe066", "#ff9a76", "#8ef5a2"],
       finale: ["#6ff0eb", "#ff6f91", "#ffd460", "#9d65ff", "#f8f4ff"]
     });
+    const isGmSheet = window.location.pathname?.toLowerCase().includes("/gm-sheet");
 
     initialize();
 
     function initialize() {
+      if (isGmSheet) {
+        renderGmSheet();
+        return;
+      }
       detectPlatform();
       attachEventListeners();
       render();
+    }
+
+    function renderGmSheet() {
+      document.body.classList.add("is-gm-sheet");
+      if (!document.title.toLowerCase().includes("gm reference sheet")) {
+        document.title = `GM Reference Sheet — ${document.title}`;
+      }
+      if (rootMain) {
+        rootMain.classList.add("is-hidden");
+      }
+      gmSheet?.classList.remove("is-hidden");
+
+      const startEntries = Object.entries(START_CODES).sort((a, b) => a[1] - b[1]);
+      if (gmStartCodes) {
+        gmStartCodes.innerHTML = startEntries
+          .map(([code, index]) => {
+            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
+          })
+          .join("");
+      }
+
+      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
+      if (gmOverrideCodes) {
+        gmOverrideCodes.innerHTML = overrideEntries
+          .map(([code, index]) => {
+            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
+          })
+          .join("");
+      }
+
+      if (gmPuzzleCodes) {
+        gmPuzzleCodes.innerHTML = puzzles
+          .map(puzzle => `<tr><td>${puzzle.floor}</td><td><code>${puzzle.qr}</code></td></tr>`)
+          .join("");
+      }
+
+      if (gmTeamOrders) {
+        gmTeamOrders.innerHTML = TEAM_ORDERS.map((order, teamIndex) => {
+          const teamName = TEAM_NAMES[teamIndex] ?? `Team ${teamIndex + 1}`;
+          const listItems = order
+            .map((puzzleIndex, step) => {
+              const puzzle = puzzles[puzzleIndex];
+              const label = puzzle ? puzzle.floor : `Puzzle ${puzzleIndex}`;
+              return `<li>Step ${step + 1}: ${label}</li>`;
+            })
+            .join("");
+          return `<article class="gm-order-card"><h3>${teamName}</h3><ol class="gm-order-list">${listItems}</ol></article>`;
+        }).join("");
+      }
     }
 
     function detectPlatform() {
