@@ -115,6 +115,64 @@
       flex-wrap: wrap;
     }
 
+    .action-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .action-button {
+      background: rgba(91, 192, 190, 0.14);
+      color: var(--text);
+      border: 1px solid rgba(91, 192, 190, 0.4);
+      border-radius: 10px;
+      padding: 0.55rem 0.95rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .action-button:hover,
+    .action-button:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(91, 192, 190, 0.24);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px -12px var(--accent);
+    }
+
+    .status-message {
+      flex-basis: 100%;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      padding: 0.55rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: rgba(91, 192, 190, 0.08);
+      color: var(--text-muted);
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .status-message.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .status-message.success {
+      border-color: rgba(91, 192, 190, 0.55);
+      background: rgba(91, 192, 190, 0.18);
+      color: var(--text);
+    }
+
+    .status-message.error {
+      border-color: rgba(246, 114, 128, 0.65);
+      background: rgba(246, 114, 128, 0.16);
+      color: var(--danger);
+    }
+
     .progress-wrapper {
       width: clamp(200px, 30vw, 360px);
     }
@@ -175,6 +233,94 @@
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1.5rem;
       background: rgba(4, 12, 24, 0.75);
+    }
+
+    .overview {
+      padding: 1.5rem clamp(1.5rem, 4vw, 3rem) 0.5rem;
+      background: rgba(4, 12, 24, 0.8);
+      border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+    }
+
+    .overview h2 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .overview-card {
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      background: rgba(8, 22, 46, 0.55);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+      appearance: none;
+      text-align: left;
+      font: inherit;
+      color: inherit;
+    }
+
+    .overview-card:hover,
+    .overview-card:focus-visible {
+      outline: none;
+      border-color: rgba(91, 192, 190, 0.55);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -18px black;
+    }
+
+    .overview-card.active {
+      border-color: rgba(91, 192, 190, 0.85);
+      background: rgba(28, 53, 74, 0.72);
+      box-shadow: 0 10px 24px -14px var(--accent);
+    }
+
+    .overview-team {
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .overview-progress {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .overview-bar {
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(91, 192, 190, 0.12);
+      overflow: hidden;
+    }
+
+    .overview-bar::-webkit-progress-bar {
+      background: rgba(91, 192, 190, 0.12);
+    }
+
+    .overview-bar::-webkit-progress-value {
+      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
+      border-radius: 999px;
+    }
+
+    .overview-bar::-moz-progress-bar {
+      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
+      border-radius: 999px;
     }
 
     .puzzle-card {
@@ -330,8 +476,18 @@
           </div>
           <progress id="progressBar" class="progress-bar" value="0" max="11"></progress>
         </div>
+      </div>
+      <div class="action-buttons">
+        <button type="button" class="action-button" id="exportProgress">Copy Progress Code</button>
+        <button type="button" class="action-button" id="importProgress">Import Progress</button>
         <button type="button" class="reset-button" id="resetAll">Reset All Teams</button>
       </div>
+      <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="overview" aria-label="Team overview snapshot">
+      <h2>Team Snapshot</h2>
+      <div class="overview-grid" id="teamOverview"></div>
     </section>
 
     <section class="content" id="puzzleBoard" aria-live="polite"></section>
@@ -381,6 +537,10 @@
     const progressCount = document.getElementById("progressCount");
     const progressLabel = document.getElementById("progressLabel");
     const resetButton = document.getElementById("resetAll");
+    const overviewBoard = document.getElementById("teamOverview");
+    const exportButton = document.getElementById("exportProgress");
+    const importButton = document.getElementById("importProgress");
+    const statusMessage = document.getElementById("statusMessage");
 
     const defaultState = () => ({
       activeTeam: 0,
@@ -388,23 +548,15 @@
     });
 
     let state = loadState();
+    let statusTimeoutId = null;
 
     function loadState() {
       const cookieValue = getCookie(COOKIE_NAME);
       if (!cookieValue) return defaultState();
       try {
-        const parsed = JSON.parse(cookieValue);
-        if (!Array.isArray(parsed.progress) || parsed.progress.length !== TEAM_COUNT) {
-          return defaultState();
-        }
-        parsed.progress = parsed.progress.map(teamList => {
-          if (!Array.isArray(teamList) || teamList.length !== PUZZLE_COUNT) {
-            return Array.from({ length: PUZZLE_COUNT }, () => false);
-          }
-          return teamList.map(Boolean);
-        });
-        parsed.activeTeam = clampNumber(parsed.activeTeam ?? 0, 0, TEAM_COUNT - 1);
-        return parsed;
+        const decoded = decodeCookieValue(cookieValue);
+        const parsed = JSON.parse(decoded);
+        return sanitizeState(parsed);
       } catch (err) {
         console.warn("Failed to parse cookie, resetting progress", err);
         return defaultState();
@@ -412,18 +564,45 @@
     }
 
     function saveState() {
+      state = sanitizeState(state);
       const payload = JSON.stringify(state);
       const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
       document.cookie = `${COOKIE_NAME}=${encodeURIComponent(payload)}; max-age=${maxAge}; path=/; SameSite=Lax`;
     }
 
     function getCookie(name) {
+      const prefix = `${name}=`;
       return document.cookie
         .split(";")
         .map(entry => entry.trim())
-        .find(entry => entry.startsWith(name + "="))
-        ?.split("=")[1]
+        .find(entry => entry.startsWith(prefix))
+        ?.slice(prefix.length)
         ?.replace(/^"|"$/g, "");
+    }
+
+    function decodeCookieValue(value) {
+      try {
+        return decodeURIComponent(value);
+      } catch (err) {
+        return value;
+      }
+    }
+
+    function sanitizeState(candidate) {
+      const fallback = defaultState();
+      if (!candidate || typeof candidate !== "object") {
+        return fallback;
+      }
+
+      const sanitized = {
+        activeTeam: clampNumber(candidate.activeTeam ?? fallback.activeTeam, 0, TEAM_COUNT - 1),
+        progress: fallback.progress.map((teamList, teamIndex) => {
+          const source = Array.isArray(candidate.progress?.[teamIndex]) ? candidate.progress[teamIndex] : [];
+          return teamList.map((_, puzzleIndex) => Boolean(source[puzzleIndex]));
+        })
+      };
+
+      return sanitized;
     }
 
     function clampNumber(value, min, max) {
@@ -439,13 +618,44 @@
 
     function togglePuzzle(puzzleIndex) {
       const solved = state.progress[state.activeTeam][puzzleIndex];
-      state.progress[state.activeTeam][puzzleIndex] = !solved;
+      const nowSolved = !solved;
+      state.progress[state.activeTeam][puzzleIndex] = nowSolved;
+      const teamNumber = state.activeTeam + 1;
+      const puzzleTitle = puzzles[puzzleIndex]?.title ?? `Floor ${puzzleIndex + 1}`;
       saveState();
       render();
+      showStatus(
+        `Team ${teamNumber} ${nowSolved ? "solved" : "reopened"}: ${puzzleTitle}`,
+        nowSolved ? "success" : "info"
+      );
     }
 
     function solvedCountForTeam(teamIndex) {
       return state.progress[teamIndex].filter(Boolean).length;
+    }
+
+    function renderOverview() {
+      if (!overviewBoard) return;
+      overviewBoard.innerHTML = "";
+
+      for (let i = 0; i < TEAM_COUNT; i += 1) {
+        const solved = solvedCountForTeam(i);
+        const percentage = Math.round((solved / PUZZLE_COUNT) * 100);
+
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = `overview-card${state.activeTeam === i ? " active" : ""}`;
+        card.innerHTML = `
+          <div class="overview-team">Team ${i + 1}</div>
+          <div class="overview-progress">
+            <span>${solved} / ${PUZZLE_COUNT} solved</span>
+            <span>${percentage}%</span>
+          </div>
+          <progress class="overview-bar" value="${solved}" max="${PUZZLE_COUNT}"></progress>
+        `;
+        card.addEventListener("click", () => handleTeamSelect(i));
+        overviewBoard.append(card);
+      }
     }
 
     function renderTeams() {
@@ -492,20 +702,138 @@
       });
     }
 
+    function showStatus(message, tone = "info") {
+      if (!statusMessage) return;
+      statusMessage.className = "status-message";
+      if (tone === "success") {
+        statusMessage.classList.add("success");
+      } else if (tone === "error") {
+        statusMessage.classList.add("error");
+      }
+      statusMessage.textContent = message;
+      statusMessage.classList.add("visible");
+
+      if (statusTimeoutId) {
+        clearTimeout(statusTimeoutId);
+      }
+      statusTimeoutId = window.setTimeout(() => {
+        if (!statusMessage) return;
+        statusMessage.className = "status-message";
+        statusMessage.textContent = "";
+        statusTimeoutId = null;
+      }, 4000);
+    }
+
+    function fallbackCopyPrompt(code) {
+      const promptMessage = "Progress code ready. Press Ctrl+C (Cmd+C on Mac) to copy:";
+      const response = window.prompt(promptMessage, code);
+      if (response !== null) {
+        showStatus("Progress code ready to share.", "success");
+      } else {
+        showStatus("Copy cancelled.");
+      }
+    }
+
+    function createShareCode(currentState) {
+      const sanitized = sanitizeState(currentState);
+      return btoa(JSON.stringify(sanitized));
+    }
+
+    function exportProgress() {
+      const shareCode = createShareCode(state);
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard
+          .writeText(shareCode)
+          .then(() => showStatus("Copied progress code to clipboard.", "success"))
+          .catch(() => {
+            fallbackCopyPrompt(shareCode);
+          });
+        return;
+      }
+
+      fallbackCopyPrompt(shareCode);
+    }
+
+    function parseProgressInput(rawInput) {
+      const trimmed = rawInput.trim();
+      if (!trimmed) {
+        throw new Error("No data supplied");
+      }
+
+      const cookiePattern = new RegExp(`${COOKIE_NAME}=([^;\s]+)`);
+      const cookieMatch = trimmed.match(cookiePattern);
+      const encoded = cookieMatch ? cookieMatch[1] : trimmed;
+
+      const candidates = new Set([encoded]);
+      const decoded = decodeCookieValue(encoded);
+      candidates.add(decoded);
+
+      try {
+        candidates.add(atob(encoded));
+      } catch (err) {
+        // ignore invalid base64 inputs
+      }
+
+      try {
+        candidates.add(atob(decoded));
+      } catch (err) {
+        // ignore invalid decoded base64 inputs
+      }
+
+      for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== "string") continue;
+        try {
+          return JSON.parse(candidate);
+        } catch (err) {
+          // continue trying other candidates
+        }
+      }
+
+      throw new Error("Unable to parse progress input");
+    }
+
+    function importProgress() {
+      const input = window.prompt("Paste a progress code or cookie value to import:");
+      if (input === null) {
+        showStatus("Import cancelled.");
+        return;
+      }
+
+      if (!input.trim()) {
+        showStatus("Nothing to import. Paste a code and try again.", "error");
+        return;
+      }
+
+      try {
+        const parsed = parseProgressInput(input);
+        state = sanitizeState(parsed);
+        saveState();
+        render();
+        showStatus("Progress imported successfully.", "success");
+      } catch (err) {
+        console.error("Import failed", err);
+        showStatus("Import failed. Check the code and try again.", "error");
+      }
+    }
+
     function resetAllProgress() {
       if (!confirm("Reset progress for all teams?")) return;
       state = defaultState();
       saveState();
       render();
+      showStatus("All team progress reset.", "success");
     }
 
     function render() {
       renderTeams();
       renderProgress();
+      renderOverview();
       renderPuzzles();
     }
 
-    resetButton.addEventListener("click", resetAllProgress);
+    resetButton?.addEventListener("click", resetAllProgress);
+    exportButton?.addEventListener("click", exportProgress);
+    importButton?.addEventListener("click", importProgress);
 
     render();
   </script>
