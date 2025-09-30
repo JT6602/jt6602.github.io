@@ -127,13 +127,17 @@ const TEAM_COUNT = 11;
     const towerLevels = document.getElementById("towerLevels");
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
-    const gmStartCodes = document.getElementById("gmStartCodes");
-    const gmOverrideCodes = document.getElementById("gmOverrideCodes");
-    const gmPuzzleCodes = document.getElementById("gmPuzzleCodes");
+    const gmStartList = document.getElementById("gmStartList");
+    const gmOverrideList = document.getElementById("gmOverrideList");
+    const gmLocationList = document.getElementById("gmLocationList");
     const gmTeamOrders = document.getElementById("gmTeamOrders");
-    const gmQrControls = document.getElementById("gmQrControls");
-    const gmQrPreview = document.getElementById("gmQrPreview");
-    const gmQrEmptyState = document.getElementById("gmQrEmptyState");
+    const gmCells = document.getElementById("gmCells");
+    const gmQrOverlay = document.getElementById("gmQrOverlay");
+    const gmQrOverlayCode = document.getElementById("gmQrOverlayCode");
+    const gmQrOverlayTitle = document.getElementById("gmQrOverlayTitle");
+    const gmQrOverlaySubtitle = document.getElementById("gmQrOverlaySubtitle");
+    const gmQrOverlayClose = document.getElementById("gmQrOverlayClose");
+    const gmDesktopGuard = document.getElementById("gmDesktopGuard");
     const puzzleView = document.getElementById("puzzleView");
     const puzzleLock = document.getElementById("puzzleLock");
     const puzzleLockMessage = document.getElementById("puzzleLockMessage");
@@ -170,10 +174,11 @@ const TEAM_COUNT = 11;
     };
     let jsQrLoadPromise = null;
     const unlockAnimationQueue = new Set();
-    const gmQrSelected = new Set();
-    const gmQrOptions = new Map();
-    let gmQrControlsBound = false;
-    let gmQrPreviewBound = false;
+    let gmCellsBound = false;
+    let gmOverlayEscapeBound = false;
+    let gmOverlayCloseBound = false;
+    let gmDesktopMediaQuery = null;
+    let gmLastActivatedCell = null;
     let puzzleLockTimeoutId = null;
     let pendingPuzzleUnlockIndex = null;
     let puzzleLockCurrentState = "hidden";
@@ -476,414 +481,262 @@ const TEAM_COUNT = 11;
       }
       gmSheet?.classList.remove("is-hidden");
 
+      renderGmLists();
+      renderGmTeamOrders();
+      ensureGmCellListeners();
+      setupGmDesktopGuard();
+    }
+
+    function renderGmLists() {
+      renderGmStartList();
+      renderGmOverrideList();
+      renderGmLocationList();
+    }
+
+    function renderGmStartList() {
+      if (!gmStartList) return;
       const startEntries = Object.entries(START_CODES).sort((a, b) => a[1] - b[1]);
-      if (gmStartCodes) {
-        gmStartCodes.innerHTML = startEntries
-          .map(([code, index]) => {
-            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
-            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
+      gmStartList.innerHTML = startEntries
+        .map(([code, index]) => {
+          const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+          return buildGmCellItemMarkup({
+            code,
+            category: "start",
+            primary: teamName,
+            secondary: "Start QR",
+            title: `${teamName}`,
+            subtitle: "Team start badge"
+          });
+        })
+        .join("");
+    }
+
+    function renderGmOverrideList() {
+      if (!gmOverrideList) return;
+      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
+      gmOverrideList.innerHTML = overrideEntries
+        .map(([code, index]) => {
+          const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+          return buildGmCellItemMarkup({
+            code,
+            category: "override",
+            primary: teamName,
+            secondary: "GM Override",
+            title: `${teamName}`,
+            subtitle: "Override access"
+          });
+        })
+        .join("");
+    }
+
+    function renderGmLocationList() {
+      if (!gmLocationList) return;
+      gmLocationList.innerHTML = puzzles
+        .map((puzzle, index) => {
+          const label = puzzle?.floor ?? `Puzzle ${index + 1}`;
+          return buildGmCellItemMarkup({
+            code: puzzle.qr,
+            category: "location",
+            primary: label,
+            secondary: "Location QR",
+            title: label,
+            subtitle: "Onsite checkpoint"
+          });
+        })
+        .join("");
+    }
+
+    function buildGmCellItemMarkup({ code, category, primary, secondary, title, subtitle }) {
+      const safePrimary = escapeHtml(primary);
+      const safeSecondary = escapeHtml(secondary ?? "");
+      const safeTitle = escapeHtml(title ?? primary ?? "QR Code");
+      const safeSubtitle = escapeHtml(subtitle ?? "");
+      const safeCode = escapeHtml(code);
+      const safeCategory = escapeHtml(category ?? "general");
+      return `
+        <button type="button" role="listitem" class="gm-cell-item" data-code="${safeCode}" data-category="${safeCategory}" data-label="${safeTitle}" data-subtitle="${safeSubtitle}" aria-label="${safeTitle} QR">
+          <span class="gm-cell-label">
+            <span class="gm-cell-primary">${safePrimary}</span>
+            <span class="gm-cell-secondary">${safeSecondary}</span>
+          </span>
+          <span class="gm-cell-action">View</span>
+        </button>
+      `;
+    }
+
+    function renderGmTeamOrders() {
+      if (!gmTeamOrders) return;
+
+      gmTeamOrders.innerHTML = TEAM_ORDERS.map((order, teamIndex) => {
+        const teamName = TEAM_NAMES[teamIndex] ?? `Team ${teamIndex + 1}`;
+        const listItems = order
+          .map((puzzleIndex, step) => {
+            const puzzle = puzzles[puzzleIndex];
+            const label = puzzle ? puzzle.floor : `Puzzle ${puzzleIndex}`;
+            return `<li>Step ${step + 1}: ${escapeHtml(label)}</li>`;
           })
           .join("");
-      }
-
-      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
-      if (gmOverrideCodes) {
-        gmOverrideCodes.innerHTML = overrideEntries
-          .map(([code, index]) => {
-            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
-            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
-          })
-          .join("");
-      }
-
-      if (gmPuzzleCodes) {
-        gmPuzzleCodes.innerHTML = puzzles
-          .map(puzzle => `<tr><td>${puzzle.floor}</td><td><code>${puzzle.qr}</code></td></tr>`)
-          .join("");
-      }
-
-      if (gmTeamOrders) {
-        gmTeamOrders.innerHTML = TEAM_ORDERS.map((order, teamIndex) => {
-          const teamName = TEAM_NAMES[teamIndex] ?? `Team ${teamIndex + 1}`;
-          const listItems = order
-            .map((puzzleIndex, step) => {
-              const puzzle = puzzles[puzzleIndex];
-              const label = puzzle ? puzzle.floor : `Puzzle ${puzzleIndex}`;
-              return `<li>Step ${step + 1}: ${label}</li>`;
-            })
-            .join("");
-          return `<article class="gm-order-card"><h3>${teamName}</h3><ol class="gm-order-list">${listItems}</ol></article>`;
-        }).join("");
-      }
-
-      setupGmQrGenerator();
+        return `<article class="gm-order-card"><h3>${escapeHtml(teamName)}</h3><ol class="gm-order-list">${listItems}</ol></article>`;
+      }).join("");
     }
 
-    function setupGmQrGenerator() {
-      if (!gmQrControls || !gmQrPreview) {
-        return;
+    function ensureGmCellListeners() {
+      if (!gmCellsBound && gmCells) {
+        gmCells.addEventListener("click", handleGmCellClick);
+        gmCellsBound = true;
       }
 
-      gmQrOptions.clear();
-      const options = buildGmQrOptions();
-      options.forEach(option => {
-        gmQrOptions.set(option.id, option);
-      });
-
-      gmQrSelected.forEach(id => {
-        if (!gmQrOptions.has(id)) {
-          gmQrSelected.delete(id);
-        }
-      });
-
-      if (!gmQrControlsBound) {
-        gmQrControls.addEventListener("change", handleGmQrOptionToggle);
-        gmQrControls.addEventListener("click", handleGmQrControlsClick);
-        gmQrControlsBound = true;
-      }
-
-      if (!gmQrPreviewBound) {
-        gmQrPreview.addEventListener("click", handleGmQrPreviewClick);
-        gmQrPreviewBound = true;
-      }
-
-      renderGmQrControls(options);
-      updateGmQrPreview();
-    }
-
-    function buildGmQrOptions() {
-      const options = [];
-
-      const startEntries = Object.entries(START_CODES).sort((a, b) => a[1] - b[1]);
-      startEntries.forEach(([code, index]) => {
-        const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
-        options.push({
-          id: `start-${index}`,
-          label: `${teamName} — Start`,
-          code,
-          category: "Team Start Codes",
-          meta: teamName
+      if (!gmOverlayCloseBound) {
+        gmQrOverlayClose?.addEventListener("click", closeGmQrOverlay);
+        gmQrOverlay?.addEventListener("click", event => {
+          if (event.target === gmQrOverlay) {
+            closeGmQrOverlay();
+          }
         });
-      });
-
-      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
-      overrideEntries.forEach(([code, index]) => {
-        const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
-        options.push({
-          id: `override-${index}`,
-          label: `${teamName} — GM Override`,
-          code,
-          category: "GM Override Codes",
-          meta: teamName
-        });
-      });
-
-      puzzles.forEach((puzzle, index) => {
-        options.push({
-          id: `location-${index}`,
-          label: puzzle.floor,
-          code: puzzle.qr,
-          category: "Location QR Inventory",
-          meta: puzzle.floor
-        });
-      });
-
-      return options;
-    }
-
-    function renderGmQrControls(options) {
-      if (!gmQrControls) {
-        return;
-      }
-
-      gmQrControls.innerHTML = "";
-
-      if (!options.length) {
-        const empty = document.createElement("div");
-        empty.className = "gm-qr-empty";
-        empty.textContent = "No QR codes available.";
-        gmQrControls.append(empty);
-        return;
-      }
-
-      const grouped = options.reduce((map, option) => {
-        if (!map.has(option.category)) {
-          map.set(option.category, []);
-        }
-        map.get(option.category).push(option);
-        return map;
-      }, new Map());
-
-      const fragment = document.createDocumentFragment();
-
-      grouped.forEach((items, category) => {
-        const fieldset = document.createElement("fieldset");
-        const legend = document.createElement("legend");
-        legend.textContent = category;
-        fieldset.append(legend);
-
-        items.forEach(item => {
-          const label = document.createElement("label");
-          label.className = "gm-qr-option";
-
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.dataset.qrId = item.id;
-          checkbox.id = `gm-qr-${item.id}`;
-          checkbox.checked = gmQrSelected.has(item.id);
-
-          const text = document.createElement("span");
-          text.textContent = item.label;
-
-          label.append(checkbox, text);
-          fieldset.append(label);
-        });
-
-        fragment.append(fieldset);
-      });
-
-      const actions = document.createElement("div");
-      actions.className = "gm-qr-controls-actions";
-      const clearButton = document.createElement("button");
-      clearButton.type = "button";
-      clearButton.className = "gm-qr-clear";
-      clearButton.id = "gmQrClear";
-      clearButton.textContent = "Clear Selection";
-      clearButton.disabled = gmQrSelected.size === 0;
-      actions.append(clearButton);
-      fragment.append(actions);
-
-      gmQrControls.append(fragment);
-    }
-
-    function handleGmQrOptionToggle(event) {
-      const checkbox = event.target;
-      if (!checkbox || checkbox.type !== "checkbox" || !checkbox.dataset.qrId) {
-        return;
-      }
-
-      const qrId = checkbox.dataset.qrId;
-      if (checkbox.checked) {
-        gmQrSelected.add(qrId);
-      } else {
-        gmQrSelected.delete(qrId);
-      }
-
-      updateGmQrPreview();
-      updateGmQrClearState();
-    }
-
-    function handleGmQrControlsClick(event) {
-      const button = event.target.closest("#gmQrClear");
-      if (!button) {
-        return;
-      }
-
-      event.preventDefault();
-      gmQrSelected.clear();
-      const inputs = gmQrControls?.querySelectorAll('input[type="checkbox"][data-qr-id]');
-      inputs?.forEach(input => {
-        input.checked = false;
-      });
-      updateGmQrPreview();
-      updateGmQrClearState();
-    }
-
-    function handleGmQrPreviewClick(event) {
-      const button = event.target.closest(".gm-qr-button");
-      if (!button || !button.dataset.qrId) {
-        return;
-      }
-
-      event.preventDefault();
-      const option = gmQrOptions.get(button.dataset.qrId);
-      if (!option) {
-        return;
-      }
-
-      switch (button.dataset.action) {
-        case "download":
-          downloadGmQrImage(button.closest(".gm-qr-card"), `${slugify(option.label)}.png`);
-          break;
-        case "copy":
-          copyGmQrValue(option, button);
-          break;
-        default:
-          break;
+        gmOverlayCloseBound = true;
       }
     }
 
-    function updateGmQrPreview() {
-      if (!gmQrPreview) {
+    function handleGmCellClick(event) {
+      const trigger = event.target.closest(".gm-cell-item");
+      if (!trigger) {
         return;
       }
 
-      gmQrPreview.innerHTML = "";
-
-      if (gmQrSelected.size === 0) {
-        const empty = gmQrEmptyState?.cloneNode(true) || document.createElement("div");
-        if (empty.removeAttribute) {
-          empty.removeAttribute("id");
-        }
-        empty.className = empty.className || "gm-qr-empty";
-        if (!empty.textContent) {
-          empty.textContent = "Select a code to generate its QR.";
-        }
-        gmQrPreview.append(empty);
-        updateGmQrClearState();
+      const code = trigger.dataset.code;
+      if (!code) {
         return;
       }
 
-      if (typeof window.QRCode !== "function") {
-        const warning = document.createElement("div");
-        warning.className = "gm-qr-empty";
-        warning.textContent = "QR generator unavailable. Add assets/vendor/qrcode.js.";
-        gmQrPreview.append(warning);
-        updateGmQrClearState();
+      gmLastActivatedCell = trigger;
+      const label = trigger.dataset.label || trigger.querySelector(".gm-cell-primary")?.textContent || "QR Code";
+      const subtitle = trigger.dataset.subtitle || "";
+      const category = trigger.dataset.category || "general";
+
+      openGmQrOverlay({ code, label, subtitle, category });
+    }
+
+    function openGmQrOverlay({ code, label, subtitle, category }) {
+      if (!gmQrOverlay || !gmQrOverlayCode) {
         return;
       }
 
-      gmQrSelected.forEach(id => {
-        const option = gmQrOptions.get(id);
-        if (!option) {
-          return;
-        }
+      gmQrOverlayCode.innerHTML = "";
 
-        const card = document.createElement("article");
-        card.className = "gm-qr-card";
-        card.dataset.qrId = id;
-
-        const codeWrapper = document.createElement("div");
-        codeWrapper.className = "gm-qr-code";
-        card.append(codeWrapper);
-
-        new window.QRCode(codeWrapper, {
-          text: option.code,
-          width: 192,
-          height: 192,
+      if (typeof window.QRCode === "function") {
+        new window.QRCode(gmQrOverlayCode, {
+          text: code,
+          width: 520,
+          height: 520,
           colorDark: "#041128",
           colorLight: "#ffffff",
-          correctLevel: window.QRCode.CorrectLevel.M
+          correctLevel: window.QRCode.CorrectLevel.H
         });
+      } else {
+        const fallback = document.createElement("div");
+        fallback.textContent = "QR generator unavailable.";
+        gmQrOverlayCode.append(fallback);
+      }
 
-        const caption = document.createElement("div");
-        caption.className = "gm-qr-caption";
-        const title = document.createElement("div");
-        title.className = "gm-qr-title";
-        title.textContent = option.label;
-        const value = document.createElement("code");
-        value.className = "gm-qr-value";
-        value.textContent = option.code;
-        caption.append(title, value);
-        card.append(caption);
+      if (gmQrOverlayTitle) {
+        gmQrOverlayTitle.textContent = label;
+      }
+      if (gmQrOverlaySubtitle) {
+        const displaySubtitle = subtitle || categoryLabel(category);
+        gmQrOverlaySubtitle.textContent = displaySubtitle;
+      }
 
-        const actions = document.createElement("div");
-        actions.className = "gm-qr-actions";
+      gmQrOverlay.classList.add("is-visible");
+      gmQrOverlay.removeAttribute("hidden");
+      document.body.classList.add("is-qr-overlay-open");
+      gmQrOverlayClose?.focus({ preventScroll: true });
 
-        const downloadButton = document.createElement("button");
-        downloadButton.type = "button";
-        downloadButton.className = "gm-qr-button";
-        downloadButton.dataset.action = "download";
-        downloadButton.dataset.qrId = id;
-        downloadButton.textContent = "Download PNG";
-        actions.append(downloadButton);
-
-        const copyButton = document.createElement("button");
-        copyButton.type = "button";
-        copyButton.className = "gm-qr-button";
-        copyButton.dataset.action = "copy";
-        copyButton.dataset.qrId = id;
-        copyButton.textContent = "Copy Code";
-        actions.append(copyButton);
-
-        card.append(actions);
-        gmQrPreview.append(card);
-      });
-
-      updateGmQrClearState();
-    }
-
-    function updateGmQrClearState() {
-      const clearButton = gmQrControls?.querySelector("#gmQrClear");
-      if (clearButton) {
-        clearButton.disabled = gmQrSelected.size === 0;
+      if (!gmOverlayEscapeBound) {
+        window.addEventListener("keydown", handleGmOverlayKeydown, { passive: true });
+        gmOverlayEscapeBound = true;
       }
     }
 
-    function downloadGmQrImage(card, filename) {
-      if (!card) {
+    function closeGmQrOverlay() {
+      if (!gmQrOverlay) {
         return;
       }
 
-      const canvas = card.querySelector("canvas");
-      const img = card.querySelector("img");
-      let dataUrl = null;
+      gmQrOverlay.classList.remove("is-visible");
+      gmQrOverlay.setAttribute("hidden", "true");
+      gmQrOverlayCode?.replaceChildren();
+      document.body.classList.remove("is-qr-overlay-open");
 
-      if (canvas) {
-        try {
-          dataUrl = canvas.toDataURL("image/png");
-        } catch (err) {
-          console.error("Unable to export QR canvas", err);
-        }
-      } else if (img) {
-        dataUrl = img.src;
+      if (gmLastActivatedCell) {
+        gmLastActivatedCell.focus({ preventScroll: true });
+        gmLastActivatedCell = null;
       }
 
-      if (!dataUrl) {
+      if (gmOverlayEscapeBound) {
+        window.removeEventListener("keydown", handleGmOverlayKeydown);
+        gmOverlayEscapeBound = false;
+      }
+    }
+
+    function handleGmOverlayKeydown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeGmQrOverlay();
+      }
+    }
+
+    function setupGmDesktopGuard() {
+      if (!gmDesktopGuard) {
         return;
       }
 
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = filename || "qr-code.png";
-      link.click();
+      if (!gmDesktopMediaQuery && typeof window.matchMedia === "function") {
+        gmDesktopMediaQuery = window.matchMedia("(max-width: 1024px)");
+        gmDesktopMediaQuery.addEventListener("change", applyGmDesktopGuardState);
+      }
+
+      applyGmDesktopGuardState();
     }
 
-    function copyGmQrValue(option, triggerButton) {
-      const value = option.code;
-
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard
-          .writeText(value)
-          .then(() => {
-            flashGmQrButton(triggerButton, "Copied!");
-          })
-          .catch(() => {
-            fallbackCopyGmQrValue(value, triggerButton);
-          });
+    function applyGmDesktopGuardState() {
+      if (!gmDesktopGuard) {
         return;
       }
 
-      fallbackCopyGmQrValue(value, triggerButton);
-    }
-
-    function fallbackCopyGmQrValue(value, triggerButton) {
-      const result = window.prompt("Copy this QR code value:", value);
-      if (result !== null) {
-        flashGmQrButton(triggerButton, "Ready");
+      const guardActive = gmDesktopMediaQuery ? gmDesktopMediaQuery.matches : window.innerWidth < 1024;
+      if (guardActive) {
+        gmDesktopGuard.removeAttribute("hidden");
+        gmSheet?.setAttribute("inert", "");
+        gmSheet?.classList.add("is-guarded");
+      } else {
+        gmDesktopGuard.setAttribute("hidden", "true");
+        gmSheet?.removeAttribute("inert");
+        gmSheet?.classList.remove("is-guarded");
       }
     }
 
-    function flashGmQrButton(button, message) {
-      if (!button) {
-        return;
+    function categoryLabel(category) {
+      switch (category) {
+        case "start":
+          return "Team start badge";
+        case "override":
+          return "GM override access";
+        case "location":
+          return "Mission checkpoint";
+        default:
+          return "QR code";
       }
-      const original = button.textContent;
-      button.textContent = message;
-      button.disabled = true;
-      window.setTimeout(() => {
-        button.textContent = original;
-        button.disabled = false;
-      }, 1400);
     }
 
-    function slugify(value) {
-      return value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 60) || "qr-code";
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
+
 
     function detectPlatform() {
       const ua = navigator.userAgent || "";
