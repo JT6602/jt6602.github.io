@@ -34,6 +34,7 @@
       display: flex;
       justify-content: center;
       padding: 2rem 1.5rem 3rem;
+      position: relative;
     }
 
     main {
@@ -47,12 +48,28 @@
       display: flex;
       flex-direction: column;
       min-height: calc(100vh - 6rem);
+      position: relative;
+      z-index: 1;
+    }
+
+    main::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 15% 20%, rgba(120, 180, 255, 0.06), transparent 45%),
+        radial-gradient(circle at 85% 12%, rgba(91, 192, 190, 0.08), transparent 40%),
+        linear-gradient(180deg, transparent 75%, rgba(10, 22, 50, 0.25));
+      mix-blend-mode: screen;
+      opacity: 0.85;
     }
 
     header {
       padding: 2.5rem clamp(1.5rem, 4vw, 3rem) 2rem;
       background: linear-gradient(135deg, rgba(91, 192, 190, 0.22), rgba(72, 149, 239, 0.08));
       border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+      position: relative;
+      z-index: 2;
     }
 
     h1 {
@@ -60,6 +77,7 @@
       font-size: clamp(2rem, 4vw, 2.8rem);
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      text-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
     }
 
     header p {
@@ -78,6 +96,7 @@
       align-items: center;
       background: rgba(7, 16, 33, 0.85);
       border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+      box-shadow: inset 0 -1px 0 rgba(91, 192, 190, 0.08);
     }
 
     .progress-panel {
@@ -85,6 +104,11 @@
       gap: 1rem;
       align-items: center;
       flex-wrap: wrap;
+      background: rgba(10, 24, 52, 0.6);
+      border: 1px solid rgba(91, 192, 190, 0.2);
+      border-radius: 14px;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 12px 24px -22px rgba(0, 0, 0, 0.75);
     }
 
     .action-buttons {
@@ -126,6 +150,7 @@
       opacity: 0;
       transform: translateY(-6px);
       transition: opacity 0.22s ease, transform 0.22s ease;
+      box-shadow: 0 12px 30px -22px rgba(91, 192, 190, 0.5);
     }
 
     .status-message.visible {
@@ -147,6 +172,10 @@
 
     .progress-wrapper {
       width: clamp(200px, 30vw, 360px);
+      padding: 0.35rem 0.5rem 0.5rem;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(4, 16, 36, 0.9), rgba(9, 26, 52, 0.82));
+      border: 1px solid rgba(91, 192, 190, 0.18);
     }
 
     .progress-label {
@@ -206,6 +235,8 @@
       gap: clamp(1.5rem, 4vw, 2.5rem);
       padding: clamp(1.5rem, 5vw, 3rem);
       background: rgba(4, 12, 24, 0.78);
+      position: relative;
+      z-index: 1;
     }
 
     .puzzle-view {
@@ -220,6 +251,18 @@
       box-shadow: inset 0 0 35px -28px rgba(91, 192, 190, 0.6);
       position: relative;
       overflow: hidden;
+    }
+
+    .puzzle-view::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      border-radius: inherit;
+      background: linear-gradient(180deg, rgba(9, 26, 52, 0.15), transparent 45%),
+        radial-gradient(circle at 80% 8%, rgba(91, 192, 190, 0.12), transparent 40%);
+      opacity: 0.9;
+      z-index: -1;
     }
 
     .puzzle-hero {
@@ -255,6 +298,11 @@
       max-width: 70ch;
       position: relative;
       z-index: 1;
+      padding: 1.1rem 1.2rem;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(10, 24, 52, 0.75), rgba(6, 20, 44, 0.65));
+      border: 1px solid rgba(91, 192, 190, 0.22);
+      box-shadow: inset 0 0 25px -22px rgba(91, 192, 190, 0.7);
     }
 
     .stage-actions {
@@ -373,6 +421,18 @@
       }
     }
 
+    @keyframes glowPulse {
+      0%,
+      100% {
+        box-shadow: 0 20px 40px -28px rgba(91, 192, 190, 0.6);
+        border-color: rgba(91, 192, 190, 0.55);
+      }
+      50% {
+        box-shadow: 0 24px 44px -26px rgba(91, 192, 190, 0.85);
+        border-color: rgba(91, 192, 190, 0.9);
+      }
+    }
+
     .answer-form {
       display: flex;
       flex-wrap: wrap;
@@ -392,6 +452,7 @@
       padding: 0.65rem 0.85rem;
       letter-spacing: 0.05em;
       font-size: 0.95rem;
+      box-shadow: inset 0 12px 25px -24px rgba(91, 192, 190, 0.75);
     }
 
     .answer-form button {
@@ -427,6 +488,8 @@
       color: #041128;
       box-shadow: 0 15px 32px -20px var(--accent);
       transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+      position: relative;
+      overflow: hidden;
     }
 
     .primary-action:hover,
@@ -435,6 +498,20 @@
       transform: translateY(-2px);
       box-shadow: 0 18px 36px -18px var(--accent);
       filter: brightness(1.05);
+    }
+
+    .primary-action::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.4), transparent 70%);
+      transform: translateX(-150%);
+      transition: transform 0.4s ease;
+    }
+
+    .primary-action:hover::after,
+    .primary-action:focus-visible::after {
+      transform: translateX(150%);
     }
 
     .secondary-link {
@@ -465,6 +542,7 @@
       flex-direction: column;
       gap: 1.2rem;
       position: relative;
+      box-shadow: inset 0 0 24px -22px rgba(91, 192, 190, 0.35);
     }
 
     .tower-map {
@@ -526,6 +604,7 @@
       background: linear-gradient(135deg, rgba(91, 192, 190, 0.32), rgba(48, 189, 208, 0.28));
       transform: translateX(4px);
       box-shadow: 0 16px 30px -28px var(--accent);
+      animation: glowPulse 2.4s ease-in-out infinite;
     }
 
     .tower-map-level.is-solved {
@@ -635,6 +714,8 @@
       font-size: 0.92rem;
       letter-spacing: 0.04em;
       transition: border-color 0.18s ease, transform 0.18s ease;
+      position: relative;
+      overflow: hidden;
     }
 
     .progress-content {
@@ -648,11 +729,25 @@
       background: rgba(18, 44, 72, 0.85);
       box-shadow: 0 20px 40px -28px var(--accent);
       transform: translateX(6px);
+      animation: glowPulse 2.2s ease-in-out infinite;
+    }
+
+    .progress-item.active::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(135deg, rgba(91, 192, 190, 0.14), transparent 65%);
     }
 
     .progress-item.complete {
       border-color: rgba(91, 192, 190, 0.8);
       background: rgba(28, 53, 74, 0.85);
+    }
+
+    .progress-item:hover {
+      border-color: rgba(91, 192, 190, 0.45);
+      background: rgba(14, 32, 60, 0.85);
     }
 
     .progress-index {
@@ -723,6 +818,16 @@
       gap: 1.5rem;
       color: var(--text);
       box-shadow: 0 30px 80px -45px black;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .modal-dialog::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(91, 192, 190, 0.12), transparent 50%);
     }
 
     .modal-dialog h2 {
@@ -756,6 +861,7 @@
       background: rgba(12, 30, 54, 0.8);
       cursor: pointer;
       transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+      box-shadow: 0 15px 30px -28px rgba(0, 0, 0, 0.8);
     }
 
     .team-select:hover,
@@ -776,6 +882,7 @@
       border-radius: 18px;
       border: 1px solid rgba(91, 192, 190, 0.3);
       background: rgba(3, 9, 21, 0.8);
+      box-shadow: 0 20px 40px -32px rgba(91, 192, 190, 0.6);
     }
 
     .scan-status {
@@ -842,6 +949,7 @@
       .progress-panel {
         width: 100%;
         justify-content: flex-start;
+        padding: 0.85rem 1rem;
       }
 
       .progress-wrapper {
