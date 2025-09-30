@@ -115,7 +115,6 @@ const TEAM_COUNT = 11;
     const puzzleBody = document.getElementById("puzzleBody");
     const puzzleFeedback = document.getElementById("puzzleFeedback");
     const scanButton = document.getElementById("scanButton");
-    const reviewProgressButton = document.getElementById("reviewProgress");
     const answerForm = document.getElementById("answerForm");
     const answerInput = document.getElementById("answerInput");
     const answerSubmitButton = document.getElementById("answerSubmit");
@@ -125,6 +124,10 @@ const TEAM_COUNT = 11;
     const progressPanel = document.getElementById("progressPanel");
     const progressDescriptor = document.getElementById("progressDescriptor");
     const towerLevels = document.getElementById("towerLevels");
+    const towerMapOverlay = document.getElementById("towerMapOverlay");
+    const towerMapOverlayContent = document.getElementById("towerMapOverlayContent");
+    const towerMapOverlayClose = document.getElementById("towerMapOverlayClose");
+    const viewTowerMapButton = document.getElementById("viewTowerMap");
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
     const gmStartList = document.getElementById("gmStartList");
@@ -177,6 +180,7 @@ const TEAM_COUNT = 11;
     let gmCellsBound = false;
     let gmOverlayEscapeBound = false;
     let gmOverlayCloseBound = false;
+    let mapOverlayEscapeBound = false;
     let gmLastActivatedCell = null;
     let puzzleLockTimeoutId = null;
     let pendingPuzzleUnlockIndex = null;
@@ -224,6 +228,14 @@ const TEAM_COUNT = 11;
       scanButton.click();
     });
 
+
+    viewTowerMapButton?.addEventListener("click", openTowerMapOverlay);
+    towerMapOverlayClose?.addEventListener("click", closeTowerMapOverlay);
+    towerMapOverlay?.addEventListener("click", event => {
+      if (event.target === towerMapOverlay) {
+        closeTowerMapOverlay();
+      }
+    });
 
     initialize();
 
@@ -622,6 +634,49 @@ const TEAM_COUNT = 11;
       openGmQrOverlay({ code, label, subtitle, category });
     }
 
+    function openTowerMapOverlay() {
+      if (!towerMapOverlay || !towerMapOverlayContent) {
+        return;
+      }
+      renderTowerMapOverlay();
+      towerMapOverlay.classList.add("is-visible");
+      towerMapOverlay.removeAttribute("hidden");
+      document.body.classList.add("is-map-overlay-open");
+      towerMapOverlayClose?.focus({ preventScroll: true });
+      if (!mapOverlayEscapeBound) {
+        window.addEventListener("keydown", handleMapOverlayKeydown, { passive: true });
+        mapOverlayEscapeBound = true;
+      }
+    }
+
+    function closeTowerMapOverlay() {
+      if (!towerMapOverlay) {
+        return;
+      }
+      towerMapOverlay.classList.remove("is-visible");
+      towerMapOverlay.setAttribute("hidden", "true");
+      document.body.classList.remove("is-map-overlay-open");
+      viewTowerMapButton?.focus({ preventScroll: true });
+      if (mapOverlayEscapeBound) {
+        window.removeEventListener("keydown", handleMapOverlayKeydown);
+        mapOverlayEscapeBound = false;
+      }
+    }
+
+    function handleMapOverlayKeydown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeTowerMapOverlay();
+      }
+    }
+
+    function renderTowerMapOverlay() {
+      if (!towerMapOverlayContent) {
+        return;
+      }
+      towerMapOverlayContent.innerHTML = towerLevels?.innerHTML ?? "";
+    }
+
     function openGmQrOverlay({ code, label, subtitle, category }) {
       if (!gmQrOverlay || !gmQrOverlayCode) {
         return;
@@ -643,6 +698,12 @@ const TEAM_COUNT = 11;
       loadingText.className = "gm-qr-overlay-loading";
       gmQrOverlayCode.append(loadingText);
       gmQrOverlayCode.append(img);
+
+      img.addEventListener("error", () => {
+        console.error("Unable to display QR code image");
+        loadingText.remove();
+        img.replaceWith(document.createTextNode("Unable to load QR code."));
+      });
 
       fetch(qrUrl)
         .then(response => {
@@ -774,11 +835,6 @@ const TEAM_COUNT = 11;
       answerForm?.addEventListener("submit", event => {
         event.preventDefault();
         submitPuzzleAnswer();
-      });
-
-      reviewProgressButton?.addEventListener("click", () => {
-        progressPanel.scrollIntoView({ behavior: "smooth", block: "center" });
-        showStatus("Mission queue updated.");
       });
 
       submitCodeButton?.addEventListener("click", () => {
@@ -1174,6 +1230,8 @@ const TEAM_COUNT = 11;
           towerLevels.append(ground);
         }
       }
+
+      renderTowerMapOverlay();
     }
 
     function createTowerLockIcon() {
@@ -1291,7 +1349,6 @@ const TEAM_COUNT = 11;
 
     function renderPuzzle() {
       const hasTeam = Number.isInteger(state.teamId);
-      reviewProgressButton.disabled = !state.hasStarted;
       toggleWaitingAnimation(false);
 
       if (!state.hasStarted || !hasTeam) {
@@ -1325,7 +1382,7 @@ const TEAM_COUNT = 11;
         puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
         setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
         scanButton.disabled = false;
-        scanButton.textContent = "Rescan Location QR";
+        scanButton.textContent = "Scan QR Code";
         if (pendingPuzzleUnlockIndex === currentSolving) {
           setPuzzleLockState("unlocking", { message: `Unlocked • ${puzzleName}` });
           pendingPuzzleUnlockIndex = null;
