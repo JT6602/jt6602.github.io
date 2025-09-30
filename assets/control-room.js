@@ -177,7 +177,6 @@ const TEAM_COUNT = 11;
     let gmCellsBound = false;
     let gmOverlayEscapeBound = false;
     let gmOverlayCloseBound = false;
-    let gmDesktopMediaQuery = null;
     let gmLastActivatedCell = null;
     let puzzleLockTimeoutId = null;
     let pendingPuzzleUnlockIndex = null;
@@ -689,12 +688,6 @@ const TEAM_COUNT = 11;
       if (!gmDesktopGuard) {
         return;
       }
-
-      if (!gmDesktopMediaQuery && typeof window.matchMedia === "function") {
-        gmDesktopMediaQuery = window.matchMedia("(max-width: 1024px)");
-        gmDesktopMediaQuery.addEventListener("change", applyGmDesktopGuardState);
-      }
-
       applyGmDesktopGuardState();
     }
 
@@ -703,7 +696,7 @@ const TEAM_COUNT = 11;
         return;
       }
 
-      const guardActive = gmDesktopMediaQuery ? gmDesktopMediaQuery.matches : window.innerWidth < 1024;
+      const guardActive = isLikelyMobileContext();
       if (guardActive) {
         gmDesktopGuard.removeAttribute("hidden");
         gmSheet?.setAttribute("inert", "");
@@ -713,6 +706,19 @@ const TEAM_COUNT = 11;
         gmSheet?.removeAttribute("inert");
         gmSheet?.classList.remove("is-guarded");
       }
+    }
+
+    function isLikelyMobileContext() {
+      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+        return navigator.userAgentData.mobile;
+      }
+
+      const ua = navigator.userAgent || "";
+      if (!ua) {
+        return false;
+      }
+      const mobilePattern = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile|webOS|BlackBerry|Phone/i;
+      return mobilePattern.test(ua);
     }
 
     function categoryLabel(category) {
@@ -1293,7 +1299,10 @@ const TEAM_COUNT = 11;
         scanButton.textContent = "Scan Start Code";
         toggleAnswerForm(false);
         toggleWaitingAnimation(true);
-        setPuzzleLockState("locked", { message: "Locked • Awaiting GM start" });
+        setPuzzleLockState("hidden");
+        if (!state.hasStarted && !state.revealed.some(Boolean)) {
+          showStatus("Ready to scan the team start QR code.", "success");
+        }
         return;
       }
 
@@ -1505,6 +1514,11 @@ const TEAM_COUNT = 11;
 
       if (!hasMediaDevices) {
         updateScanStatus("Camera unavailable. Enter the code manually.", "error");
+        showStatus("Camera unavailable on this device. Use manual code entry instead.", "error");
+        manualCodeInput?.focus({ preventScroll: true });
+        if (typeof manualCodeInput?.select === "function") {
+          manualCodeInput.select();
+        }
         return;
       }
 
@@ -1531,6 +1545,11 @@ const TEAM_COUNT = 11;
       } catch (err) {
         console.error("Unable to start camera", err);
         updateScanStatus("Camera access denied. Enter the code manually.", "error");
+        showStatus("Camera access denied. Enter the QR code manually.", "error");
+        manualCodeInput?.focus({ preventScroll: true });
+        if (typeof manualCodeInput?.select === "function") {
+          manualCodeInput.select();
+        }
       }
     }
 
