@@ -626,9 +626,9 @@
     <header>
       <h1>The Tower Scavenger Hunt</h1>
       <p>
-        Track your tower run across eleven floors of challenges. As puzzle content is finalized, replace the filler text inside
-        each floor card. Progress is saved locally with cookies, so you can refresh or return to this page without losing your
-        place.
+        Track your tower run across the basement and eleven upper floors of challenges. As puzzle content is finalized, replace
+        the filler text inside
+        each floor card. Progress is saved locally with cookies, so you can refresh or return to this page without losing your place.
       </p>
     </header>
 
@@ -705,7 +705,7 @@
 
     <script>
     const TEAM_COUNT = 6;
-    const PUZZLE_COUNT = 11;
+    const PUZZLE_COUNT = 12;
     const COOKIE_NAME = "towerHuntProgress";
     const CACHE_DURATION_DAYS = 365;
 
@@ -719,26 +719,27 @@
     ];
 
     const TEAM_ORDERS = [
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-      [2, 4, 1, 6, 0, 8, 3, 5, 7, 10, 9],
-      [5, 0, 3, 8, 2, 6, 1, 9, 4, 10, 7],
-      [1, 3, 5, 7, 9, 0, 2, 4, 6, 8, 10],
-      [4, 2, 6, 0, 7, 3, 9, 1, 8, 5, 10],
-      [6, 8, 0, 5, 2, 7, 4, 9, 1, 3, 10]
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      [2, 4, 1, 6, 0, 8, 3, 5, 7, 10, 9, 11],
+      [5, 0, 3, 8, 2, 6, 1, 9, 4, 10, 7, 11],
+      [1, 3, 5, 7, 9, 0, 2, 4, 6, 8, 10, 11],
+      [4, 2, 6, 0, 7, 3, 9, 1, 8, 5, 10, 11],
+      [6, 8, 0, 5, 2, 7, 4, 9, 1, 3, 10, 11]
     ];
 
     const puzzles = [
-      { floor: "Lobby", prompt: "Calibrate the lobby console by confirming mission credentials, then scan the QR badge to advance.", qr: "TOWER-LOBBY-QR" },
-      { floor: "Mechanical Workshop", prompt: "Tune the workshop gears to align the timing marks. Scan the mechanic's clearance tag to release the lift.", qr: "WORKSHOP-QR-214" },
-      { floor: "Archives", prompt: "Decode the archive catalog entry and scan the restored label to unseal the restricted stacks.", qr: "ARCHIVE-QR-717" },
-      { floor: "Greenhouse", prompt: "Match the plant genomes and scan the botanist's access code hidden among the vines.", qr: "GREENHOUSE-QR-552" },
-      { floor: "Observatory", prompt: "Synchronize the telescope arrays, then scan the stellar calibration glyph to lock the coordinates.", qr: "OBSERVATORY-QR-904" },
-      { floor: "Power Core", prompt: "Balance the energy conduits and scan the reactor checksum to stabilize the grid.", qr: "POWERCORE-QR-331" },
-      { floor: "Art Gallery", prompt: "Identify the forged artwork and scan the curator's seal to secure the exhibit.", qr: "GALLERY-QR-128" },
-      { floor: "Communications Hub", prompt: "Patch the comm relays and scan the relay authorization card to restore the uplink.", qr: "COMMS-QR-642" },
-      { floor: "Security Wing", prompt: "Solve the security override riddle, then scan the guard's cipher badge to clear the alarms.", qr: "SECURITY-QR-885" },
-      { floor: "Helipad", prompt: "Plot the evac trajectory and scan the pilot's manifest to fuel the transport.", qr: "HELIPAD-QR-473" },
-      { floor: "Summit", prompt: "Assemble the final meta-key and scan the commander's crest to unlock the summit chamber.", qr: "SUMMIT-QR-999" }
+      { floor: "Basement", prompt: "Restore auxiliary power in the basement control room, then scan the reboot authorization code to unlock the lifts.", qr: "BASEMENT-QR-000" },
+      { floor: "Floor 1", prompt: "Sweep the entry checkpoints for anomalies and scan the cleared access token to secure the level.", qr: "FLOOR1-QR-101" },
+      { floor: "Floor 2", prompt: "Realign the maintenance drones and scan the recalibration ticket to deploy them.", qr: "FLOOR2-QR-202" },
+      { floor: "Floor 3", prompt: "Audit the storage vaults and scan the verified manifest tag before sealing the bay.", qr: "FLOOR3-QR-303" },
+      { floor: "Floor 4", prompt: "Balance the environmental controls and scan the stability report to lock in the settings.", qr: "FLOOR4-QR-404" },
+      { floor: "Floor 5", prompt: "Decrypt the mid-tower communication log, then scan the clearance badge to archive the intel.", qr: "FLOOR5-QR-505" },
+      { floor: "Floor 6", prompt: "Synchronize the energy spines and scan the resonance check before boosting output.", qr: "FLOOR6-QR-606" },
+      { floor: "Floor 7", prompt: "Calibrate the sensor grid and scan the diagnostic stamp to certify the sweep.", qr: "FLOOR7-QR-707" },
+      { floor: "Floor 8", prompt: "Patch the mid-band relays and scan the uplink token once traffic resumes.", qr: "FLOOR8-QR-808" },
+      { floor: "Floor 9", prompt: "Override the security matrix, then scan the master reset key to clear the lockdown.", qr: "FLOOR9-QR-909" },
+      { floor: "Floor 10", prompt: "Plot the ascent guidance and scan the climb confirmation to prepare the summit approach.", qr: "FLOOR10-QR-010" },
+      { floor: "Floor 11", prompt: "Assemble the final tower cipher and scan the summit authorization crest to complete the run.", qr: "FLOOR11-QR-111" }
     ];
 
     const progressBar = document.getElementById("progressBar");
@@ -1078,11 +1079,11 @@
       const activePuzzle = getActivePuzzleIndex();
 
       if (activePuzzle === null) {
-        puzzleTitle.textContent = "Summit Secured";
+        puzzleTitle.textContent = "Tower Run Complete";
         puzzleMeta.textContent = Number.isInteger(state.teamId)
           ? `${TEAM_NAMES[state.teamId]} • Mission complete`
           : "Mission complete";
-        puzzleBody.textContent = "All tower floors are cleared. Await instructions from command or reset to replay.";
+        puzzleBody.textContent = "Every level from the basement through Floor 11 is secure. Await further instructions or reset to replay.";
         puzzleFeedback.textContent = "";
         scanButton.disabled = true;
         return;
@@ -1095,7 +1096,7 @@
       puzzleTitle.textContent = puzzle.floor;
       puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
       puzzleBody.textContent = puzzle.prompt;
-      puzzleFeedback.textContent = "Scan the QR code for this floor to unlock the next mission.";
+      puzzleFeedback.textContent = "Scan the QR code for this level to unlock the next mission.";
       scanButton.disabled = false;
     }
 
