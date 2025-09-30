@@ -2,7 +2,7 @@ const TEAM_COUNT = 11;
     const PUZZLE_COUNT = 12;
     const COOKIE_NAME = "towerHuntProgress";
     const CACHE_DURATION_DAYS = 365;
-    const VALIDATION_DELAY_MS = 650;
+    const VALIDATION_DELAY_MS = 1200;
 
     const TEAM_NAMES = [
       "Team 1",
