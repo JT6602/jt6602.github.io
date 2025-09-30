@@ -631,17 +631,39 @@ const TEAM_COUNT = 11;
       const size = 520;
       const encoded = encodeURIComponent(code ?? "");
       const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encoded + "&margin=20";
+
       const img = document.createElement("img");
-      img.src = qrUrl;
       img.alt = label ? `QR code for ${label}` : "QR code";
       img.width = size;
       img.height = size;
       img.loading = "lazy";
       img.decoding = "async";
-      img.addEventListener("error", () => {
-        img.replaceWith(document.createTextNode("Unable to load QR code."));
-      });
+      const loadingText = document.createElement("div");
+      loadingText.textContent = "Generating QR…";
+      loadingText.className = "gm-qr-overlay-loading";
+      gmQrOverlayCode.append(loadingText);
       gmQrOverlayCode.append(img);
+
+      fetch(qrUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`QR server responded with ${response.status}`);
+          }
+          return response.blob();
+        })
+        .then(blob => {
+          const objectUrl = URL.createObjectURL(blob);
+          img.src = objectUrl;
+          img.addEventListener("load", () => {
+            URL.revokeObjectURL(objectUrl);
+            loadingText.remove();
+          }, { once: true });
+        })
+        .catch(error => {
+          console.error("Unable to fetch QR code", error);
+          loadingText.remove();
+          img.replaceWith(document.createTextNode("Unable to load QR code."));
+        });
 
       if (gmQrOverlayTitle) {
         gmQrOverlayTitle.textContent = label;

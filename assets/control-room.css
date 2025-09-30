@@ -472,6 +472,14 @@
       place-items: center;
     }
 
+    .gm-qr-overlay-loading {
+      margin-bottom: 1rem;
+      font-size: 0.92rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.68);
+    }
+
     .gm-qr-overlay-code {
       width: clamp(320px, 40vw, 420px);
       aspect-ratio: 1;
