@@ -137,7 +137,6 @@ const TEAM_COUNT = 11;
     const gmQrOverlayTitle = document.getElementById("gmQrOverlayTitle");
     const gmQrOverlaySubtitle = document.getElementById("gmQrOverlaySubtitle");
     const gmQrOverlayClose = document.getElementById("gmQrOverlayClose");
-    const gmDesktopGuard = document.getElementById("gmDesktopGuard");
     const puzzleView = document.getElementById("puzzleView");
     const puzzleLock = document.getElementById("puzzleLock");
     const puzzleLockMessage = document.getElementById("puzzleLockMessage");
@@ -483,7 +482,6 @@ const TEAM_COUNT = 11;
       renderGmLists();
       renderGmTeamOrders();
       ensureGmCellListeners();
-      setupGmDesktopGuard();
     }
 
     function renderGmLists() {
@@ -682,43 +680,6 @@ const TEAM_COUNT = 11;
         event.preventDefault();
         closeGmQrOverlay();
       }
-    }
-
-    function setupGmDesktopGuard() {
-      if (!gmDesktopGuard) {
-        return;
-      }
-      applyGmDesktopGuardState();
-    }
-
-    function applyGmDesktopGuardState() {
-      if (!gmDesktopGuard) {
-        return;
-      }
-
-      const guardActive = isLikelyMobileContext();
-      if (guardActive) {
-        gmDesktopGuard.removeAttribute("hidden");
-        gmSheet?.setAttribute("inert", "");
-        gmSheet?.classList.add("is-guarded");
-      } else {
-        gmDesktopGuard.setAttribute("hidden", "true");
-        gmSheet?.removeAttribute("inert");
-        gmSheet?.classList.remove("is-guarded");
-      }
-    }
-
-    function isLikelyMobileContext() {
-      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
-        return navigator.userAgentData.mobile;
-      }
-
-      const ua = navigator.userAgent || "";
-      if (!ua) {
-        return false;
-      }
-      const mobilePattern = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile|webOS|BlackBerry|Phone/i;
-      return mobilePattern.test(ua);
     }
 
     function categoryLabel(category) {

@@ -259,53 +259,8 @@
       letter-spacing: 0.08em;
     }
 
-    .gm-sheet.is-guarded {
-      filter: blur(6px);
-      opacity: 0.25;
-      pointer-events: none;
-      user-select: none;
-    }
-
     body.is-qr-overlay-open {
       overflow: hidden;
-    }
-
-    .gm-desktop-guard {
-      position: fixed;
-      inset: 0;
-      background: rgba(4, 10, 24, 0.92);
-      backdrop-filter: blur(12px);
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-      z-index: 2600;
-    }
-
-    .gm-desktop-guard-card {
-      max-width: 420px;
-      text-align: center;
-      background: linear-gradient(150deg, rgba(8, 24, 48, 0.92), rgba(4, 16, 34, 0.92));
-      padding: clamp(1.5rem, 4vw, 2.4rem);
-      border-radius: 20px;
-      border: 1px solid rgba(91, 192, 190, 0.35);
-      box-shadow: 0 30px 80px -45px rgba(0, 0, 0, 0.75);
-      display: grid;
-      gap: 0.9rem;
-    }
-
-    .gm-desktop-guard-card h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: rgba(224, 241, 255, 0.9);
-    }
-
-    .gm-desktop-guard-card p {
-      margin: 0;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      color: rgba(224, 241, 255, 0.7);
     }
 
     @media (max-width: 1320px) {
