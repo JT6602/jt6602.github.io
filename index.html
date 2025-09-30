@@ -881,15 +881,71 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
     }
 
     .progress-list {
+      display: none;
+    }
+
+    .progress-card {
+      border: 1px solid rgba(91, 192, 190, 0.24);
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(8, 22, 46, 0.8), rgba(4, 14, 32, 0.92));
+      padding: clamp(1rem, 2.6vw, 1.4rem);
+      box-shadow: 0 22px 45px -38px rgba(91, 192, 190, 0.85);
+      display: grid;
+      gap: 0.65rem;
+      position: relative;
+    }
+
+    .progress-card.is-travel {
+      border-color: rgba(91, 192, 190, 0.45);
+      box-shadow: 0 24px 50px -40px rgba(91, 192, 190, 0.9);
+    }
+
+    .progress-card.is-solving {
+      border-color: rgba(91, 192, 190, 0.6);
+      box-shadow: 0 24px 50px -38px rgba(91, 192, 190, 1);
+    }
+
+    .progress-card-body {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .progress-card-header {
       display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      overflow: auto;
-      max-height: min(60vh, 520px);
-      padding-right: 0.3rem;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .progress-card-title {
+      display: grid;
+      gap: 0.2rem;
+    }
+
+    .progress-card-title div:first-child {
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .progress-total {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.55);
+    }
+
+    .progress-card-status {
+      font-size: 0.92rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(91, 192, 190, 0.85);
     }
 
     .progress-item {
@@ -912,6 +968,30 @@
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
+    }
+
+    .progress-label-extra {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .progress-label-extra strong {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.55);
+    }
+
+    .progress-label-extra span {
+      color: rgba(224, 241, 255, 0.85);
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+    }
+
+    .travel-instruction {
+      font-size: 0.88rem;
+      letter-spacing: 0.05em;
+      color: rgba(224, 241, 255, 0.72);
     }
 
     .progress-item.active {
@@ -1264,8 +1344,11 @@
       </article>
       <aside class="progress-track" id="progressPanel">
         <div class="platform-tag" id="platformTag">Platform: Detecting…</div>
-        <h3>Mission Queue</h3>
-        <div class="progress-list" id="progressList"></div>
+        <h3>
+          <span>Mission Queue</span>
+          <div class="progress-label-extra" id="progressDescriptor"></div>
+        </h3>
+        <div class="progress-card" id="progressCard"></div>
         <div class="tower-map" id="towerMap" aria-label="Tower map">
           <div class="tower-map-title">Tower Map</div>
           <div class="tower-map-levels" id="towerLevels"></div>
@@ -1852,61 +1935,119 @@
 
     function renderProgressList() {
       const order = getTeamOrder();
-      progressList.innerHTML = "";
-
       if (!state.hasStarted || !order.length) {
-        progressList.innerHTML = "<p>Scan the starting QR code to load your mission queue.</p>";
+        updateProgressDescriptor({ message: "Scan the starting QR to begin." });
+        renderProgressCard(null);
         return;
       }
 
-      const currentDestination = getNextDestinationIndex();
       const currentSolving = getCurrentSolvingIndex();
+      const nextDestination = getNextDestinationIndex();
+      const cardData = buildProgressCardData({ currentSolving, nextDestination, order });
+      updateProgressDescriptor(cardData.descriptor);
+      renderProgressCard(cardData.card);
+    }
 
-      order.forEach((puzzleIndex, sequenceIndex) => {
-        const solved = Boolean(state.completions[puzzleIndex]);
-        const unlocked = Boolean(state.unlocked[puzzleIndex]);
-        const revealed = Boolean(state.revealed[puzzleIndex]);
+    function buildProgressCardData({ currentSolving, nextDestination, order }) {
+      const descriptor = { current: "", next: "" };
+      const card = {
+        stageLabel: "",
+        stageStatus: "",
+        index: null,
+        total: order.length,
+        travelHint: ""
+      };
 
-        const item = document.createElement("div");
-        item.className = "progress-item";
+      if (currentSolving !== null) {
+        const step = order.indexOf(currentSolving) + 1;
+        descriptor.current = puzzles[currentSolving]?.floor ?? `Puzzle ${currentSolving}`;
+        descriptor.next = nextDestination !== null && nextDestination !== currentSolving ? puzzles[nextDestination]?.floor : "Awaiting unlock";
+        card.stageLabel = descriptor.current;
+        card.stageStatus = "Solve this floor";
+        card.index = step;
+        card.travelHint = "Submit the correct answer to reveal the next location.";
+        return { descriptor, card };
+      }
 
-        if (solved) {
-          item.classList.add("complete");
-        } else if (puzzleIndex === currentSolving || (puzzleIndex === currentDestination && revealed && !unlocked)) {
-          item.classList.add("active");
-        }
+      if (nextDestination !== null) {
+        const step = order.indexOf(nextDestination) + 1;
+        const destination = puzzles[nextDestination]?.floor ?? `Puzzle ${nextDestination}`;
+        descriptor.current = "Awaiting travel";
+        descriptor.next = destination;
+        card.stageLabel = destination;
+        card.stageStatus = "Travel to this floor";
+        card.index = step;
+        card.travelHint = "Scan the onsite QR code to unlock the puzzle.";
+        return { descriptor, card };
+      }
 
-        const indexBadge = document.createElement("div");
-        indexBadge.className = "progress-index";
-        indexBadge.textContent = sequenceIndex + 1;
+      descriptor.current = "Tower complete";
+      descriptor.next = "All missions cleared";
+      card.stageLabel = "Mission Complete";
+      card.stageStatus = "Await further instructions";
+      card.travelHint = "Enjoy the victory lap.";
+      return { descriptor, card };
+    }
 
-        const content = document.createElement("div");
-        content.className = "progress-content";
+    function updateProgressDescriptor(data) {
+      if (!progressDescriptor) return;
+      if (!data) {
+        progressDescriptor.innerHTML = "";
+        return;
+      }
 
-        const title = document.createElement("div");
-        title.textContent = revealed || solved ? puzzles[puzzleIndex].floor : "Unknown Floor";
+      if (data.message) {
+        progressDescriptor.innerHTML = `<span>${data.message}</span>`;
+        return;
+      }
 
-        const status = document.createElement("div");
-        status.className = "progress-status";
+      const parts = [];
+      if (data.current) {
+        parts.push(`<div><strong>Current</strong><span>${data.current}</span></div>`);
+      }
+      if (data.next) {
+        parts.push(`<div><strong>Next</strong><span>${data.next}</span></div>`);
+      }
+      progressDescriptor.innerHTML = parts.join("");
+    }
 
-        if (solved) {
-          status.classList.add("unlocked");
-          status.textContent = "Solved";
-        } else if (unlocked) {
-          status.classList.add("unlocked");
-          status.textContent = "Solve now";
-        } else if (revealed) {
-          status.classList.add("unlocked");
-          status.textContent = "Travel";
-        } else {
-          status.classList.add("locked");
-          status.textContent = "Locked";
-        }
+    function renderProgressCard(card) {
+      if (!progressCard) return;
+      if (!card) {
+        progressCard.innerHTML = "";
+        progressCard.className = "progress-card";
+        return;
+      }
 
-        content.append(title, status);
-        item.append(indexBadge, content);
-        progressList.append(item);
-      });
+      const classes = ["progress-card"];
+      if (card.stageStatus.includes("Travel")) {
+        classes.push("is-travel");
+      } else if (card.stageStatus.includes("Solve")) {
+        classes.push("is-solving");
+      }
+
+      const progressBadge = card.index
+        ? `<div class="progress-index">${card.index}</div>`
+        : "";
+
+      const totalLabel = card.index
+        ? `<div class="progress-total">Step ${card.index} of ${card.total}</div>`
+        : "";
+
+      progressCard.className = classes.join(" ");
+      progressCard.innerHTML = `
+        <div class="progress-card-body">
+          <div class="progress-card-header">
+            ${progressBadge}
+            <div class="progress-card-title">
+              <div>${card.stageLabel}</div>
+              ${totalLabel}
+            </div>
+          </div>
+          <div class="progress-card-status">${card.stageStatus}</div>
+          <div class="travel-instruction">${card.travelHint}</div>
+        </div>
+      `;
     }
 
     function renderTowerMap() {
