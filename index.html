@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tower Scavenger Hunt Control Room</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b132b;
+      --panel: rgba(17, 34, 64, 0.92);
+      --accent: #5bc0be;
+      --accent-soft: rgba(91, 192, 190, 0.1);
+      --text: #e0f1ff;
+      --text-muted: rgba(224, 241, 255, 0.72);
+      --danger: #f67280;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, rgba(91, 192, 190, 0.2), transparent 55%),
+        linear-gradient(180deg, rgba(11, 19, 43, 0.96) 0%, rgba(5, 8, 19, 0.98) 100%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1.5rem 3rem;
+    }
+
+    main {
+      width: min(1100px, 100%);
+      background: rgba(3, 9, 21, 0.72);
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 30px 70px -40px black;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 2.5rem clamp(1.5rem, 4vw, 3rem) 2rem;
+      background: linear-gradient(135deg, rgba(91, 192, 190, 0.22), rgba(72, 149, 239, 0.08));
+      border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    header p {
+      margin: 0.75rem 0 0;
+      max-width: 620px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.98rem;
+    }
+
+    .control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1.5rem clamp(1.5rem, 4vw, 3rem) 1rem;
+      align-items: center;
+      background: rgba(7, 16, 33, 0.85);
+      border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+    }
+
+    .team-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .team-button {
+      border: 1px solid rgba(91, 192, 190, 0.45);
+      background: rgba(4, 17, 40, 0.8);
+      color: var(--text);
+      padding: 0.65rem 1rem;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      transition: all 0.18s ease;
+    }
+
+    .team-button:hover,
+    .team-button:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(91, 192, 190, 0.16);
+    }
+
+    .team-button.active {
+      background: var(--accent);
+      color: #041128;
+      font-weight: 600;
+      box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.28);
+    }
+
+    .progress-panel {
+      margin-left: auto;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .progress-wrapper {
+      width: clamp(200px, 30vw, 360px);
+    }
+
+    .progress-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .progress-bar {
+      appearance: none;
+      width: 100%;
+      height: 10px;
+      border-radius: 6px;
+      background: rgba(91, 192, 190, 0.12);
+      overflow: hidden;
+    }
+
+    .progress-bar::-webkit-progress-bar {
+      background: rgba(91, 192, 190, 0.12);
+    }
+
+    .progress-bar::-webkit-progress-value {
+      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
+      border-radius: 6px;
+    }
+
+    .progress-bar::-moz-progress-bar {
+      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
+      border-radius: 6px;
+    }
+
+    .reset-button {
+      background: none;
+      border: 1px solid rgba(246, 114, 128, 0.6);
+      color: var(--danger);
+      padding: 0.55rem 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      transition: all 0.18s ease;
+    }
+
+    .reset-button:hover,
+    .reset-button:focus-visible {
+      outline: none;
+      background: rgba(246, 114, 128, 0.12);
+      border-color: rgba(246, 114, 128, 0.9);
+    }
+
+    .content {
+      padding: 2rem clamp(1.5rem, 4vw, 3rem) 3rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.5rem;
+      background: rgba(4, 12, 24, 0.75);
+    }
+
+    .puzzle-card {
+      position: relative;
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      background: rgba(8, 22, 46, 0.75);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 240px;
+      transition: border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .puzzle-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(91, 192, 190, 0.45);
+    }
+
+    .puzzle-card header {
+      background: none;
+      padding: 0;
+      border: none;
+    }
+
+    .puzzle-card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .puzzle-meta {
+      font-size: 0.85rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+
+    .puzzle-description {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.55;
+      flex-grow: 1;
+    }
+
+    .placeholder-note {
+      font-size: 0.75rem;
+      color: rgba(224, 241, 255, 0.52);
+      background: rgba(91, 192, 190, 0.08);
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .toggle-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .toggle-btn.solve {
+      background: linear-gradient(135deg, var(--accent), #6ff0eb);
+      color: #041128;
+      font-weight: 600;
+      box-shadow: 0 8px 18px -10px var(--accent);
+    }
+
+    .toggle-btn.solve:hover,
+    .toggle-btn.solve:focus-visible {
+      outline: none;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px -10px var(--accent);
+    }
+
+    .toggle-btn.undo {
+      background: rgba(246, 114, 128, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(246, 114, 128, 0.45);
+    }
+
+    .toggle-btn.undo:hover,
+    .toggle-btn.undo:focus-visible {
+      outline: none;
+      background: rgba(246, 114, 128, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .puzzle-card.solved {
+      border-color: rgba(91, 192, 190, 0.85);
+      background: rgba(28, 53, 74, 0.72);
+    }
+
+    .puzzle-card.solved::after {
+      content: "Solved";
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(4, 17, 40, 0.74);
+      background: rgba(91, 192, 190, 0.92);
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+    }
+
+    .footer-note {
+      padding: 1rem clamp(1.5rem, 4vw, 3rem) 2.2rem;
+      color: rgba(224, 241, 255, 0.55);
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      background: rgba(3, 9, 21, 0.8);
+      border-top: 1px solid rgba(91, 192, 190, 0.18);
+    }
+
+    @media (max-width: 780px) {
+      .progress-panel {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .progress-wrapper {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>The Tower Scavenger Hunt</h1>
+      <p>
+        Six teams enter the tower with one mission: conquer eleven floors of challenges. As puzzle content is finalized, replace
+        the filler text inside each floor card. Progress is saved locally with cookies, so teams can safely refresh or return to
+        the public GitHub Pages site without losing their standings.
+      </p>
+    </header>
+
+    <section class="control-bar">
+      <div class="team-selector" id="teamSelector" aria-label="Select a team"></div>
+      <div class="progress-panel">
+        <div class="progress-wrapper">
+          <div class="progress-label">
+            <span id="progressLabel">Team Progress</span>
+            <span id="progressCount"></span>
+          </div>
+          <progress id="progressBar" class="progress-bar" value="0" max="11"></progress>
+        </div>
+        <button type="button" class="reset-button" id="resetAll">Reset All Teams</button>
+      </div>
+    </section>
+
+    <section class="content" id="puzzleBoard" aria-live="polite"></section>
+
+    <footer class="footer-note">
+      Tip: want to stage new puzzle text? Update the placeholders here and commit the file to GitHub Pages. Cookie storage lasts
+      one year and is scoped to this page.
+    </footer>
+  </main>
+
+  <template id="puzzle-card-template">
+    <article class="puzzle-card">
+      <header>
+        <div class="puzzle-meta"></div>
+        <h2></h2>
+      </header>
+      <p class="puzzle-description"></p>
+      <div class="placeholder-note">Placeholder content. Swap in the real puzzle briefing, steps, and completion criteria.</div>
+      <button type="button" class="toggle-btn"></button>
+    </article>
+  </template>
+
+  <script>
+    const TEAM_COUNT = 6;
+    const PUZZLE_COUNT = 11;
+    const COOKIE_NAME = "towerHuntProgress";
+    const CACHE_DURATION_DAYS = 365; // keep cookies alive for one year
+
+    const puzzles = [
+      { floor: "Lobby", title: "Welcome Briefing", description: "Introductions, safety packet, and mission primer before riding the elevator." },
+      { floor: "Floor 2", title: "Mechanical Workshop", description: "Placeholder: swap in the mechanical contraption challenge overview." },
+      { floor: "Floor 3", title: "Archives", description: "Placeholder: add the riddle or decoding objective hidden in the dusty tomes." },
+      { floor: "Floor 4", title: "Greenhouse", description: "Placeholder: outline the botanical identification or pattern recognition puzzle." },
+      { floor: "Floor 5", title: "Observatory", description: "Placeholder: describe the star chart alignment or constellation chase." },
+      { floor: "Floor 6", title: "Power Core", description: "Placeholder: insert the circuitry, sequencing, or energy balancing task." },
+      { floor: "Floor 7", title: "Art Gallery", description: "Placeholder: detail the matching, spotting, or cipher hidden in the artwork." },
+      { floor: "Floor 8", title: "Communications Hub", description: "Placeholder: note the audio scramble, code word relay, or translation puzzle." },
+      { floor: "Floor 9", title: "Security Wing", description: "Placeholder: add the logic gate, keypad, or security override scenario." },
+      { floor: "Floor 10", title: "Helipad", description: "Placeholder: describe the navigation, map plotting, or aerial signal task." },
+      { floor: "Summit", title: "Command Suite", description: "Placeholder: define the final metapuzzle combining clues from every floor." }
+    ];
+
+    const teamSelector = document.getElementById("teamSelector");
+    const puzzleBoard = document.getElementById("puzzleBoard");
+    const template = document.getElementById("puzzle-card-template");
+    const progressBar = document.getElementById("progressBar");
+    const progressCount = document.getElementById("progressCount");
+    const progressLabel = document.getElementById("progressLabel");
+    const resetButton = document.getElementById("resetAll");
+
+    const defaultState = () => ({
+      activeTeam: 0,
+      progress: Array.from({ length: TEAM_COUNT }, () => Array.from({ length: PUZZLE_COUNT }, () => false))
+    });
+
+    let state = loadState();
+
+    function loadState() {
+      const cookieValue = getCookie(COOKIE_NAME);
+      if (!cookieValue) return defaultState();
+      try {
+        const parsed = JSON.parse(cookieValue);
+        if (!Array.isArray(parsed.progress) || parsed.progress.length !== TEAM_COUNT) {
+          return defaultState();
+        }
+        parsed.progress = parsed.progress.map(teamList => {
+          if (!Array.isArray(teamList) || teamList.length !== PUZZLE_COUNT) {
+            return Array.from({ length: PUZZLE_COUNT }, () => false);
+          }
+          return teamList.map(Boolean);
+        });
+        parsed.activeTeam = clampNumber(parsed.activeTeam ?? 0, 0, TEAM_COUNT - 1);
+        return parsed;
+      } catch (err) {
+        console.warn("Failed to parse cookie, resetting progress", err);
+        return defaultState();
+      }
+    }
+
+    function saveState() {
+      const payload = JSON.stringify(state);
+      const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
+      document.cookie = `${COOKIE_NAME}=${encodeURIComponent(payload)}; max-age=${maxAge}; path=/; SameSite=Lax`;
+    }
+
+    function getCookie(name) {
+      return document.cookie
+        .split(";")
+        .map(entry => entry.trim())
+        .find(entry => entry.startsWith(name + "="))
+        ?.split("=")[1]
+        ?.replace(/^"|"$/g, "");
+    }
+
+    function clampNumber(value, min, max) {
+      const n = Number.isFinite(value) ? Number(value) : min;
+      return Math.min(Math.max(n, min), max);
+    }
+
+    function handleTeamSelect(teamIndex) {
+      state.activeTeam = teamIndex;
+      saveState();
+      render();
+    }
+
+    function togglePuzzle(puzzleIndex) {
+      const solved = state.progress[state.activeTeam][puzzleIndex];
+      state.progress[state.activeTeam][puzzleIndex] = !solved;
+      saveState();
+      render();
+    }
+
+    function solvedCountForTeam(teamIndex) {
+      return state.progress[teamIndex].filter(Boolean).length;
+    }
+
+    function renderTeams() {
+      teamSelector.innerHTML = "";
+      for (let i = 0; i < TEAM_COUNT; i += 1) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `team-button${state.activeTeam === i ? " active" : ""}`;
+        button.dataset.team = i;
+        button.textContent = `Team ${i + 1}`;
+        button.addEventListener("click", () => handleTeamSelect(i));
+        teamSelector.append(button);
+      }
+    }
+
+    function renderProgress() {
+      const solved = solvedCountForTeam(state.activeTeam);
+      progressBar.value = solved;
+      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} solved`;
+      progressLabel.textContent = `Team ${state.activeTeam + 1} Progress`;
+    }
+
+    function renderPuzzles() {
+      puzzleBoard.innerHTML = "";
+      puzzles.forEach((puzzle, index) => {
+        const card = template.content.firstElementChild.cloneNode(true);
+        const meta = card.querySelector(".puzzle-meta");
+        const title = card.querySelector("h2");
+        const body = card.querySelector(".puzzle-description");
+        const toggle = card.querySelector(".toggle-btn");
+
+        meta.textContent = `Floor ${index + 1}`;
+        title.textContent = puzzle.title;
+        body.textContent = puzzle.description;
+
+        const solved = state.progress[state.activeTeam][index];
+        card.classList.toggle("solved", solved);
+
+        toggle.textContent = solved ? "Mark Unsolved" : "Mark Solved";
+        toggle.className = `toggle-btn ${solved ? "undo" : "solve"}`;
+        toggle.addEventListener("click", () => togglePuzzle(index));
+
+        puzzleBoard.append(card);
+      });
+    }
+
+    function resetAllProgress() {
+      if (!confirm("Reset progress for all teams?")) return;
+      state = defaultState();
+      saveState();
+      render();
+    }
+
+    function render() {
+      renderTeams();
+      renderProgress();
+      renderPuzzles();
+    }
+
+    resetButton.addEventListener("click", resetAllProgress);
+
+    render();
+  </script>
+</body>
+</html>
