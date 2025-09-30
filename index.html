@@ -341,19 +341,6 @@
       border-color: rgba(91, 192, 190, 0.45);
     }
 
-    .puzzle-card header {
-      background: none;
-      padding: 0;
-      border: none;
-    }
-
-    .puzzle-card h2 {
-      margin: 0;
-      font-size: 1.2rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
     .puzzle-meta {
       font-size: 0.85rem;
       color: var(--accent);
@@ -367,51 +354,86 @@
       flex-grow: 1;
     }
 
-    .placeholder-note {
-      font-size: 0.75rem;
-      color: rgba(224, 241, 255, 0.52);
-      background: rgba(91, 192, 190, 0.08);
-      padding: 0.4rem 0.6rem;
-      border-radius: 6px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
+    .answer-form {
+      display: flex;
+      gap: 0.75rem;
+      align-items: stretch;
+      margin-top: auto;
     }
 
-    .toggle-btn {
+    .answer-input {
+      flex: 1;
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      border-radius: 10px;
+      background: rgba(3, 15, 32, 0.72);
+      color: var(--text);
+      padding: 0.65rem 0.85rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .answer-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.18);
+    }
+
+    .submit-btn {
       border: none;
       border-radius: 10px;
-      padding: 0.75rem 1rem;
+      padding: 0.75rem 1.2rem;
       cursor: pointer;
       font-size: 0.95rem;
       letter-spacing: 0.04em;
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .toggle-btn.solve {
+      font-weight: 600;
       background: linear-gradient(135deg, var(--accent), #6ff0eb);
       color: #041128;
-      font-weight: 600;
       box-shadow: 0 8px 18px -10px var(--accent);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
     }
 
-    .toggle-btn.solve:hover,
-    .toggle-btn.solve:focus-visible {
+    .submit-btn:hover,
+    .submit-btn:focus-visible {
       outline: none;
       transform: translateY(-1px);
       box-shadow: 0 10px 22px -10px var(--accent);
+      filter: brightness(1.04);
     }
 
-    .toggle-btn.undo {
-      background: rgba(246, 114, 128, 0.12);
+    .submit-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+      transform: none;
+      box-shadow: none;
+      filter: none;
+    }
+
+    .answer-feedback {
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      min-height: 1.1rem;
+    }
+
+    .answer-feedback.success {
+      color: var(--accent);
+    }
+
+    .answer-feedback.error {
       color: var(--danger);
-      border: 1px solid rgba(246, 114, 128, 0.45);
     }
 
-    .toggle-btn.undo:hover,
-    .toggle-btn.undo:focus-visible {
-      outline: none;
-      background: rgba(246, 114, 128, 0.2);
-      transform: translateY(-1px);
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
     }
 
     .puzzle-card.solved {
@@ -500,13 +522,14 @@
 
   <template id="puzzle-card-template">
     <article class="puzzle-card">
-      <header>
-        <div class="puzzle-meta"></div>
-        <h2></h2>
-      </header>
+      <div class="puzzle-meta"></div>
       <p class="puzzle-description"></p>
-      <div class="placeholder-note">Placeholder content. Swap in the real puzzle briefing, steps, and completion criteria.</div>
-      <button type="button" class="toggle-btn"></button>
+      <form class="answer-form">
+        <label class="sr-only">Enter answer for this floor</label>
+        <input type="text" class="answer-input" autocomplete="off" />
+        <button type="submit" class="submit-btn">Submit Answer</button>
+      </form>
+      <div class="answer-feedback" aria-live="polite"></div>
     </article>
   </template>
 
@@ -516,18 +539,20 @@
     const COOKIE_NAME = "towerHuntProgress";
     const CACHE_DURATION_DAYS = 365; // keep cookies alive for one year
 
+    const SHARED_ANSWER = "tower";
+
     const puzzles = [
-      { floor: "Lobby", title: "Welcome Briefing", description: "Introductions, safety packet, and mission primer before riding the elevator." },
-      { floor: "Floor 2", title: "Mechanical Workshop", description: "Placeholder: swap in the mechanical contraption challenge overview." },
-      { floor: "Floor 3", title: "Archives", description: "Placeholder: add the riddle or decoding objective hidden in the dusty tomes." },
-      { floor: "Floor 4", title: "Greenhouse", description: "Placeholder: outline the botanical identification or pattern recognition puzzle." },
-      { floor: "Floor 5", title: "Observatory", description: "Placeholder: describe the star chart alignment or constellation chase." },
-      { floor: "Floor 6", title: "Power Core", description: "Placeholder: insert the circuitry, sequencing, or energy balancing task." },
-      { floor: "Floor 7", title: "Art Gallery", description: "Placeholder: detail the matching, spotting, or cipher hidden in the artwork." },
-      { floor: "Floor 8", title: "Communications Hub", description: "Placeholder: note the audio scramble, code word relay, or translation puzzle." },
-      { floor: "Floor 9", title: "Security Wing", description: "Placeholder: add the logic gate, keypad, or security override scenario." },
-      { floor: "Floor 10", title: "Helipad", description: "Placeholder: describe the navigation, map plotting, or aerial signal task." },
-      { floor: "Summit", title: "Command Suite", description: "Placeholder: define the final metapuzzle combining clues from every floor." }
+      { floor: "Lobby", prompt: `Calibrate the welcome console by typing "${SHARED_ANSWER}" exactly.` },
+      { floor: "Floor 2", prompt: `Stabilize the mechanical gauges: submit the mission keyword "${SHARED_ANSWER}".` },
+      { floor: "Floor 3", prompt: `Unlock the archives drawer with the shared answer "${SHARED_ANSWER}".` },
+      { floor: "Floor 4", prompt: `Sync the greenhouse sensors by entering "${SHARED_ANSWER}".` },
+      { floor: "Floor 5", prompt: `Align the observatory lens using the same passphrase "${SHARED_ANSWER}".` },
+      { floor: "Floor 6", prompt: `Balance the power core conduits; submit "${SHARED_ANSWER}" to proceed.` },
+      { floor: "Floor 7", prompt: `Activate the gallery projectors with the keyword "${SHARED_ANSWER}".` },
+      { floor: "Floor 8", prompt: `Tune the communications hub by typing "${SHARED_ANSWER}".` },
+      { floor: "Floor 9", prompt: `Override the security wing locks using "${SHARED_ANSWER}".` },
+      { floor: "Floor 10", prompt: `Ready the helipad beacon; enter "${SHARED_ANSWER}".` },
+      { floor: "Summit", prompt: `Seal the command suite console with the final answer "${SHARED_ANSWER}".` }
     ];
 
     const teamSelector = document.getElementById("teamSelector");
@@ -616,18 +641,39 @@
       render();
     }
 
-    function togglePuzzle(puzzleIndex) {
-      const solved = state.progress[state.activeTeam][puzzleIndex];
-      const nowSolved = !solved;
-      state.progress[state.activeTeam][puzzleIndex] = nowSolved;
-      const teamNumber = state.activeTeam + 1;
-      const puzzleTitle = puzzles[puzzleIndex]?.title ?? `Floor ${puzzleIndex + 1}`;
-      saveState();
-      render();
-      showStatus(
-        `Team ${teamNumber} ${nowSolved ? "solved" : "reopened"}: ${puzzleTitle}`,
-        nowSolved ? "success" : "info"
-      );
+    function normalizeAnswer(value) {
+      return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+
+    function isCorrectAnswer(value) {
+      return normalizeAnswer(value) === normalizeAnswer(SHARED_ANSWER);
+    }
+
+    function handleAnswerSubmit(puzzleIndex, inputElement, feedbackElement) {
+      const attempt = inputElement.value.trim();
+      const floorLabel = puzzles[puzzleIndex]?.floor ?? `Floor ${puzzleIndex + 1}`;
+
+      feedbackElement.className = "answer-feedback";
+
+      if (!attempt) {
+        feedbackElement.classList.add("error");
+        feedbackElement.textContent = "Enter an answer before submitting.";
+        inputElement.focus();
+        return;
+      }
+
+      if (isCorrectAnswer(attempt)) {
+        state.progress[state.activeTeam][puzzleIndex] = true;
+        saveState();
+        showStatus(`Team ${state.activeTeam + 1} cleared ${floorLabel}.`, "success");
+        render();
+        return;
+      }
+
+      feedbackElement.classList.add("error");
+      feedbackElement.textContent = "Incorrect answer. Try again.";
+      showStatus("Incorrect answer. Try again.", "error");
+      inputElement.select();
     }
 
     function solvedCountForTeam(teamIndex) {
@@ -683,20 +729,45 @@
       puzzles.forEach((puzzle, index) => {
         const card = template.content.firstElementChild.cloneNode(true);
         const meta = card.querySelector(".puzzle-meta");
-        const title = card.querySelector("h2");
         const body = card.querySelector(".puzzle-description");
-        const toggle = card.querySelector(".toggle-btn");
+        const form = card.querySelector(".answer-form");
+        const label = form.querySelector("label");
+        const input = card.querySelector(".answer-input");
+        const button = card.querySelector(".submit-btn");
+        const feedback = card.querySelector(".answer-feedback");
 
-        meta.textContent = `Floor ${index + 1}`;
-        title.textContent = puzzle.title;
-        body.textContent = puzzle.description;
+        const floorLabel = puzzle.floor ?? `Floor ${index + 1}`;
+        meta.textContent = floorLabel;
+        body.textContent = puzzle.prompt;
+
+        const inputId = `team${state.activeTeam + 1}-floor${index + 1}`;
+        label.setAttribute("for", inputId);
+        label.textContent = `Answer for ${floorLabel}`;
+        input.id = inputId;
+        input.placeholder = "Enter answer";
 
         const solved = state.progress[state.activeTeam][index];
         card.classList.toggle("solved", solved);
 
-        toggle.textContent = solved ? "Mark Unsolved" : "Mark Solved";
-        toggle.className = `toggle-btn ${solved ? "undo" : "solve"}`;
-        toggle.addEventListener("click", () => togglePuzzle(index));
+        feedback.className = "answer-feedback";
+
+        if (solved) {
+          input.value = "";
+          input.disabled = true;
+          button.disabled = true;
+          feedback.textContent = "Answer accepted. Floor cleared for this team.";
+          feedback.classList.add("success");
+        } else {
+          input.disabled = false;
+          button.disabled = false;
+          input.value = "";
+          feedback.textContent = "Submit the shared answer to mark this floor complete.";
+        }
+
+        form.addEventListener("submit", event => {
+          event.preventDefault();
+          handleAnswerSubmit(index, input, feedback);
+        });
 
         puzzleBoard.append(card);
       });
