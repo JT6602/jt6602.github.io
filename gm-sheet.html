@@ -133,6 +133,17 @@
             <tbody id="gmPuzzleCodes"></tbody>
           </table>
         </article>
+
+        <article class="gm-block" aria-labelledby="gmQrGeneratorHeading">
+          <h2 id="gmQrGeneratorHeading">On-Demand QR Codes</h2>
+          <p class="gm-qr-description">
+            Choose the codes you want to activate. Generated QR tiles appear below ready for screen share or download.
+          </p>
+          <div class="gm-qr-controls" id="gmQrControls" role="group" aria-label="QR code selection panel"></div>
+          <div class="gm-qr-preview" id="gmQrPreview" aria-live="polite">
+            <div class="gm-qr-empty" id="gmQrEmptyState">Select a code to generate its QR.</div>
+          </div>
+        </article>
       </div>
 
       <section class="gm-section-footer" aria-labelledby="gmTeamOrdersHeading">
@@ -162,6 +173,7 @@
     </div>
   </div>
 
+  <script defer src="./assets/vendor/qrcode.js"></script>
   <script defer src="./assets/control-room.js"></script>
 </body>
 </html>

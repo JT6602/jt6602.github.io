@@ -127,6 +127,9 @@ const TEAM_COUNT = 11;
     const gmOverrideCodes = document.getElementById("gmOverrideCodes");
     const gmPuzzleCodes = document.getElementById("gmPuzzleCodes");
     const gmTeamOrders = document.getElementById("gmTeamOrders");
+    const gmQrControls = document.getElementById("gmQrControls");
+    const gmQrPreview = document.getElementById("gmQrPreview");
+    const gmQrEmptyState = document.getElementById("gmQrEmptyState");
 
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
@@ -160,6 +163,10 @@ const TEAM_COUNT = 11;
     };
     let jsQrLoadPromise = null;
     const unlockAnimationQueue = new Set();
+    const gmQrSelected = new Set();
+    const gmQrOptions = new Map();
+    let gmQrControlsBound = false;
+    let gmQrPreviewBound = false;
 
     const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
     const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
@@ -249,6 +256,374 @@ const TEAM_COUNT = 11;
           return `<article class="gm-order-card"><h3>${teamName}</h3><ol class="gm-order-list">${listItems}</ol></article>`;
         }).join("");
       }
+
+      setupGmQrGenerator();
+    }
+
+    function setupGmQrGenerator() {
+      if (!gmQrControls || !gmQrPreview) {
+        return;
+      }
+
+      gmQrOptions.clear();
+      const options = buildGmQrOptions();
+      options.forEach(option => {
+        gmQrOptions.set(option.id, option);
+      });
+
+      gmQrSelected.forEach(id => {
+        if (!gmQrOptions.has(id)) {
+          gmQrSelected.delete(id);
+        }
+      });
+
+      if (!gmQrControlsBound) {
+        gmQrControls.addEventListener("change", handleGmQrOptionToggle);
+        gmQrControls.addEventListener("click", handleGmQrControlsClick);
+        gmQrControlsBound = true;
+      }
+
+      if (!gmQrPreviewBound) {
+        gmQrPreview.addEventListener("click", handleGmQrPreviewClick);
+        gmQrPreviewBound = true;
+      }
+
+      renderGmQrControls(options);
+      updateGmQrPreview();
+    }
+
+    function buildGmQrOptions() {
+      const options = [];
+
+      const startEntries = Object.entries(START_CODES).sort((a, b) => a[1] - b[1]);
+      startEntries.forEach(([code, index]) => {
+        const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+        options.push({
+          id: `start-${index}`,
+          label: `${teamName} — Start`,
+          code,
+          category: "Team Start Codes",
+          meta: teamName
+        });
+      });
+
+      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
+      overrideEntries.forEach(([code, index]) => {
+        const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+        options.push({
+          id: `override-${index}`,
+          label: `${teamName} — GM Override`,
+          code,
+          category: "GM Override Codes",
+          meta: teamName
+        });
+      });
+
+      puzzles.forEach((puzzle, index) => {
+        options.push({
+          id: `location-${index}`,
+          label: puzzle.floor,
+          code: puzzle.qr,
+          category: "Location QR Inventory",
+          meta: puzzle.floor
+        });
+      });
+
+      return options;
+    }
+
+    function renderGmQrControls(options) {
+      if (!gmQrControls) {
+        return;
+      }
+
+      gmQrControls.innerHTML = "";
+
+      if (!options.length) {
+        const empty = document.createElement("div");
+        empty.className = "gm-qr-empty";
+        empty.textContent = "No QR codes available.";
+        gmQrControls.append(empty);
+        return;
+      }
+
+      const grouped = options.reduce((map, option) => {
+        if (!map.has(option.category)) {
+          map.set(option.category, []);
+        }
+        map.get(option.category).push(option);
+        return map;
+      }, new Map());
+
+      const fragment = document.createDocumentFragment();
+
+      grouped.forEach((items, category) => {
+        const fieldset = document.createElement("fieldset");
+        const legend = document.createElement("legend");
+        legend.textContent = category;
+        fieldset.append(legend);
+
+        items.forEach(item => {
+          const label = document.createElement("label");
+          label.className = "gm-qr-option";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.dataset.qrId = item.id;
+          checkbox.id = `gm-qr-${item.id}`;
+          checkbox.checked = gmQrSelected.has(item.id);
+
+          const text = document.createElement("span");
+          text.textContent = item.label;
+
+          label.append(checkbox, text);
+          fieldset.append(label);
+        });
+
+        fragment.append(fieldset);
+      });
+
+      const actions = document.createElement("div");
+      actions.className = "gm-qr-controls-actions";
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.className = "gm-qr-clear";
+      clearButton.id = "gmQrClear";
+      clearButton.textContent = "Clear Selection";
+      clearButton.disabled = gmQrSelected.size === 0;
+      actions.append(clearButton);
+      fragment.append(actions);
+
+      gmQrControls.append(fragment);
+    }
+
+    function handleGmQrOptionToggle(event) {
+      const checkbox = event.target;
+      if (!checkbox || checkbox.type !== "checkbox" || !checkbox.dataset.qrId) {
+        return;
+      }
+
+      const qrId = checkbox.dataset.qrId;
+      if (checkbox.checked) {
+        gmQrSelected.add(qrId);
+      } else {
+        gmQrSelected.delete(qrId);
+      }
+
+      updateGmQrPreview();
+      updateGmQrClearState();
+    }
+
+    function handleGmQrControlsClick(event) {
+      const button = event.target.closest("#gmQrClear");
+      if (!button) {
+        return;
+      }
+
+      event.preventDefault();
+      gmQrSelected.clear();
+      const inputs = gmQrControls?.querySelectorAll('input[type="checkbox"][data-qr-id]');
+      inputs?.forEach(input => {
+        input.checked = false;
+      });
+      updateGmQrPreview();
+      updateGmQrClearState();
+    }
+
+    function handleGmQrPreviewClick(event) {
+      const button = event.target.closest(".gm-qr-button");
+      if (!button || !button.dataset.qrId) {
+        return;
+      }
+
+      event.preventDefault();
+      const option = gmQrOptions.get(button.dataset.qrId);
+      if (!option) {
+        return;
+      }
+
+      switch (button.dataset.action) {
+        case "download":
+          downloadGmQrImage(button.closest(".gm-qr-card"), `${slugify(option.label)}.png`);
+          break;
+        case "copy":
+          copyGmQrValue(option, button);
+          break;
+        default:
+          break;
+      }
+    }
+
+    function updateGmQrPreview() {
+      if (!gmQrPreview) {
+        return;
+      }
+
+      gmQrPreview.innerHTML = "";
+
+      if (gmQrSelected.size === 0) {
+        const empty = gmQrEmptyState?.cloneNode(true) || document.createElement("div");
+        if (empty.removeAttribute) {
+          empty.removeAttribute("id");
+        }
+        empty.className = empty.className || "gm-qr-empty";
+        if (!empty.textContent) {
+          empty.textContent = "Select a code to generate its QR.";
+        }
+        gmQrPreview.append(empty);
+        updateGmQrClearState();
+        return;
+      }
+
+      if (typeof window.QRCode !== "function") {
+        const warning = document.createElement("div");
+        warning.className = "gm-qr-empty";
+        warning.textContent = "QR generator unavailable. Add assets/vendor/qrcode.js.";
+        gmQrPreview.append(warning);
+        updateGmQrClearState();
+        return;
+      }
+
+      gmQrSelected.forEach(id => {
+        const option = gmQrOptions.get(id);
+        if (!option) {
+          return;
+        }
+
+        const card = document.createElement("article");
+        card.className = "gm-qr-card";
+        card.dataset.qrId = id;
+
+        const codeWrapper = document.createElement("div");
+        codeWrapper.className = "gm-qr-code";
+        card.append(codeWrapper);
+
+        new window.QRCode(codeWrapper, {
+          text: option.code,
+          width: 192,
+          height: 192,
+          colorDark: "#041128",
+          colorLight: "#ffffff",
+          correctLevel: window.QRCode.CorrectLevel.M
+        });
+
+        const caption = document.createElement("div");
+        caption.className = "gm-qr-caption";
+        const title = document.createElement("div");
+        title.className = "gm-qr-title";
+        title.textContent = option.label;
+        const value = document.createElement("code");
+        value.className = "gm-qr-value";
+        value.textContent = option.code;
+        caption.append(title, value);
+        card.append(caption);
+
+        const actions = document.createElement("div");
+        actions.className = "gm-qr-actions";
+
+        const downloadButton = document.createElement("button");
+        downloadButton.type = "button";
+        downloadButton.className = "gm-qr-button";
+        downloadButton.dataset.action = "download";
+        downloadButton.dataset.qrId = id;
+        downloadButton.textContent = "Download PNG";
+        actions.append(downloadButton);
+
+        const copyButton = document.createElement("button");
+        copyButton.type = "button";
+        copyButton.className = "gm-qr-button";
+        copyButton.dataset.action = "copy";
+        copyButton.dataset.qrId = id;
+        copyButton.textContent = "Copy Code";
+        actions.append(copyButton);
+
+        card.append(actions);
+        gmQrPreview.append(card);
+      });
+
+      updateGmQrClearState();
+    }
+
+    function updateGmQrClearState() {
+      const clearButton = gmQrControls?.querySelector("#gmQrClear");
+      if (clearButton) {
+        clearButton.disabled = gmQrSelected.size === 0;
+      }
+    }
+
+    function downloadGmQrImage(card, filename) {
+      if (!card) {
+        return;
+      }
+
+      const canvas = card.querySelector("canvas");
+      const img = card.querySelector("img");
+      let dataUrl = null;
+
+      if (canvas) {
+        try {
+          dataUrl = canvas.toDataURL("image/png");
+        } catch (err) {
+          console.error("Unable to export QR canvas", err);
+        }
+      } else if (img) {
+        dataUrl = img.src;
+      }
+
+      if (!dataUrl) {
+        return;
+      }
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = filename || "qr-code.png";
+      link.click();
+    }
+
+    function copyGmQrValue(option, triggerButton) {
+      const value = option.code;
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard
+          .writeText(value)
+          .then(() => {
+            flashGmQrButton(triggerButton, "Copied!");
+          })
+          .catch(() => {
+            fallbackCopyGmQrValue(value, triggerButton);
+          });
+        return;
+      }
+
+      fallbackCopyGmQrValue(value, triggerButton);
+    }
+
+    function fallbackCopyGmQrValue(value, triggerButton) {
+      const result = window.prompt("Copy this QR code value:", value);
+      if (result !== null) {
+        flashGmQrButton(triggerButton, "Ready");
+      }
+    }
+
+    function flashGmQrButton(button, message) {
+      if (!button) {
+        return;
+      }
+      const original = button.textContent;
+      button.textContent = message;
+      button.disabled = true;
+      window.setTimeout(() => {
+        button.textContent = original;
+        button.disabled = false;
+      }, 1400);
+    }
+
+    function slugify(value) {
+      return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "qr-code";
     }
 
     function detectPlatform() {
