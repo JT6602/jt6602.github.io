@@ -76,6 +76,9 @@ const TEAM_COUNT = 11;
     });
 
     const SVG_NS = "http://www.w3.org/2000/svg";
+    const GM_PASSWORD = "GoTowerHats";
+    const GM_PASSWORD_TOKEN_KEY = "towerHuntGmToken";
+    const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
 
     const puzzles = [
       { floor: "Basement", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.BASEMENT },
@@ -120,6 +123,7 @@ const TEAM_COUNT = 11;
     const platformTag = document.getElementById("platformTag");
     const progressList = document.getElementById("progressList");
     const progressPanel = document.getElementById("progressPanel");
+    const progressDescriptor = document.getElementById("progressDescriptor");
     const towerLevels = document.getElementById("towerLevels");
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
@@ -130,6 +134,9 @@ const TEAM_COUNT = 11;
     const gmQrControls = document.getElementById("gmQrControls");
     const gmQrPreview = document.getElementById("gmQrPreview");
     const gmQrEmptyState = document.getElementById("gmQrEmptyState");
+    const puzzleView = document.getElementById("puzzleView");
+    const puzzleLock = document.getElementById("puzzleLock");
+    const puzzleLockMessage = document.getElementById("puzzleLockMessage");
 
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
@@ -167,6 +174,17 @@ const TEAM_COUNT = 11;
     const gmQrOptions = new Map();
     let gmQrControlsBound = false;
     let gmQrPreviewBound = false;
+    let puzzleLockTimeoutId = null;
+    let pendingPuzzleUnlockIndex = null;
+    let puzzleLockCurrentState = "hidden";
+    let gmAccessGranted = false;
+    const gmAuthState = {
+      overlay: null,
+      form: null,
+      input: null,
+      remember: null,
+      feedback: null
+    };
 
     const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
     const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
@@ -199,12 +217,253 @@ const TEAM_COUNT = 11;
 
     function initialize() {
       if (isGmSheet) {
-        renderGmSheet();
+        enforceGmPassword();
         return;
       }
       detectPlatform();
       attachEventListeners();
       render();
+    }
+
+    function enforceGmPassword() {
+      if (gmAccessGranted || hasValidGmToken()) {
+        gmAccessGranted = true;
+        renderGmSheet();
+        return;
+      }
+      showGmAuthOverlay();
+    }
+
+    function hasValidGmToken() {
+      const sessionToken = getSessionGmToken();
+      if (validateGmToken(sessionToken)) {
+        return true;
+      }
+
+      const storedToken = getStoredGmToken();
+      if (validateGmToken(storedToken)) {
+        setSessionGmToken(storedToken);
+        return true;
+      }
+
+      return false;
+    }
+
+    function validateGmToken(token) {
+      if (!token) {
+        return false;
+      }
+      return token === createGmToken(GM_PASSWORD);
+    }
+
+    function createGmToken(value) {
+      try {
+        return window.btoa(value);
+      } catch (err) {
+        return value;
+      }
+    }
+
+    function getStoredGmToken() {
+      try {
+        return window.localStorage?.getItem(GM_PASSWORD_TOKEN_KEY) ?? null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function setStoredGmToken(token) {
+      try {
+        if (token) {
+          window.localStorage?.setItem(GM_PASSWORD_TOKEN_KEY, token);
+        } else {
+          window.localStorage?.removeItem(GM_PASSWORD_TOKEN_KEY);
+        }
+      } catch (err) {
+        // ignore storage errors
+      }
+    }
+
+    function getSessionGmToken() {
+      try {
+        return window.sessionStorage?.getItem(GM_SESSION_TOKEN_KEY) ?? null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function setSessionGmToken(token) {
+      try {
+        if (token) {
+          window.sessionStorage?.setItem(GM_SESSION_TOKEN_KEY, token);
+        } else {
+          window.sessionStorage?.removeItem(GM_SESSION_TOKEN_KEY);
+        }
+      } catch (err) {
+        // ignore session storage errors
+      }
+    }
+
+    function showGmAuthOverlay() {
+      if (gmAuthState.overlay) {
+        gmAuthState.overlay.removeAttribute("hidden");
+        if (gmAuthState.feedback) {
+          gmAuthState.feedback.textContent = "";
+          gmAuthState.feedback.classList.remove("is-success");
+        }
+        gmAuthState.input?.classList.remove("is-invalid");
+        if (gmAuthState.input) {
+          gmAuthState.input.value = "";
+        }
+        if (gmAuthState.remember) {
+          gmAuthState.remember.checked = false;
+        }
+        gmAuthState.input?.focus();
+        return;
+      }
+
+      const overlay = document.createElement("div");
+      overlay.className = "gm-auth-overlay";
+      overlay.id = "gmAuthOverlay";
+
+      const card = document.createElement("div");
+      card.className = "gm-auth-card";
+
+      const heading = document.createElement("h1");
+      heading.textContent = "Game Master Access";
+
+      const intro = document.createElement("p");
+      intro.textContent = "Enter the passphrase to unlock the GM sheet.";
+
+      const form = document.createElement("form");
+      form.className = "gm-auth-form";
+      form.id = "gmAuthForm";
+
+      const field = document.createElement("div");
+      field.className = "gm-auth-field";
+
+      const label = document.createElement("label");
+      label.setAttribute("for", "gmAuthPassword");
+      label.textContent = "Passphrase";
+
+      const input = document.createElement("input");
+      input.type = "password";
+      input.id = "gmAuthPassword";
+      input.className = "gm-auth-input";
+      input.autocomplete = "current-password";
+      input.placeholder = "Enter passphrase";
+
+      field.append(label, input);
+
+      const remember = document.createElement("label");
+      remember.className = "gm-auth-remember";
+
+      const rememberInput = document.createElement("input");
+      rememberInput.type = "checkbox";
+      rememberInput.id = "gmAuthRemember";
+
+      remember.append(rememberInput, document.createTextNode("Remember on this device"));
+
+      const actions = document.createElement("div");
+      actions.className = "gm-auth-actions";
+
+      const submitButton = document.createElement("button");
+      submitButton.type = "submit";
+      submitButton.className = "primary-action gm-auth-submit";
+      submitButton.textContent = "Unlock";
+
+      actions.append(submitButton);
+
+      const feedback = document.createElement("div");
+      feedback.className = "gm-auth-feedback";
+      feedback.id = "gmAuthFeedback";
+
+      form.append(field, remember, actions, feedback);
+
+      card.append(heading, intro, form);
+      overlay.append(card);
+      document.body.append(overlay);
+
+      gmAuthState.overlay = overlay;
+      gmAuthState.form = form;
+      gmAuthState.input = input;
+      gmAuthState.remember = rememberInput;
+      gmAuthState.feedback = feedback;
+
+      form.addEventListener("submit", handleGmAuthSubmit);
+      input.addEventListener("input", () => {
+        input.classList.remove("is-invalid");
+        if (gmAuthState.feedback) {
+          gmAuthState.feedback.textContent = "";
+          gmAuthState.feedback.classList.remove("is-success");
+        }
+      });
+
+      window.setTimeout(() => {
+        gmAuthState.input?.focus();
+      }, 50);
+    }
+
+    function handleGmAuthSubmit(event) {
+      event.preventDefault();
+      if (!gmAuthState.input) {
+        return;
+      }
+
+      const supplied = gmAuthState.input.value.trim();
+      if (!supplied) {
+        showGmAuthError("Enter the passphrase to continue.");
+        return;
+      }
+
+      if (!validateGmToken(createGmToken(supplied))) {
+        showGmAuthError("Incorrect passphrase. Try again.");
+        return;
+      }
+
+      const token = createGmToken(GM_PASSWORD);
+      setSessionGmToken(token);
+      if (gmAuthState.remember?.checked) {
+        setStoredGmToken(token);
+      } else {
+        setStoredGmToken(null);
+      }
+
+      gmAccessGranted = true;
+      if (gmAuthState.feedback) {
+        gmAuthState.feedback.textContent = "Access granted.";
+        gmAuthState.feedback.classList.add("is-success");
+      }
+      gmAuthState.input.classList.remove("is-invalid");
+
+      window.setTimeout(() => {
+        teardownGmAuthOverlay();
+        renderGmSheet();
+      }, 180);
+    }
+
+    function showGmAuthError(message) {
+      if (!gmAuthState.input) {
+        return;
+      }
+      gmAuthState.input.classList.add("is-invalid");
+      if (gmAuthState.feedback) {
+        gmAuthState.feedback.textContent = message;
+        gmAuthState.feedback.classList.remove("is-success");
+      }
+      gmAuthState.input.focus();
+      gmAuthState.input.select();
+    }
+
+    function teardownGmAuthOverlay() {
+      if (gmAuthState.overlay) {
+        gmAuthState.overlay.remove();
+      }
+      gmAuthState.overlay = null;
+      gmAuthState.form = null;
+      gmAuthState.input = null;
+      gmAuthState.remember = null;
+      gmAuthState.feedback = null;
     }
 
     function renderGmSheet() {
@@ -644,6 +903,7 @@ const TEAM_COUNT = 11;
       resetButton?.addEventListener("click", () => {
         if (!confirm("Reset all progress on this device?")) return;
         state = defaultState(state.teamId);
+        pendingPuzzleUnlockIndex = null;
         saveState();
         render();
         showStatus("Progress reset.", "success");
@@ -1121,6 +1381,51 @@ const TEAM_COUNT = 11;
       });
     }
 
+    function setPuzzleLockState(stateName, { message } = {}) {
+      if (!puzzleLock) {
+        return;
+      }
+
+      if (message && puzzleLockMessage) {
+        puzzleLockMessage.textContent = message;
+      }
+
+      if (puzzleLockTimeoutId) {
+        clearTimeout(puzzleLockTimeoutId);
+        puzzleLockTimeoutId = null;
+      }
+
+      puzzleLock.classList.remove("is-unlocking");
+
+      if (stateName === "hidden") {
+        if (puzzleLockCurrentState === "hidden") {
+          return;
+        }
+        puzzleLock.classList.remove("is-visible");
+        puzzleLock.setAttribute("aria-hidden", "true");
+        puzzleView?.classList.remove("is-locked");
+        puzzleLockCurrentState = "hidden";
+        return;
+      }
+
+      puzzleLock.classList.add("is-visible");
+      puzzleLock.setAttribute("aria-hidden", "false");
+      puzzleView?.classList.add("is-locked");
+
+      if (stateName === "unlocking") {
+        puzzleLock.classList.add("is-unlocking");
+        puzzleLockCurrentState = "unlocking";
+        puzzleLockTimeoutId = window.setTimeout(() => {
+          puzzleLock.classList.remove("is-unlocking");
+          puzzleView?.classList.remove("is-locked");
+          setPuzzleLockState("hidden");
+        }, 1100);
+        return;
+      }
+
+      puzzleLockCurrentState = "locked";
+    }
+
     function renderPuzzle() {
       const hasTeam = Number.isInteger(state.teamId);
       reviewProgressButton.disabled = !state.hasStarted;
@@ -1135,6 +1440,7 @@ const TEAM_COUNT = 11;
         scanButton.textContent = "Scan Start Code";
         toggleAnswerForm(false);
         toggleWaitingAnimation(true);
+        setPuzzleLockState("locked", { message: "Locked • Awaiting GM start" });
         return;
       }
 
@@ -1142,12 +1448,20 @@ const TEAM_COUNT = 11;
       if (currentSolving !== null) {
         const stepNumber = getStepNumber(currentSolving) ?? 0;
         const puzzle = puzzles[currentSolving];
-        puzzleTitle.textContent = puzzle.floor;
+        const fallbackPuzzleLabel = stepNumber ? `Puzzle ${stepNumber}` : `Puzzle ${currentSolving + 1}`;
+        const puzzleName = puzzle?.floor ?? fallbackPuzzleLabel;
+        puzzleTitle.textContent = puzzleName;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
-        puzzleBody.textContent = puzzle.prompt;
+        puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
         setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
         scanButton.disabled = false;
         scanButton.textContent = "Rescan Location QR";
+        if (pendingPuzzleUnlockIndex === currentSolving) {
+          setPuzzleLockState("unlocking", { message: `Unlocked • ${puzzleName}` });
+          pendingPuzzleUnlockIndex = null;
+        } else {
+          setPuzzleLockState("hidden");
+        }
         toggleAnswerForm(true);
         return;
       }
@@ -1161,6 +1475,7 @@ const TEAM_COUNT = 11;
         scanButton.disabled = true;
         scanButton.textContent = "Scan QR Code";
         toggleAnswerForm(false);
+        setPuzzleLockState("hidden");
         return;
       }
 
@@ -1169,12 +1484,15 @@ const TEAM_COUNT = 11;
 
       if (revealed) {
         const puzzle = puzzles[nextIndex];
-        puzzleTitle.textContent = puzzle.floor;
+        const fallbackDestination = stepNumber ? `Puzzle ${stepNumber}` : `Puzzle ${nextIndex + 1}`;
+        const destination = puzzle?.floor ?? fallbackDestination;
+        puzzleTitle.textContent = destination;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
         puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
         setPuzzleFeedback("");
         scanButton.disabled = false;
         scanButton.textContent = "Scan Location QR";
+        setPuzzleLockState("locked", { message: `Locked • Scan ${destination}` });
       } else {
         puzzleTitle.textContent = "Mission Locked";
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
@@ -1182,6 +1500,7 @@ const TEAM_COUNT = 11;
         setPuzzleFeedback("Use a GM override code here if you need to switch teams.");
         scanButton.disabled = false;
         scanButton.textContent = "Scan QR Code";
+        setPuzzleLockState("locked", { message: "Locked • Solve current mission" });
       }
 
       toggleAnswerForm(false);
@@ -1620,6 +1939,7 @@ const TEAM_COUNT = 11;
       state.unlocked[puzzleIndex] = true;
       state.revealed[puzzleIndex] = true;
       unlockAnimationQueue.add(puzzleIndex);
+      pendingPuzzleUnlockIndex = puzzleIndex;
       saveState();
       render();
 
@@ -1650,6 +1970,7 @@ const TEAM_COUNT = 11;
       state = defaultState(sanitizedTeam);
       state.hasStarted = true;
       revealNextDestination();
+      pendingPuzzleUnlockIndex = null;
       saveState();
       render();
 
@@ -1885,6 +2206,7 @@ const TEAM_COUNT = 11;
       try {
         const parsed = parseProgressInput(input);
         state = sanitizeState(parsed);
+        pendingPuzzleUnlockIndex = null;
         saveState();
         render();
         showStatus("Progress imported successfully.", "success");
