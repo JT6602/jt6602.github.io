@@ -805,8 +805,12 @@
       stream: null,
       detector: null,
       rafId: null,
-      activePuzzle: null
+      activePuzzle: null,
+      useJsQr: false,
+      canvas: null,
+      context: null
     };
+    let jsQrLoadPromise = null;
 
     const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
 
@@ -1152,7 +1156,14 @@
           scanSession.rafId = requestAnimationFrame(scanLoop);
           updateScanStatus("Scanning… Align the QR inside the frame.");
         } else {
-          updateScanStatus("QR detector unavailable. Enter the code manually.", "error");
+          updateScanStatus("Preparing fallback scanner…");
+          const jsQrReady = await loadJsQrLibrary();
+          if (jsQrReady) {
+            startJsQrLoop();
+            updateScanStatus("Scanning… Align the QR inside the frame.");
+          } else {
+            updateScanStatus("QR detector unavailable. Enter the code manually.", "error");
+          }
         }
       } catch (err) {
         console.error("Unable to start camera", err);
@@ -1180,6 +1191,98 @@
       scanSession.rafId = requestAnimationFrame(scanLoop);
     }
 
+    async function loadJsQrLibrary() {
+      if (typeof window.jsQR === "function") {
+        return true;
+      }
+      if (jsQrLoadPromise) {
+        return jsQrLoadPromise;
+      }
+
+      jsQrLoadPromise = new Promise(resolve => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        script.onload = () => resolve(typeof window.jsQR === "function");
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+
+      const ready = await jsQrLoadPromise;
+      if (!ready) {
+        jsQrLoadPromise = null;
+      }
+      return ready;
+    }
+
+    function startJsQrLoop() {
+      scanSession.detector = null;
+      scanSession.useJsQr = true;
+
+      if (!scanSession.canvas) {
+        scanSession.canvas = document.createElement("canvas");
+        scanSession.context =
+          scanSession.canvas.getContext("2d", { willReadFrequently: true }) ||
+          scanSession.canvas.getContext("2d");
+      }
+
+      if (!scanSession.context) {
+        console.warn("Unable to initialise fallback QR canvas context");
+        scanSession.useJsQr = false;
+        return;
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+    }
+
+    function scanLoopJsQr() {
+      if (!scanSession.useJsQr) {
+        return;
+      }
+
+      if (scannerVideo.readyState !== 4) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+        return;
+      }
+
+      const videoWidth = scannerVideo.videoWidth || scannerVideo.clientWidth;
+      const videoHeight = scannerVideo.videoHeight || scannerVideo.clientHeight;
+
+      if (!videoWidth || !videoHeight) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+        return;
+      }
+
+      const maxDimension = 480;
+      const scale = Math.min(1, maxDimension / Math.max(videoWidth, videoHeight));
+      const drawWidth = Math.max(1, Math.floor(videoWidth * scale));
+      const drawHeight = Math.max(1, Math.floor(videoHeight * scale));
+
+      if (scanSession.canvas.width !== drawWidth || scanSession.canvas.height !== drawHeight) {
+        scanSession.canvas.width = drawWidth;
+        scanSession.canvas.height = drawHeight;
+      }
+
+      scanSession.context.drawImage(scannerVideo, 0, 0, drawWidth, drawHeight);
+
+      try {
+        const imageData = scanSession.context.getImageData(0, 0, drawWidth, drawHeight);
+        const detector = window.jsQR;
+        if (typeof detector === "function") {
+          const result = detector(imageData.data, drawWidth, drawHeight, { inversionAttempts: "dontInvert" });
+          if (result?.data) {
+            handleScanResult(result.data);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Fallback QR scan failed", err);
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+    }
+
     function handleScanResult(value) {
       if (scanSession.activePuzzle === null) {
         return;
@@ -1193,6 +1296,13 @@
         completePuzzle(scanSession.activePuzzle, value);
       } else {
         updateScanStatus("Code mismatch. Ensure you scanned the correct floor QR.", "error");
+        if (scanSession.activePuzzle !== null) {
+          if (scanSession.detector) {
+            scanSession.rafId = requestAnimationFrame(scanLoop);
+          } else if (scanSession.useJsQr) {
+            scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+          }
+        }
       }
     }
 
@@ -1226,6 +1336,7 @@
         scannerVideo.srcObject = null;
       }
       scanSession.detector = null;
+      scanSession.useJsQr = false;
     }
 
     function updateScanStatus(message, tone) {
