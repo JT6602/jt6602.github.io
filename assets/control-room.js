@@ -1,0 +1,1520 @@
+const TEAM_COUNT = 11;
+    const PUZZLE_COUNT = 12;
+    const COOKIE_NAME = "towerHuntProgress";
+    const CACHE_DURATION_DAYS = 365;
+    const VALIDATION_DELAY_MS = 650;
+
+    const TEAM_NAMES = [
+      "Team 1",
+      "Team 2",
+      "Team 3",
+      "Team 4",
+      "Team 5",
+      "Team 6",
+      "Team 7",
+      "Team 8",
+      "Team 9",
+      "Team 10",
+      "Team 11"
+    ];
+
+    const TEAM_ORDERS = [
+      [1, 10, 3, 4, 7, 11, 8, 9, 5, 6, 2, 0],
+      [2, 9, 4, 8, 11, 3, 6, 10, 5, 7, 1, 0],
+      [3, 2, 4, 9, 5, 6, 1, 10, 7, 8, 11, 0],
+      [4, 8, 9, 6, 5, 2, 1, 10, 7, 3, 11, 0],
+      [5, 2, 10, 6, 3, 4, 11, 8, 1, 9, 7, 0],
+      [6, 3, 11, 8, 9, 10, 1, 7, 2, 4, 5, 0],
+      [7, 1, 3, 5, 11, 6, 2, 4, 8, 10, 9, 0],
+      [8, 10, 3, 7, 11, 9, 4, 6, 2, 1, 5, 0],
+      [9, 4, 11, 8, 6, 10, 3, 5, 2, 7, 1, 0],
+      [10, 8, 11, 3, 5, 1, 6, 4, 7, 9, 2, 0],
+      [11, 9, 4, 6, 5, 3, 8, 10, 1, 7, 2, 0]
+    ];
+
+    const QR_CODES = Object.freeze({
+      BASEMENT: "Z7PX-HL0Q-AV34",
+      FLOOR_1: "M1QF-8RVZ-T6JD",
+      FLOOR_2: "Q4SN-P2LX-9G0B",
+      FLOOR_3: "V9KT-3H2C-LM55",
+      FLOOR_4: "RX1B-W8Q7-5LZJ",
+      FLOOR_5: "T0HC-4ZKM-PP18",
+      FLOOR_6: "C8FW-J3VQ-7N2S",
+      FLOOR_7: "L5MB-Y6RT-XQ04",
+      FLOOR_8: "H2SV-N9PC-41LJ",
+      FLOOR_9: "G7QD-K0LX-UF82",
+      FLOOR_10: "P6ZR-2WQJ-M31T",
+      FLOOR_11: "B3XN-5TLY-VA96"
+    });
+
+    const START_CODES = Object.freeze({
+      "FRACTAL-DAWN-91QX": 0,
+      "ORBITAL-GLASS-62MT": 1,
+      "VELVET-EMBER-47NS": 2,
+      "SONAR-MOON-18PL": 3,
+      "EMBER-MASK-03VZ": 4,
+      "CRYPTIC-FIELD-76QA": 5,
+      "NEBULA-RIDGE-55LX": 6,
+      "MIRAGE-COIL-24HF": 7,
+      "SAPPHIRE-DUSK-88WR": 8,
+      "PRISM-HARBOR-69KU": 9,
+      "GOSSAMER-VAULT-12EC": 10
+    });
+
+    const GM_TEAM_CODES = Object.freeze({
+      "GM-FRACTAL-REMAP-742": 0,
+      "GM-ORBITAL-REMAP-953": 1,
+      "GM-VELVET-REMAP-184": 2,
+      "GM-SONAR-REMAP-625": 3,
+      "GM-EMBER-REMAP-307": 4,
+      "GM-CRYPTIC-REMAP-571": 5,
+      "GM-NEBULA-REMAP-468": 6,
+      "GM-MIRAGE-REMAP-259": 7,
+      "GM-SAPPHIRE-REMAP-836": 8,
+      "GM-PRISM-REMAP-914": 9,
+      "GM-GOSSAMER-REMAP-401": 10
+    });
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    const puzzles = [
+      { floor: "Basement", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.BASEMENT },
+      { floor: "Floor 1", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_1 },
+      { floor: "Floor 2", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_2 },
+      { floor: "Floor 3", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_3 },
+      { floor: "Floor 4", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_4 },
+      { floor: "Floor 5", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_5 },
+      { floor: "Floor 6", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_6 },
+      { floor: "Floor 7", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_7 },
+      { floor: "Floor 8", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_8 },
+      { floor: "Floor 9", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_9 },
+      { floor: "Floor 10", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_10 },
+      { floor: "Floor 11", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_11 }
+    ];
+
+    const PUZZLE_CODE_LOOKUP = Object.freeze(
+      puzzles.reduce((map, puzzle, index) => {
+        map[normalizeCode(puzzle.qr)] = index;
+        return map;
+      }, {})
+    );
+
+    const progressBar = document.getElementById("progressBar");
+    const progressCount = document.getElementById("progressCount");
+    const progressLabel = document.getElementById("progressLabel");
+    const resetButton = document.getElementById("resetAll");
+    const exportButton = document.getElementById("exportProgress");
+    const importButton = document.getElementById("importProgress");
+    const statusMessage = document.getElementById("statusMessage");
+
+    const puzzleTitle = document.getElementById("puzzleTitle");
+    const puzzleMeta = document.getElementById("puzzleMeta");
+    const puzzleBody = document.getElementById("puzzleBody");
+    const puzzleFeedback = document.getElementById("puzzleFeedback");
+    const scanButton = document.getElementById("scanButton");
+    const reviewProgressButton = document.getElementById("reviewProgress");
+    const answerForm = document.getElementById("answerForm");
+    const answerInput = document.getElementById("answerInput");
+    const answerSubmitButton = document.getElementById("answerSubmit");
+    const waitingAurora = document.getElementById("waitingAurora");
+    const platformTag = document.getElementById("platformTag");
+    const progressList = document.getElementById("progressList");
+    const progressPanel = document.getElementById("progressPanel");
+    const towerLevels = document.getElementById("towerLevels");
+    const rootMain = document.querySelector("main");
+    const gmSheet = document.getElementById("gmSheet");
+    const gmStartCodes = document.getElementById("gmStartCodes");
+    const gmOverrideCodes = document.getElementById("gmOverrideCodes");
+    const gmPuzzleCodes = document.getElementById("gmPuzzleCodes");
+    const gmTeamOrders = document.getElementById("gmTeamOrders");
+
+    const scannerModal = document.getElementById("scannerModal");
+    const scannerVideo = document.getElementById("scannerVideo");
+    const scanStatus = document.getElementById("scanStatus");
+    const scannerInstruction = document.getElementById("scannerInstruction");
+    const manualCodeInput = document.getElementById("manualCode");
+    const submitCodeButton = document.getElementById("submitCode");
+    const cancelScanButton = document.getElementById("cancelScan");
+    const scannerShell = document.getElementById("scannerShell");
+
+    const defaultState = (teamId = null) => ({
+      teamId,
+      hasStarted: false,
+      completions: Array.from({ length: PUZZLE_COUNT }, () => false),
+      unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
+      revealed: Array.from({ length: PUZZLE_COUNT }, () => false)
+    });
+
+    let state = loadState();
+    let statusTimeoutId = null;
+    let scanSession = {
+      stream: null,
+      detector: null,
+      rafId: null,
+      intent: null,
+      useJsQr: false,
+      canvas: null,
+      canvasContext: null,
+      isProcessing: false,
+      validationTimer: null
+    };
+    let jsQrLoadPromise = null;
+    const unlockAnimationQueue = new Set();
+
+    const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
+    const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
+    let prefersReducedMotion = Boolean(prefersReducedMotionQuery.matches);
+
+    if (typeof prefersReducedMotionQuery.addEventListener === "function") {
+      prefersReducedMotionQuery.addEventListener("change", event => {
+        prefersReducedMotion = event.matches;
+      });
+    } else if (typeof prefersReducedMotionQuery.addListener === "function") {
+      prefersReducedMotionQuery.addListener(event => {
+        prefersReducedMotion = event.matches;
+      });
+    }
+
+    const CONFETTI_THEMES = Object.freeze({
+      general: ["#6ff0eb", "#54c8f2", "#ffe066", "#f29b9b"],
+      start: ["#6ff0eb", "#8ef5a2", "#ffe066", "#9d65ff"],
+      unlock: ["#54f2f2", "#f2c94c", "#f29b9b", "#9d65ff"],
+      solve: ["#6ff0eb", "#ffe066", "#ff9a76", "#8ef5a2"],
+      finale: ["#6ff0eb", "#ff6f91", "#ffd460", "#9d65ff", "#f8f4ff"]
+    });
+    const searchParams = new URLSearchParams(window.location.search ?? "");
+    const isGmSheet =
+      window.location.pathname?.toLowerCase().includes("/gm-sheet") ||
+      (searchParams.get("view") ?? "").toLowerCase() === "gm" ||
+      window.location.hash?.toLowerCase().includes("gm-sheet");
+
+    initialize();
+
+    function initialize() {
+      if (isGmSheet) {
+        renderGmSheet();
+        return;
+      }
+      detectPlatform();
+      attachEventListeners();
+      render();
+    }
+
+    function renderGmSheet() {
+      document.body.classList.add("is-gm-sheet");
+      if (!document.title.toLowerCase().includes("gm reference sheet")) {
+        document.title = `GM Reference Sheet — ${document.title}`;
+      }
+      if (rootMain) {
+        rootMain.classList.add("is-hidden");
+      }
+      gmSheet?.classList.remove("is-hidden");
+
+      const startEntries = Object.entries(START_CODES).sort((a, b) => a[1] - b[1]);
+      if (gmStartCodes) {
+        gmStartCodes.innerHTML = startEntries
+          .map(([code, index]) => {
+            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
+          })
+          .join("");
+      }
+
+      const overrideEntries = Object.entries(GM_TEAM_CODES).sort((a, b) => a[1] - b[1]);
+      if (gmOverrideCodes) {
+        gmOverrideCodes.innerHTML = overrideEntries
+          .map(([code, index]) => {
+            const teamName = TEAM_NAMES[index] ?? `Team ${index + 1}`;
+            return `<tr><td>${teamName}</td><td><code>${code}</code></td></tr>`;
+          })
+          .join("");
+      }
+
+      if (gmPuzzleCodes) {
+        gmPuzzleCodes.innerHTML = puzzles
+          .map(puzzle => `<tr><td>${puzzle.floor}</td><td><code>${puzzle.qr}</code></td></tr>`)
+          .join("");
+      }
+
+      if (gmTeamOrders) {
+        gmTeamOrders.innerHTML = TEAM_ORDERS.map((order, teamIndex) => {
+          const teamName = TEAM_NAMES[teamIndex] ?? `Team ${teamIndex + 1}`;
+          const listItems = order
+            .map((puzzleIndex, step) => {
+              const puzzle = puzzles[puzzleIndex];
+              const label = puzzle ? puzzle.floor : `Puzzle ${puzzleIndex}`;
+              return `<li>Step ${step + 1}: ${label}</li>`;
+            })
+            .join("");
+          return `<article class="gm-order-card"><h3>${teamName}</h3><ol class="gm-order-list">${listItems}</ol></article>`;
+        }).join("");
+      }
+    }
+
+    function detectPlatform() {
+      const ua = navigator.userAgent || "";
+      const isIOS = /iPad|iPhone|iPod/.test(ua);
+      const isAndroid = /Android/.test(ua);
+      const isMobile = /Mobi|Android/i.test(ua);
+      let label = isMobile ? "Platform: Mobile" : "Platform: Desktop";
+      if (isIOS) label += " • iOS";
+      if (isAndroid) label += " • Android";
+      if (!hasMediaDevices) {
+        label += " • Camera unavailable";
+      }
+      platformTag.textContent = label;
+    }
+
+    function attachEventListeners() {
+      resetButton?.addEventListener("click", () => {
+        if (!confirm("Reset all progress on this device?")) return;
+        state = defaultState(state.teamId);
+        saveState();
+        render();
+        showStatus("Progress reset.", "success");
+      });
+
+      exportButton?.addEventListener("click", exportProgress);
+      importButton?.addEventListener("click", importProgress);
+
+      scanButton?.addEventListener("click", () => {
+        const intent = buildScanIntent();
+        if (intent.mode === "complete") {
+          showStatus("All missions already cleared.");
+          return;
+        }
+        openScanner(intent);
+      });
+
+      answerForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        submitPuzzleAnswer();
+      });
+
+      reviewProgressButton?.addEventListener("click", () => {
+        progressPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+        showStatus("Mission queue updated.");
+      });
+
+      submitCodeButton?.addEventListener("click", () => {
+        const code = manualCodeInput.value.trim();
+        if (!code) {
+          updateScanStatus("Enter a code before submitting.", "error");
+          manualCodeInput.focus();
+          return;
+        }
+        handleScanResult(code);
+      });
+
+      cancelScanButton?.addEventListener("click", () => {
+        closeScanner("Scan cancelled.");
+      });
+
+      window.addEventListener("beforeunload", stopScannerStream);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopScannerStream();
+        }
+      });
+    }
+
+    function loadState() {
+      const cookieValue = getCookie(COOKIE_NAME);
+      if (!cookieValue) {
+        return defaultState(null);
+      }
+      try {
+        const decoded = decodeCookieValue(cookieValue);
+        const parsed = JSON.parse(decoded);
+        return sanitizeState(parsed);
+      } catch (err) {
+        console.warn("Failed to parse cookie, resetting progress", err);
+        return defaultState(null);
+      }
+    }
+
+    function saveState() {
+      state = sanitizeState(state);
+      const payload = JSON.stringify(state);
+      const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
+      document.cookie = `${COOKIE_NAME}=${encodeURIComponent(payload)}; max-age=${maxAge}; path=/; SameSite=Lax`;
+    }
+
+    function getCookie(name) {
+      const prefix = `${name}=`;
+      return document.cookie
+        .split(";")
+        .map(entry => entry.trim())
+        .find(entry => entry.startsWith(prefix))
+        ?.slice(prefix.length)
+        ?.replace(/^"|"$/g, "");
+    }
+
+    function decodeCookieValue(value) {
+      try {
+        return decodeURIComponent(value);
+      } catch (err) {
+        return value;
+      }
+    }
+
+    function sanitizeState(candidate) {
+      const fallback = defaultState(null);
+      if (!candidate || typeof candidate !== "object") {
+        return fallback;
+      }
+
+      let teamId = null;
+      if (Number.isInteger(candidate.teamId)) {
+        teamId = clampNumber(candidate.teamId, 0, TEAM_COUNT - 1);
+      } else if (Number.isInteger(candidate.activeTeam)) {
+        teamId = clampNumber(candidate.activeTeam, 0, TEAM_COUNT - 1);
+      }
+
+      let completions = candidate.completions;
+
+      if (Array.isArray(candidate.progress) && candidate.progress.every(Array.isArray)) {
+        const activeTeamIndex = Number.isInteger(candidate.activeTeam)
+          ? clampNumber(candidate.activeTeam, 0, candidate.progress.length - 1)
+          : Number.isInteger(teamId)
+          ? clampNumber(teamId, 0, candidate.progress.length - 1)
+          : 0;
+        const source = candidate.progress[activeTeamIndex] ?? [];
+        completions = source.map(Boolean);
+      } else if (Array.isArray(candidate.progress)) {
+        completions = candidate.progress.map(Boolean);
+      }
+
+      if (!Array.isArray(completions)) {
+        completions = [];
+      }
+
+      const sanitizedCompletions = Array.from({ length: PUZZLE_COUNT }, (_, index) => Boolean(completions[index]));
+
+      const unlockedSource = Array.isArray(candidate.unlocked) ? candidate.unlocked : [];
+      const sanitizedUnlocked = Array.from({ length: PUZZLE_COUNT }, (_, index) => {
+        if (sanitizedCompletions[index]) return true;
+        return Boolean(unlockedSource[index]);
+      });
+
+      const revealedSource = Array.isArray(candidate.revealed) ? candidate.revealed : [];
+      const sanitizedRevealed = Array.from({ length: PUZZLE_COUNT }, (_, index) => {
+        if (sanitizedUnlocked[index]) return true;
+        return Boolean(revealedSource[index]);
+      });
+
+      const hasStarted =
+        Boolean(candidate.hasStarted) ||
+        sanitizedRevealed.some(Boolean) ||
+        sanitizedUnlocked.some(Boolean) ||
+        sanitizedCompletions.some(Boolean);
+
+      return {
+        teamId,
+        hasStarted,
+        completions: sanitizedCompletions,
+        unlocked: sanitizedUnlocked,
+        revealed: sanitizedRevealed
+      };
+    }
+
+    function clampNumber(value, min, max) {
+      const n = Number.isFinite(value) ? Number(value) : min;
+      return Math.min(Math.max(n, min), max);
+    }
+
+    function getTeamOrder() {
+      if (!Number.isInteger(state.teamId)) {
+        return [];
+      }
+      return TEAM_ORDERS[state.teamId]?.slice() ?? TEAM_ORDERS[0].slice();
+    }
+
+    function solvedCount() {
+      return state.completions.filter(Boolean).length;
+    }
+
+    function getNextDestinationIndex() {
+      if (!Number.isInteger(state.teamId)) {
+        return null;
+      }
+      const order = getTeamOrder();
+      const next = order.find(index => !state.completions[index]);
+      return typeof next === "number" ? next : null;
+    }
+
+    function getCurrentSolvingIndex() {
+      if (!Number.isInteger(state.teamId)) {
+        return null;
+      }
+      const order = getTeamOrder();
+      const next = order.find(index => state.unlocked[index] && !state.completions[index]);
+      return typeof next === "number" ? next : null;
+    }
+
+    function getStepNumber(puzzleIndex) {
+      const order = getTeamOrder();
+      const position = order.indexOf(puzzleIndex);
+      return position === -1 ? null : position + 1;
+    }
+
+    function buildScanIntent() {
+      if (!state.hasStarted || !Number.isInteger(state.teamId)) {
+        return { mode: "start" };
+      }
+
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null) {
+        return { mode: "location", puzzleIndex: currentSolving, reason: "rescan" };
+      }
+
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex !== null) {
+        if (state.revealed[nextIndex]) {
+          return { mode: "location", puzzleIndex: nextIndex, reason: "travel" };
+        }
+        return { mode: "locked", puzzleIndex: nextIndex };
+      }
+
+      return { mode: "complete" };
+    }
+
+    function render() {
+      renderProgress();
+      renderProgressList();
+      renderTowerMap();
+      processQueuedAnimations();
+      renderPuzzle();
+    }
+
+    function renderProgress() {
+      const solved = solvedCount();
+      progressBar.max = PUZZLE_COUNT;
+      progressBar.value = solved;
+      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} puzzles solved`;
+
+      if (Number.isInteger(state.teamId)) {
+        progressLabel.textContent = `${TEAM_NAMES[state.teamId]} Progress`;
+      } else if (state.hasStarted) {
+        progressLabel.textContent = "Progress";
+      } else {
+        progressLabel.textContent = "Awaiting start";
+      }
+    }
+
+    function renderProgressList() {
+      const order = getTeamOrder();
+      if (!state.hasStarted || !order.length) {
+        updateProgressDescriptor({ message: "Scan the starting QR to begin." });
+        renderProgressCard(null);
+        return;
+      }
+
+      const currentSolving = getCurrentSolvingIndex();
+      const nextDestination = getNextDestinationIndex();
+      const cardData = buildProgressCardData({ currentSolving, nextDestination, order });
+      updateProgressDescriptor(cardData.descriptor);
+      renderProgressCard(cardData.card);
+    }
+
+    function buildProgressCardData({ currentSolving, nextDestination, order }) {
+      const descriptor = { current: "", next: "" };
+      const card = {
+        stageLabel: "",
+        stageStatus: "",
+        index: null,
+        total: order.length,
+        travelHint: ""
+      };
+
+      if (currentSolving !== null) {
+        const step = order.indexOf(currentSolving) + 1;
+        descriptor.current = puzzles[currentSolving]?.floor ?? `Puzzle ${currentSolving}`;
+        descriptor.next = nextDestination !== null && nextDestination !== currentSolving ? puzzles[nextDestination]?.floor : "Awaiting unlock";
+        card.stageLabel = descriptor.current;
+        card.stageStatus = "Solve this floor";
+        card.index = step;
+        card.travelHint = "Submit the correct answer to reveal the next location.";
+        return { descriptor, card };
+      }
+
+      if (nextDestination !== null) {
+        const step = order.indexOf(nextDestination) + 1;
+        const destination = puzzles[nextDestination]?.floor ?? `Puzzle ${nextDestination}`;
+        descriptor.current = "Awaiting travel";
+        descriptor.next = destination;
+        card.stageLabel = destination;
+        card.stageStatus = "Travel to this floor";
+        card.index = step;
+        card.travelHint = "Scan the onsite QR code to unlock the puzzle.";
+        return { descriptor, card };
+      }
+
+      descriptor.current = "Tower complete";
+      descriptor.next = "All missions cleared";
+      card.stageLabel = "Mission Complete";
+      card.stageStatus = "Await further instructions";
+      card.travelHint = "Enjoy the victory lap.";
+      return { descriptor, card };
+    }
+
+    function updateProgressDescriptor(data) {
+      if (!progressDescriptor) return;
+      if (!data) {
+        progressDescriptor.innerHTML = "";
+        return;
+      }
+
+      if (data.message) {
+        progressDescriptor.innerHTML = `<span>${data.message}</span>`;
+        return;
+      }
+
+      const parts = [];
+      if (data.current) {
+        parts.push(`<div><strong>Current</strong><span>${data.current}</span></div>`);
+      }
+      if (data.next) {
+        parts.push(`<div><strong>Next</strong><span>${data.next}</span></div>`);
+      }
+      progressDescriptor.innerHTML = parts.join("");
+    }
+
+    function renderProgressCard(card) {
+      if (!progressCard) return;
+      if (!card) {
+        progressCard.innerHTML = "";
+        progressCard.className = "progress-card";
+        return;
+      }
+
+      const classes = ["progress-card"];
+      if (card.stageStatus.includes("Travel")) {
+        classes.push("is-travel");
+      } else if (card.stageStatus.includes("Solve")) {
+        classes.push("is-solving");
+      }
+
+      const progressBadge = card.index
+        ? `<div class="progress-index">${card.index}</div>`
+        : "";
+
+      const totalLabel = card.index
+        ? `<div class="progress-total">Step ${card.index} of ${card.total}</div>`
+        : "";
+
+      progressCard.className = classes.join(" ");
+      progressCard.innerHTML = `
+        <div class="progress-card-body">
+          <div class="progress-card-header">
+            ${progressBadge}
+            <div class="progress-card-title">
+              <div>${card.stageLabel}</div>
+              ${totalLabel}
+            </div>
+          </div>
+          <div class="progress-card-status">${card.stageStatus}</div>
+          <div class="travel-instruction">${card.travelHint}</div>
+        </div>
+      `;
+    }
+
+    function renderTowerMap() {
+      if (!towerLevels) return;
+
+      towerLevels.innerHTML = "";
+
+      const hasTeam = Number.isInteger(state.teamId);
+      const currentSolving = getCurrentSolvingIndex();
+      const nextDestination = getNextDestinationIndex();
+      const orderSet = new Set(getTeamOrder());
+
+      for (let index = puzzles.length - 1; index >= 0; index -= 1) {
+        const puzzle = puzzles[index];
+        const solved = Boolean(state.completions[index]);
+        const unlocked = Boolean(state.unlocked[index]);
+        const revealed = Boolean(state.revealed[index]);
+        const inPath = orderSet.has(index);
+
+        let statusClass = "is-pending";
+        let statusLabel = "Waiting";
+
+        if (state.hasStarted && hasTeam && inPath) {
+          statusClass = "is-locked";
+          statusLabel = "Locked";
+
+          if (solved) {
+            statusClass = "is-solved";
+            statusLabel = "Solved";
+          } else if (currentSolving === index) {
+            statusClass = "is-active";
+            statusLabel = "Solve now";
+          } else if (unlocked) {
+            statusClass = "is-unlocked";
+            statusLabel = "Solve now";
+          } else if (revealed) {
+            statusClass = "is-revealed";
+            statusLabel = "Travel";
+          } else if (nextDestination === index) {
+            statusLabel = "Next";
+          }
+        }
+
+        const level = document.createElement("div");
+        level.className = "tower-map-level";
+        level.classList.add(statusClass);
+        level.dataset.floorIndex = String(index);
+
+        const entry = document.createElement("div");
+        entry.className = "tower-map-entry";
+
+        const lockIcon = createTowerLockIcon();
+
+        const label = document.createElement("div");
+        label.className = "tower-map-label";
+        label.textContent = puzzle.floor;
+
+        entry.append(lockIcon, label);
+
+        const status = document.createElement("div");
+        status.className = "tower-map-status";
+        status.textContent = statusLabel;
+
+        level.append(entry, status);
+        towerLevels.append(level);
+
+        if (index === 1) {
+          const ground = document.createElement("div");
+          ground.className = "tower-ground-line";
+          towerLevels.append(ground);
+        }
+      }
+    }
+
+    function createTowerLockIcon() {
+      const svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("aria-hidden", "true");
+      svg.classList.add("tower-map-lock");
+
+      const shackle = document.createElementNS(SVG_NS, "path");
+      shackle.setAttribute("d", "M8 10V8a4 4 0 0 1 8 0v2");
+      shackle.classList.add("tower-map-lock-shackle");
+
+      const body = document.createElementNS(SVG_NS, "rect");
+      body.setAttribute("x", "6");
+      body.setAttribute("y", "10");
+      body.setAttribute("width", "12");
+      body.setAttribute("height", "10");
+      body.setAttribute("rx", "2.2");
+      body.classList.add("tower-map-lock-body");
+
+      const keyholeCircle = document.createElementNS(SVG_NS, "circle");
+      keyholeCircle.setAttribute("cx", "12");
+      keyholeCircle.setAttribute("cy", "14.4");
+      keyholeCircle.setAttribute("r", "1.3");
+      keyholeCircle.classList.add("tower-map-lock-keyhole");
+
+      const keyholeStem = document.createElementNS(SVG_NS, "rect");
+      keyholeStem.setAttribute("x", "11.4");
+      keyholeStem.setAttribute("y", "15.4");
+      keyholeStem.setAttribute("width", "1.2");
+      keyholeStem.setAttribute("height", "3.2");
+      keyholeStem.setAttribute("rx", "0.6");
+      keyholeStem.classList.add("tower-map-lock-keyhole");
+
+      svg.append(shackle, body, keyholeCircle, keyholeStem);
+      return svg;
+    }
+
+    function processQueuedAnimations() {
+      if (!towerLevels || unlockAnimationQueue.size === 0) {
+        unlockAnimationQueue.clear();
+        return;
+      }
+
+      const indexes = Array.from(unlockAnimationQueue);
+      unlockAnimationQueue.clear();
+
+      requestAnimationFrame(() => {
+        indexes.forEach(index => {
+          const target = towerLevels.querySelector(`[data-floor-index="${index}"]`);
+          if (target) {
+            target.classList.add("is-just-unlocked");
+          }
+        });
+      });
+    }
+
+    function renderPuzzle() {
+      const hasTeam = Number.isInteger(state.teamId);
+      reviewProgressButton.disabled = !state.hasStarted;
+      toggleWaitingAnimation(false);
+
+      if (!state.hasStarted || !hasTeam) {
+        puzzleTitle.textContent = "Awaiting Start";
+        puzzleMeta.textContent = "Scan the starting QR code to receive your mission order.";
+        puzzleBody.textContent = "Tap \"Scan Start Code\" when the game master signals the beginning of your run.";
+        setPuzzleFeedback("");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan Start Code";
+        toggleAnswerForm(false);
+        toggleWaitingAnimation(true);
+        return;
+      }
+
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null) {
+        const stepNumber = getStepNumber(currentSolving) ?? 0;
+        const puzzle = puzzles[currentSolving];
+        puzzleTitle.textContent = puzzle.floor;
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = puzzle.prompt;
+        setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
+        scanButton.disabled = false;
+        scanButton.textContent = "Rescan Location QR";
+        toggleAnswerForm(true);
+        return;
+      }
+
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex === null) {
+        puzzleTitle.textContent = "Tower Run Complete";
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Mission complete`;
+        puzzleBody.textContent = "Every level from the basement through Floor 11 is secure. Await further instructions or reset to replay.";
+        setPuzzleFeedback("");
+        scanButton.disabled = true;
+        scanButton.textContent = "Scan QR Code";
+        toggleAnswerForm(false);
+        return;
+      }
+
+      const revealed = Boolean(state.revealed[nextIndex]);
+      const stepNumber = getStepNumber(nextIndex) ?? 0;
+
+      if (revealed) {
+        const puzzle = puzzles[nextIndex];
+        puzzleTitle.textContent = puzzle.floor;
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
+        setPuzzleFeedback("");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan Location QR";
+      } else {
+        puzzleTitle.textContent = "Mission Locked";
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = "Solve the current puzzle to discover your next destination.";
+        setPuzzleFeedback("Use a GM override code here if you need to switch teams.");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan QR Code";
+      }
+
+      toggleAnswerForm(false);
+    }
+
+    function toggleAnswerForm(shouldShow) {
+      if (!answerForm) return;
+
+      if (shouldShow) {
+        answerForm.classList.remove("is-hidden");
+        if (answerInput) {
+          answerInput.disabled = false;
+        }
+        if (answerSubmitButton) {
+          answerSubmitButton.disabled = false;
+        }
+      } else {
+        answerForm.classList.add("is-hidden");
+        if (answerInput) {
+          answerInput.value = "";
+          answerInput.disabled = true;
+        }
+        if (answerSubmitButton) {
+          answerSubmitButton.disabled = true;
+        }
+      }
+    }
+
+    function toggleWaitingAnimation(shouldShow) {
+      if (!waitingAurora) return;
+
+      if (shouldShow) {
+        waitingAurora.setAttribute("aria-hidden", "false");
+        waitingAurora.classList.add("is-active");
+      } else {
+        waitingAurora.classList.remove("is-active");
+        waitingAurora.setAttribute("aria-hidden", "true");
+      }
+    }
+
+    function triggerConfetti({ theme = "general", pieces = 120, spread = 12 } = {}) {
+      if (prefersReducedMotion || typeof document === "undefined" || !document.body) {
+        return;
+      }
+
+      const colors = CONFETTI_THEMES[theme] ?? CONFETTI_THEMES.general;
+      const layer = document.createElement("div");
+      layer.className = "confetti-layer";
+
+      const baseDuration = 2400;
+
+      for (let index = 0; index < pieces; index += 1) {
+        const piece = document.createElement("span");
+        piece.className = "confetti-piece";
+        piece.style.left = `${Math.random() * 100}%`;
+        piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+        piece.style.setProperty("--confetti-travel", `${(Math.random() * 2 - 1) * spread}vw`);
+        piece.style.setProperty("--confetti-duration", `${baseDuration + Math.random() * 900}ms`);
+        piece.style.animationDelay = `${Math.random() * 180}ms`;
+        piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+        layer.append(piece);
+      }
+
+      document.body.append(layer);
+
+      window.setTimeout(() => {
+        layer.remove();
+      }, baseDuration + 1400);
+    }
+
+    function setPuzzleFeedback(message, tone) {
+      if (!puzzleFeedback) return;
+      puzzleFeedback.className = "answer-feedback";
+      if (tone === "success") {
+        puzzleFeedback.classList.add("success");
+      } else if (tone === "error") {
+        puzzleFeedback.classList.add("error");
+      }
+      puzzleFeedback.textContent = message;
+    }
+
+    function queueNextScanFrame() {
+      if (scannerModal.hidden) {
+        return;
+      }
+
+      if (scanSession.rafId) {
+        cancelAnimationFrame(scanSession.rafId);
+        scanSession.rafId = null;
+      }
+
+      if (scanSession.detector) {
+        scanSession.rafId = requestAnimationFrame(scanLoop);
+      } else if (scanSession.useJsQr) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+      }
+    }
+
+    function openScanner(intent) {
+      scanSession.intent = intent ?? null;
+      scannerModal.hidden = false;
+      finalizeValidation();
+      if (manualCodeInput) {
+        manualCodeInput.value = "";
+        manualCodeInput.disabled = false;
+      }
+      if (submitCodeButton) {
+        submitCodeButton.disabled = false;
+      }
+      updateScannerInstruction(intent);
+      updateScanStatus("Initializing camera…");
+      startScannerStream();
+    }
+
+    function updateScannerInstruction(intent) {
+      if (!scannerInstruction) {
+        return;
+      }
+
+      let message = "Align the QR code inside the frame.";
+
+      if (!intent) {
+        scannerInstruction.textContent = message;
+        return;
+      }
+
+      switch (intent.mode) {
+        case "start":
+          message = "Scan the starting QR code provided by the game master.";
+          break;
+        case "location":
+          message = "Scan the QR code posted at this mission location.";
+          break;
+        case "locked":
+          message = "Scan an override code from the game master or return after unlocking the next mission.";
+          break;
+        case "complete":
+          message = "The hunt is complete, but you can still scan a GM override if needed.";
+          break;
+        default:
+          break;
+      }
+
+      scannerInstruction.textContent = message;
+    }
+
+    async function startScannerStream() {
+      stopScannerStream();
+
+      if (!hasMediaDevices) {
+        updateScanStatus("Camera unavailable. Enter the code manually.", "error");
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        scanSession.stream = stream;
+        scannerVideo.srcObject = stream;
+        await scannerVideo.play();
+
+        if (window.BarcodeDetector) {
+          scanSession.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+          scanSession.rafId = requestAnimationFrame(scanLoop);
+          updateScanStatus("Scanning… Align the QR inside the frame.");
+        } else {
+          updateScanStatus("Preparing fallback scanner…");
+          const jsQrReady = await loadJsQrLibrary();
+          if (jsQrReady) {
+            startJsQrLoop();
+            updateScanStatus("Scanning… Align the QR inside the frame.");
+          } else {
+            updateScanStatus("QR detector unavailable. Enter the code manually.", "error");
+          }
+        }
+      } catch (err) {
+        console.error("Unable to start camera", err);
+        updateScanStatus("Camera access denied. Enter the code manually.", "error");
+      }
+    }
+
+    async function scanLoop() {
+      if (!scanSession.detector || scannerVideo.readyState !== 4) {
+        scanSession.rafId = requestAnimationFrame(scanLoop);
+        return;
+      }
+
+      try {
+        const barcodes = await scanSession.detector.detect(scannerVideo);
+        if (barcodes.length > 0) {
+          const value = barcodes[0].rawValue;
+          handleScanResult(value);
+          return;
+        }
+      } catch (err) {
+        console.error("Barcode detection failed", err);
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoop);
+    }
+
+    async function loadJsQrLibrary() {
+      if (typeof window.jsQR === "function") {
+        return true;
+      }
+      if (jsQrLoadPromise) {
+        return jsQrLoadPromise;
+      }
+
+      jsQrLoadPromise = new Promise(resolve => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        script.onload = () => resolve(typeof window.jsQR === "function");
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+
+      const ready = await jsQrLoadPromise;
+      if (!ready) {
+        jsQrLoadPromise = null;
+      }
+      return ready;
+    }
+
+    function startJsQrLoop() {
+      scanSession.detector = null;
+      scanSession.useJsQr = true;
+
+      if (!scanSession.canvas) {
+        scanSession.canvas = document.createElement("canvas");
+        scanSession.canvasContext =
+          scanSession.canvas.getContext("2d", { willReadFrequently: true }) ||
+          scanSession.canvas.getContext("2d");
+      }
+
+      if (!scanSession.canvasContext) {
+        console.warn("Unable to initialise fallback QR canvas context");
+        scanSession.useJsQr = false;
+        return;
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+    }
+
+    function scanLoopJsQr() {
+      if (!scanSession.useJsQr) {
+        return;
+      }
+
+      if (scannerVideo.readyState !== 4) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+        return;
+      }
+
+      const videoWidth = scannerVideo.videoWidth || scannerVideo.clientWidth;
+      const videoHeight = scannerVideo.videoHeight || scannerVideo.clientHeight;
+
+      if (!videoWidth || !videoHeight) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+        return;
+      }
+
+      const maxDimension = 480;
+      const scale = Math.min(1, maxDimension / Math.max(videoWidth, videoHeight));
+      const drawWidth = Math.max(1, Math.floor(videoWidth * scale));
+      const drawHeight = Math.max(1, Math.floor(videoHeight * scale));
+
+      if (scanSession.canvas.width !== drawWidth || scanSession.canvas.height !== drawHeight) {
+        scanSession.canvas.width = drawWidth;
+        scanSession.canvas.height = drawHeight;
+      }
+
+      scanSession.canvasContext.drawImage(scannerVideo, 0, 0, drawWidth, drawHeight);
+
+      try {
+        const imageData = scanSession.canvasContext.getImageData(0, 0, drawWidth, drawHeight);
+        const detector = window.jsQR;
+        if (typeof detector === "function") {
+          const result = detector(imageData.data, drawWidth, drawHeight, { inversionAttempts: "dontInvert" });
+          if (result?.data) {
+            handleScanResult(result.data);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Fallback QR scan failed", err);
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+    }
+
+    function handleScanResult(rawValue) {
+      if (scanSession.isProcessing) {
+        return;
+      }
+
+      const normalizedValue = normalizeCode(rawValue);
+
+      if (!normalizedValue) {
+        updateScanStatus("Unrecognized code. Try again.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      scanSession.isProcessing = true;
+      pauseScanLoop();
+      setScannerBusy(true);
+      updateScanStatus("Validating code…", "validating");
+
+      if (scanSession.validationTimer) {
+        clearTimeout(scanSession.validationTimer);
+        scanSession.validationTimer = null;
+      }
+
+      scanSession.validationTimer = window.setTimeout(() => {
+        processValidatedCode(normalizedValue, rawValue);
+      }, VALIDATION_DELAY_MS);
+    }
+
+    function processValidatedCode(normalizedValue, rawValue) {
+      scanSession.validationTimer = null;
+      let handled = false;
+
+      if (Object.prototype.hasOwnProperty.call(GM_TEAM_CODES, normalizedValue)) {
+        handled = handleTeamOverride(GM_TEAM_CODES[normalizedValue], rawValue);
+      } else if (Object.prototype.hasOwnProperty.call(START_CODES, normalizedValue)) {
+        handled = handleStartCode(START_CODES[normalizedValue], rawValue);
+      } else if (Object.prototype.hasOwnProperty.call(PUZZLE_CODE_LOOKUP, normalizedValue)) {
+        handled = handleLocationScan(PUZZLE_CODE_LOOKUP[normalizedValue]);
+      } else {
+        updateScanStatus("Code not recognized for this hunt. Check with the game master.", "error");
+      }
+
+      if (!handled) {
+        finalizeValidation({ resume: true });
+      }
+    }
+
+    function finalizeValidation({ resume = false } = {}) {
+      if (scanSession.validationTimer) {
+        clearTimeout(scanSession.validationTimer);
+        scanSession.validationTimer = null;
+      }
+      scanSession.isProcessing = false;
+      setScannerBusy(false);
+
+      if (resume) {
+        queueNextScanFrame();
+      }
+    }
+
+    function setScannerBusy(isBusy) {
+      if (isBusy) {
+        scannerShell?.classList.add("is-validating");
+      } else {
+        scannerShell?.classList.remove("is-validating");
+      }
+
+      if (submitCodeButton) {
+        submitCodeButton.disabled = Boolean(isBusy);
+      }
+      if (manualCodeInput) {
+        manualCodeInput.disabled = Boolean(isBusy);
+      }
+    }
+
+    function pauseScanLoop() {
+      if (scanSession.rafId) {
+        cancelAnimationFrame(scanSession.rafId);
+        scanSession.rafId = null;
+      }
+    }
+
+    function handleStartCode(teamId, rawValue) {
+      if (!Number.isInteger(teamId)) {
+        updateScanStatus("Start code not recognized.", "error");
+        return false;
+      }
+
+      const result = assignTeamRun(teamId, { sourceLabel: "Start", rawValue });
+      return Boolean(result);
+    }
+
+    function handleTeamOverride(teamId, rawValue) {
+      if (!Number.isInteger(teamId)) {
+        updateScanStatus("Override code not recognized.", "error");
+        return false;
+      }
+
+      const result = assignTeamRun(teamId, { sourceLabel: "GM override", rawValue });
+      return Boolean(result);
+    }
+
+    function handleLocationScan(puzzleIndex) {
+      if (!state.hasStarted || !Number.isInteger(state.teamId)) {
+        updateScanStatus("Scan your starting code before visiting floors.", "error");
+        return false;
+      }
+
+      if (!Number.isInteger(puzzleIndex) || puzzleIndex < 0 || puzzleIndex >= PUZZLE_COUNT) {
+        updateScanStatus("That QR code isn't part of this hunt.", "error");
+        return false;
+      }
+
+      const floorName = puzzles[puzzleIndex]?.floor ?? "This mission";
+
+      if (state.completions[puzzleIndex]) {
+        updateScanStatus(`${floorName} is already solved.`, "success");
+        return false;
+      }
+
+      if (state.unlocked[puzzleIndex]) {
+        updateScanStatus(`${floorName} is already unlocked. Submit the answer to continue.`, "success");
+        return false;
+      }
+
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null && currentSolving !== puzzleIndex) {
+        const activeName = puzzles[currentSolving]?.floor ?? "your current mission";
+        updateScanStatus(`Finish ${activeName} before scanning another mission.`, "error");
+        return false;
+      }
+
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex !== puzzleIndex) {
+        updateScanStatus(`${floorName} isn't unlocked yet for your team.`, "error");
+        return false;
+      }
+
+      if (!state.revealed[puzzleIndex]) {
+        updateScanStatus("That mission is still hidden. Solve the clue you already unlocked.", "error");
+        return false;
+      }
+
+      state.unlocked[puzzleIndex] = true;
+      state.revealed[puzzleIndex] = true;
+      unlockAnimationQueue.add(puzzleIndex);
+      saveState();
+      render();
+
+      closeScanner(`Location confirmed: ${floorName}.`, "success");
+      showStatus(`${floorName} puzzle unlocked.`, "success");
+      triggerConfetti({ theme: "unlock", pieces: 95, spread: 8 });
+
+      window.setTimeout(() => {
+        if (answerInput && !answerInput.disabled) {
+          answerInput.focus({ preventScroll: true });
+        }
+      }, 200);
+
+      return true;
+    }
+
+    function assignTeamRun(teamId, { sourceLabel = "Team" } = {}) {
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      const existingTeam = Number.isInteger(state.teamId) ? state.teamId : null;
+      const hadProgress = state.hasStarted && hasRecordedProgress();
+      const sameTeamWithoutProgress = state.hasStarted && existingTeam === sanitizedTeam && !hadProgress;
+
+      if (sameTeamWithoutProgress) {
+        updateScanStatus(`Already assigned to ${TEAM_NAMES[sanitizedTeam]}.`, "success");
+        return false;
+      }
+
+      state = defaultState(sanitizedTeam);
+      state.hasStarted = true;
+      revealNextDestination();
+      saveState();
+      render();
+
+      const nextIndex = getNextDestinationIndex();
+      const firstFloor = nextIndex !== null ? puzzles[nextIndex].floor : null;
+      const progressNote = hadProgress ? " Previous progress cleared." : "";
+      const teamName = TEAM_NAMES[sanitizedTeam];
+      const statusMessage = `${teamName} mission queue ready.${firstFloor ? ` Head to ${firstFloor}.` : ""}${progressNote}`.trim();
+
+      closeScanner(`${sourceLabel} code accepted for ${teamName}.`, "success");
+      showStatus(statusMessage, "success");
+      triggerConfetti({ theme: "start", pieces: hadProgress ? 140 : 110, spread: 10 });
+      return true;
+    }
+
+    function hasRecordedProgress() {
+      return state.unlocked.some(Boolean) || state.completions.some(Boolean);
+    }
+
+    function revealNextDestination() {
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex === null) {
+        return null;
+      }
+      state.revealed[nextIndex] = true;
+      return nextIndex;
+    }
+
+    function submitPuzzleAnswer() {
+      if (!answerInput || answerInput.disabled) {
+        setPuzzleFeedback("Unlock a puzzle before submitting an answer.", "error");
+        return;
+      }
+
+      const solvingIndex = getCurrentSolvingIndex();
+      if (solvingIndex === null) {
+        setPuzzleFeedback("Unlock a puzzle before submitting an answer.", "error");
+        return;
+      }
+
+      const guess = answerInput.value.trim();
+      if (!guess) {
+        setPuzzleFeedback("Enter an answer before submitting.", "error");
+        answerInput.focus();
+        return;
+      }
+
+      const puzzle = puzzles[solvingIndex];
+      const normalizedGuess = normalizeAnswer(guess);
+      const expectedAnswer = normalizeAnswer(puzzle.answer ?? "");
+
+      if (expectedAnswer && normalizedGuess !== expectedAnswer) {
+        setPuzzleFeedback("That answer isn't correct yet. Keep trying.", "error");
+        answerInput.select();
+        return;
+      }
+
+      answerInput.value = "";
+      state.unlocked[solvingIndex] = true;
+      state.completions[solvingIndex] = true;
+      const nextIndex = revealNextDestination();
+      saveState();
+      render();
+
+      const parts = [`${puzzle.floor} solved!`];
+      if (nextIndex !== null) {
+        parts.push(`Next mission revealed: ${puzzles[nextIndex].floor}.`);
+      } else {
+        parts.push("All missions complete!");
+      }
+
+      const summary = parts.join(" ");
+      setPuzzleFeedback(summary, "success");
+      showStatus(summary, "success");
+      if (nextIndex === null) {
+        triggerConfetti({ theme: "finale", pieces: 180, spread: 16 });
+      } else {
+        triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
+      }
+    }
+
+    function closeScanner(message, tone) {
+      if (message) {
+        updateScanStatus(message, tone);
+      }
+      finalizeValidation();
+      stopScannerStream();
+      scannerModal.hidden = true;
+    }
+
+    function stopScannerStream() {
+      pauseScanLoop();
+      if (scanSession.stream) {
+        scanSession.stream.getTracks().forEach(track => track.stop());
+        scanSession.stream = null;
+      }
+      if (scannerVideo.srcObject) {
+        scannerVideo.srcObject = null;
+      }
+      if (scanSession.validationTimer) {
+        clearTimeout(scanSession.validationTimer);
+        scanSession.validationTimer = null;
+      }
+      scanSession.isProcessing = false;
+      setScannerBusy(false);
+      scanSession.detector = null;
+      scanSession.useJsQr = false;
+      scanSession.intent = null;
+    }
+
+    function updateScanStatus(message, tone) {
+      if (!scanStatus) return;
+      scanStatus.textContent = message;
+      scanStatus.className = "scan-status";
+      if (tone === "success") {
+        scanStatus.classList.add("success");
+      } else if (tone === "error") {
+        scanStatus.classList.add("error");
+      } else if (tone === "validating") {
+        scanStatus.classList.add("validating");
+      }
+    }
+
+    function normalizeCode(value) {
+      return value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+    }
+
+    function normalizeAnswer(value) {
+      return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+
+    function showStatus(message, tone = "info") {
+      if (!statusMessage) return;
+      statusMessage.className = "status-message";
+      if (tone === "success") {
+        statusMessage.classList.add("success");
+      } else if (tone === "error") {
+        statusMessage.classList.add("error");
+      }
+      statusMessage.textContent = message;
+      statusMessage.classList.add("visible");
+
+      if (statusTimeoutId) {
+        clearTimeout(statusTimeoutId);
+      }
+      statusTimeoutId = window.setTimeout(() => {
+        statusMessage.className = "status-message";
+        statusMessage.textContent = "";
+        statusTimeoutId = null;
+      }, 4500);
+    }
+
+    function fallbackCopyPrompt(code) {
+      const promptMessage = "Progress code ready. Press Ctrl+C (Cmd+C on Mac) to copy:";
+      const response = window.prompt(promptMessage, code);
+      if (response !== null) {
+        showStatus("Progress code ready to share.", "success");
+      } else {
+        showStatus("Copy cancelled.");
+      }
+    }
+
+    function createShareCode(currentState) {
+      const sanitized = sanitizeState(currentState);
+      return btoa(JSON.stringify(sanitized));
+    }
+
+    function exportProgress() {
+      const shareCode = createShareCode(state);
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard
+          .writeText(shareCode)
+          .then(() => showStatus("Copied progress code to clipboard.", "success"))
+          .catch(() => {
+            fallbackCopyPrompt(shareCode);
+          });
+        return;
+      }
+
+      fallbackCopyPrompt(shareCode);
+    }
+
+    function parseProgressInput(rawInput) {
+      const trimmed = rawInput.trim();
+      if (!trimmed) {
+        throw new Error("No data supplied");
+      }
+
+      const cookiePattern = new RegExp(`${COOKIE_NAME}=([^;\s]+)`);
+      const cookieMatch = trimmed.match(cookiePattern);
+      const encoded = cookieMatch ? cookieMatch[1] : trimmed;
+
+      const candidates = new Set([encoded]);
+      const decoded = decodeCookieValue(encoded);
+      candidates.add(decoded);
+
+      try {
+        candidates.add(atob(encoded));
+      } catch (err) {
+        // ignore
+      }
+
+      try {
+        candidates.add(atob(decoded));
+      } catch (err) {
+        // ignore
+      }
+
+      for (const candidate of candidates) {
+        if (!candidate || typeof candidate !== "string") continue;
+        try {
+          return JSON.parse(candidate);
+        } catch (err) {
+          // continue
+        }
+      }
+
+      throw new Error("Unable to parse progress input");
+    }
+
+    function importProgress() {
+      const input = window.prompt("Paste a progress code or cookie value to import:");
+      if (input === null) {
+        showStatus("Import cancelled.");
+        return;
+      }
+
+      if (!input.trim()) {
+        showStatus("Nothing to import. Paste a code and try again.", "error");
+        return;
+      }
+
+      try {
+        const parsed = parseProgressInput(input);
+        state = sanitizeState(parsed);
+        saveState();
+        render();
+        showStatus("Progress imported successfully.", "success");
+      } catch (err) {
+        console.error("Import failed", err);
+        showStatus("Import failed. Check the code and try again.", "error");
+      }
+    }
