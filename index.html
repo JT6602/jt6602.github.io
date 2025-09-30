@@ -21,6 +21,10 @@
       box-sizing: border-box;
     }
 
+    .is-hidden {
+      display: none !important;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -252,6 +256,29 @@
       flex-wrap: wrap;
       gap: 1rem;
       align-items: center;
+    }
+
+    .answer-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .answer-form input {
+      flex: 1;
+      min-width: 220px;
+      border-radius: 12px;
+      border: 1px solid rgba(91, 192, 190, 0.3);
+      background: rgba(3, 15, 32, 0.72);
+      color: var(--text);
+      padding: 0.65rem 0.85rem;
+      letter-spacing: 0.05em;
+      font-size: 0.95rem;
+    }
+
+    .answer-form button {
+      flex-shrink: 0;
     }
 
     .answer-feedback {
@@ -661,6 +688,17 @@
           <button type="button" class="primary-action" id="scanButton" disabled>Start QR Scan</button>
           <button type="button" class="secondary-link" id="reviewProgress">View Mission Queue</button>
         </div>
+        <form class="answer-form is-hidden" id="answerForm">
+          <input
+            type="text"
+            id="answerInput"
+            placeholder="Enter puzzle answer"
+            aria-label="Puzzle answer"
+            autocomplete="off"
+            inputmode="text"
+          />
+          <button type="submit" class="primary-action" id="answerSubmit">Submit Answer</button>
+        </form>
         <div class="answer-feedback" id="puzzleFeedback" aria-live="polite"></div>
       </article>
       <aside class="progress-track" id="progressPanel">
@@ -675,17 +713,6 @@
       one year and is scoped to this page.
     </footer>
   </main>
-
-  <div class="modal-backdrop" id="teamModal">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="teamModalTitle">
-      <h2 id="teamModalTitle">Select Your Team</h2>
-      <p>
-        Each team tackles the tower floors in a unique sequence. Choose your team to load the proper mission order. Progress saves
-        to this device.
-      </p>
-      <div class="team-grid" id="teamGrid" role="listbox" aria-label="Available teams"></div>
-    </div>
-  </div>
 
   <div class="modal-backdrop" id="scannerModal" hidden>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
@@ -752,20 +779,43 @@
       FLOOR_11: "FLOOR11-QR-111"
     });
 
+    const START_CODES = Object.freeze(
+      TEAM_NAMES.reduce((map, _name, index) => {
+        const code = `TEAM${index + 1}-START-QR`;
+        map[code] = index;
+        return map;
+      }, {})
+    );
+
+    const GM_TEAM_CODES = Object.freeze(
+      TEAM_NAMES.reduce((map, _name, index) => {
+        const code = `GM-TEAM${index + 1}-SWITCH`;
+        map[code] = index;
+        return map;
+      }, {})
+    );
+
     const puzzles = [
-      { floor: "Basement", prompt: "The answer is: 'tower'", qr: QR_CODES.BASEMENT },
-      { floor: "Floor 1", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_1 },
-      { floor: "Floor 2", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_2 },
-      { floor: "Floor 3", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_3 },
-      { floor: "Floor 4", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_4 },
-      { floor: "Floor 5", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_5 },
-      { floor: "Floor 6", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_6 },
-      { floor: "Floor 7", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_7 },
-      { floor: "Floor 8", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_8 },
-      { floor: "Floor 9", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_9 },
-      { floor: "Floor 10", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_10 },
-      { floor: "Floor 11", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_11 }
+      { floor: "Basement", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.BASEMENT },
+      { floor: "Floor 1", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_1 },
+      { floor: "Floor 2", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_2 },
+      { floor: "Floor 3", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_3 },
+      { floor: "Floor 4", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_4 },
+      { floor: "Floor 5", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_5 },
+      { floor: "Floor 6", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_6 },
+      { floor: "Floor 7", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_7 },
+      { floor: "Floor 8", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_8 },
+      { floor: "Floor 9", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_9 },
+      { floor: "Floor 10", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_10 },
+      { floor: "Floor 11", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_11 }
     ];
+
+    const PUZZLE_CODE_LOOKUP = Object.freeze(
+      puzzles.reduce((map, puzzle, index) => {
+        map[normalizeCode(puzzle.qr)] = index;
+        return map;
+      }, {})
+    );
 
     const progressBar = document.getElementById("progressBar");
     const progressCount = document.getElementById("progressCount");
@@ -781,22 +831,27 @@
     const puzzleFeedback = document.getElementById("puzzleFeedback");
     const scanButton = document.getElementById("scanButton");
     const reviewProgressButton = document.getElementById("reviewProgress");
+    const answerForm = document.getElementById("answerForm");
+    const answerInput = document.getElementById("answerInput");
+    const answerSubmitButton = document.getElementById("answerSubmit");
     const platformTag = document.getElementById("platformTag");
     const progressList = document.getElementById("progressList");
     const progressPanel = document.getElementById("progressPanel");
 
-    const teamModal = document.getElementById("teamModal");
-    const teamGrid = document.getElementById("teamGrid");
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
     const scanStatus = document.getElementById("scanStatus");
+    const scannerInstruction = document.getElementById("scannerInstruction");
     const manualCodeInput = document.getElementById("manualCode");
     const submitCodeButton = document.getElementById("submitCode");
     const cancelScanButton = document.getElementById("cancelScan");
 
     const defaultState = (teamId = null) => ({
       teamId,
-      completions: Array.from({ length: PUZZLE_COUNT }, () => false)
+      hasStarted: false,
+      completions: Array.from({ length: PUZZLE_COUNT }, () => false),
+      unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
+      revealed: Array.from({ length: PUZZLE_COUNT }, () => false)
     });
 
     let state = loadState();
@@ -805,10 +860,10 @@
       stream: null,
       detector: null,
       rafId: null,
-      activePuzzle: null,
+      intent: null,
       useJsQr: false,
       canvas: null,
-      context: null
+      canvasContext: null
     };
     let jsQrLoadPromise = null;
 
@@ -817,46 +872,9 @@
     initialize();
 
     function initialize() {
-      populateTeamGrid();
       detectPlatform();
       attachEventListeners();
       render();
-    }
-
-    function populateTeamGrid() {
-      teamGrid.innerHTML = "";
-      TEAM_NAMES.forEach((name, index) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "team-select";
-        button.textContent = name;
-        button.dataset.team = index;
-        button.addEventListener("click", () => handleTeamSelect(index));
-        teamGrid.append(button);
-      });
-    }
-
-    function handleTeamSelect(teamId) {
-      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
-      const switchingTeams = state.teamId !== null && state.teamId !== sanitizedTeam && state.completions.some(Boolean);
-
-      if (switchingTeams && !confirm("Switch teams and reset progress on this device?")) {
-        return;
-      }
-
-      state = defaultState(sanitizedTeam);
-      saveState();
-      closeTeamModal();
-      showStatus(`${TEAM_NAMES[sanitizedTeam]} mission queue ready.`, "success");
-      render();
-    }
-
-    function openTeamModal() {
-      teamModal.hidden = false;
-    }
-
-    function closeTeamModal() {
-      teamModal.hidden = true;
     }
 
     function detectPlatform() {
@@ -886,12 +904,17 @@
       importButton?.addEventListener("click", importProgress);
 
       scanButton?.addEventListener("click", () => {
-        const activePuzzle = getActivePuzzleIndex();
-        if (activePuzzle === null) {
+        const intent = buildScanIntent();
+        if (intent.mode === "complete") {
           showStatus("All missions already cleared.");
           return;
         }
-        openScanner(activePuzzle);
+        openScanner(intent);
+      });
+
+      answerForm?.addEventListener("submit", event => {
+        event.preventDefault();
+        submitPuzzleAnswer();
       });
 
       reviewProgressButton?.addEventListener("click", () => {
@@ -967,16 +990,22 @@
         return fallback;
       }
 
-      let teamId = candidate.teamId;
-      if (!Number.isInteger(teamId)) {
-        teamId = clampNumber(candidate.activeTeam ?? 0, 0, TEAM_COUNT - 1);
+      let teamId = null;
+      if (Number.isInteger(candidate.teamId)) {
+        teamId = clampNumber(candidate.teamId, 0, TEAM_COUNT - 1);
+      } else if (Number.isInteger(candidate.activeTeam)) {
+        teamId = clampNumber(candidate.activeTeam, 0, TEAM_COUNT - 1);
       }
-      teamId = clampNumber(teamId, 0, TEAM_COUNT - 1);
 
       let completions = candidate.completions;
 
       if (Array.isArray(candidate.progress) && candidate.progress.every(Array.isArray)) {
-        const source = candidate.progress[clampNumber(candidate.activeTeam ?? teamId, 0, candidate.progress.length - 1)] ?? [];
+        const activeTeamIndex = Number.isInteger(candidate.activeTeam)
+          ? clampNumber(candidate.activeTeam, 0, candidate.progress.length - 1)
+          : Number.isInteger(teamId)
+          ? clampNumber(teamId, 0, candidate.progress.length - 1)
+          : 0;
+        const source = candidate.progress[activeTeamIndex] ?? [];
         completions = source.map(Boolean);
       } else if (Array.isArray(candidate.progress)) {
         completions = candidate.progress.map(Boolean);
@@ -988,9 +1017,30 @@
 
       const sanitizedCompletions = Array.from({ length: PUZZLE_COUNT }, (_, index) => Boolean(completions[index]));
 
+      const unlockedSource = Array.isArray(candidate.unlocked) ? candidate.unlocked : [];
+      const sanitizedUnlocked = Array.from({ length: PUZZLE_COUNT }, (_, index) => {
+        if (sanitizedCompletions[index]) return true;
+        return Boolean(unlockedSource[index]);
+      });
+
+      const revealedSource = Array.isArray(candidate.revealed) ? candidate.revealed : [];
+      const sanitizedRevealed = Array.from({ length: PUZZLE_COUNT }, (_, index) => {
+        if (sanitizedUnlocked[index]) return true;
+        return Boolean(revealedSource[index]);
+      });
+
+      const hasStarted =
+        Boolean(candidate.hasStarted) ||
+        sanitizedRevealed.some(Boolean) ||
+        sanitizedUnlocked.some(Boolean) ||
+        sanitizedCompletions.some(Boolean);
+
       return {
         teamId,
-        completions: sanitizedCompletions
+        hasStarted,
+        completions: sanitizedCompletions,
+        unlocked: sanitizedUnlocked,
+        revealed: sanitizedRevealed
       };
     }
 
@@ -1010,7 +1060,7 @@
       return state.completions.filter(Boolean).length;
     }
 
-    function getActivePuzzleIndex() {
+    function getNextDestinationIndex() {
       if (!Number.isInteger(state.teamId)) {
         return null;
       }
@@ -1019,60 +1069,86 @@
       return typeof next === "number" ? next : null;
     }
 
-    function render() {
+    function getCurrentSolvingIndex() {
       if (!Number.isInteger(state.teamId)) {
-        openTeamModal();
-        disableStage();
-      } else {
-        closeTeamModal();
-        enableStage();
+        return null;
+      }
+      const order = getTeamOrder();
+      const next = order.find(index => state.unlocked[index] && !state.completions[index]);
+      return typeof next === "number" ? next : null;
+    }
+
+    function getStepNumber(puzzleIndex) {
+      const order = getTeamOrder();
+      const position = order.indexOf(puzzleIndex);
+      return position === -1 ? null : position + 1;
+    }
+
+    function buildScanIntent() {
+      if (!state.hasStarted || !Number.isInteger(state.teamId)) {
+        return { mode: "start" };
       }
 
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null) {
+        return { mode: "location", puzzleIndex: currentSolving, reason: "rescan" };
+      }
+
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex !== null) {
+        if (state.revealed[nextIndex]) {
+          return { mode: "location", puzzleIndex: nextIndex, reason: "travel" };
+        }
+        return { mode: "locked", puzzleIndex: nextIndex };
+      }
+
+      return { mode: "complete" };
+    }
+
+    function render() {
       renderProgress();
       renderProgressList();
       renderPuzzle();
-    }
-
-    function disableStage() {
-      scanButton.disabled = true;
-      reviewProgressButton.disabled = true;
-      puzzleTitle.textContent = "Select a Team";
-      puzzleMeta.textContent = "Awaiting mission queue";
-      puzzleBody.textContent = "Choose your team to load the tower mission order.";
-      puzzleFeedback.textContent = "";
-    }
-
-    function enableStage() {
-      scanButton.disabled = false;
-      reviewProgressButton.disabled = false;
     }
 
     function renderProgress() {
       const solved = solvedCount();
       progressBar.max = PUZZLE_COUNT;
       progressBar.value = solved;
-      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} floors cleared`;
-      const teamName = Number.isInteger(state.teamId) ? TEAM_NAMES[state.teamId] : "";
-      progressLabel.textContent = teamName ? `${teamName} Progress` : "Hunt Progress";
+      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} puzzles solved`;
+
+      if (Number.isInteger(state.teamId)) {
+        progressLabel.textContent = `${TEAM_NAMES[state.teamId]} Progress`;
+      } else if (state.hasStarted) {
+        progressLabel.textContent = "Progress";
+      } else {
+        progressLabel.textContent = "Awaiting start";
+      }
     }
 
     function renderProgressList() {
       const order = getTeamOrder();
-      if (!order.length) {
-        progressList.innerHTML = "<p>No team selected.</p>";
+      progressList.innerHTML = "";
+
+      if (!state.hasStarted || !order.length) {
+        progressList.innerHTML = "<p>Scan the starting QR code to load your mission queue.</p>";
         return;
       }
 
-      const active = getActivePuzzleIndex();
+      const currentDestination = getNextDestinationIndex();
+      const currentSolving = getCurrentSolvingIndex();
 
-      progressList.innerHTML = "";
       order.forEach((puzzleIndex, sequenceIndex) => {
+        const solved = Boolean(state.completions[puzzleIndex]);
+        const unlocked = Boolean(state.unlocked[puzzleIndex]);
+        const revealed = Boolean(state.revealed[puzzleIndex]);
+
         const item = document.createElement("div");
         item.className = "progress-item";
 
-        if (state.completions[puzzleIndex]) {
+        if (solved) {
           item.classList.add("complete");
-        } else if (puzzleIndex === active) {
+        } else if (puzzleIndex === currentSolving || (puzzleIndex === currentDestination && revealed && !unlocked)) {
           item.classList.add("active");
         }
 
@@ -1082,17 +1158,22 @@
 
         const content = document.createElement("div");
         content.className = "progress-content";
+
         const title = document.createElement("div");
-        title.textContent = puzzles[puzzleIndex].floor;
+        title.textContent = revealed || solved ? puzzles[puzzleIndex].floor : "Unknown Floor";
 
         const status = document.createElement("div");
         status.className = "progress-status";
-        if (state.completions[puzzleIndex]) {
+
+        if (solved) {
           status.classList.add("unlocked");
-          status.textContent = "Cleared";
-        } else if (puzzleIndex === active) {
+          status.textContent = "Solved";
+        } else if (unlocked) {
           status.classList.add("unlocked");
-          status.textContent = "Ready";
+          status.textContent = "Solve now";
+        } else if (revealed) {
+          status.classList.add("unlocked");
+          status.textContent = "Travel";
         } else {
           status.classList.add("locked");
           status.textContent = "Locked";
@@ -1105,36 +1186,150 @@
     }
 
     function renderPuzzle() {
-      const activePuzzle = getActivePuzzleIndex();
+      const hasTeam = Number.isInteger(state.teamId);
+      reviewProgressButton.disabled = !state.hasStarted;
 
-      if (activePuzzle === null) {
-        puzzleTitle.textContent = "Tower Run Complete";
-        puzzleMeta.textContent = Number.isInteger(state.teamId)
-          ? `${TEAM_NAMES[state.teamId]} • Mission complete`
-          : "Mission complete";
-        puzzleBody.textContent = "Every level from the basement through Floor 11 is secure. Await further instructions or reset to replay.";
-        puzzleFeedback.textContent = "";
-        scanButton.disabled = true;
+      if (!state.hasStarted || !hasTeam) {
+        puzzleTitle.textContent = "Awaiting Start";
+        puzzleMeta.textContent = "Scan the starting QR code to receive your mission order.";
+        puzzleBody.textContent = "Tap \"Scan Start Code\" when the game master signals the beginning of your run.";
+        setPuzzleFeedback("");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan Start Code";
+        toggleAnswerForm(false);
         return;
       }
 
-      const order = getTeamOrder();
-      const stepNumber = order.indexOf(activePuzzle) + 1;
-      const puzzle = puzzles[activePuzzle];
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null) {
+        const stepNumber = getStepNumber(currentSolving) ?? 0;
+        const puzzle = puzzles[currentSolving];
+        puzzleTitle.textContent = puzzle.floor;
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = puzzle.prompt;
+        setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
+        scanButton.disabled = false;
+        scanButton.textContent = "Rescan Location QR";
+        toggleAnswerForm(true);
+        return;
+      }
 
-      puzzleTitle.textContent = puzzle.floor;
-      puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
-      puzzleBody.textContent = puzzle.prompt;
-      puzzleFeedback.textContent = "Scan the QR code for this level to unlock the next mission.";
-      scanButton.disabled = false;
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex === null) {
+        puzzleTitle.textContent = "Tower Run Complete";
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Mission complete`;
+        puzzleBody.textContent = "Every level from the basement through Floor 11 is secure. Await further instructions or reset to replay.";
+        setPuzzleFeedback("");
+        scanButton.disabled = true;
+        scanButton.textContent = "Scan QR Code";
+        toggleAnswerForm(false);
+        return;
+      }
+
+      const revealed = Boolean(state.revealed[nextIndex]);
+      const stepNumber = getStepNumber(nextIndex) ?? 0;
+
+      if (revealed) {
+        const puzzle = puzzles[nextIndex];
+        puzzleTitle.textContent = puzzle.floor;
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
+        setPuzzleFeedback("");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan Location QR";
+      } else {
+        puzzleTitle.textContent = "Mission Locked";
+        puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
+        puzzleBody.textContent = "Solve the current puzzle to discover your next destination.";
+        setPuzzleFeedback("Use a GM override code here if you need to switch teams.");
+        scanButton.disabled = false;
+        scanButton.textContent = "Scan QR Code";
+      }
+
+      toggleAnswerForm(false);
     }
 
-    function openScanner(puzzleIndex) {
-      scanSession.activePuzzle = puzzleIndex;
+    function toggleAnswerForm(shouldShow) {
+      if (!answerForm) return;
+
+      if (shouldShow) {
+        answerForm.classList.remove("is-hidden");
+        if (answerInput) {
+          answerInput.disabled = false;
+        }
+        if (answerSubmitButton) {
+          answerSubmitButton.disabled = false;
+        }
+      } else {
+        answerForm.classList.add("is-hidden");
+        if (answerInput) {
+          answerInput.value = "";
+          answerInput.disabled = true;
+        }
+        if (answerSubmitButton) {
+          answerSubmitButton.disabled = true;
+        }
+      }
+    }
+
+    function setPuzzleFeedback(message, tone) {
+      if (!puzzleFeedback) return;
+      puzzleFeedback.className = "answer-feedback";
+      if (tone === "success") {
+        puzzleFeedback.classList.add("success");
+      } else if (tone === "error") {
+        puzzleFeedback.classList.add("error");
+      }
+      puzzleFeedback.textContent = message;
+    }
+
+    function queueNextScanFrame() {
+      if (scanSession.detector) {
+        scanSession.rafId = requestAnimationFrame(scanLoop);
+      } else if (scanSession.useJsQr) {
+        scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
+      }
+    }
+
+    function openScanner(intent) {
+      scanSession.intent = intent ?? null;
       scannerModal.hidden = false;
       manualCodeInput.value = "";
+      updateScannerInstruction(intent);
       updateScanStatus("Initializing camera…");
       startScannerStream();
+    }
+
+    function updateScannerInstruction(intent) {
+      if (!scannerInstruction) {
+        return;
+      }
+
+      let message = "Align the QR code inside the frame.";
+
+      if (!intent) {
+        scannerInstruction.textContent = message;
+        return;
+      }
+
+      switch (intent.mode) {
+        case "start":
+          message = "Scan the starting QR code provided by the game master.";
+          break;
+        case "location":
+          message = "Scan the QR code posted at this mission location.";
+          break;
+        case "locked":
+          message = "Scan an override code from the game master or return after unlocking the next mission.";
+          break;
+        case "complete":
+          message = "The hunt is complete, but you can still scan a GM override if needed.";
+          break;
+        default:
+          break;
+      }
+
+      scannerInstruction.textContent = message;
     }
 
     async function startScannerStream() {
@@ -1222,12 +1417,12 @@
 
       if (!scanSession.canvas) {
         scanSession.canvas = document.createElement("canvas");
-        scanSession.context =
+        scanSession.canvasContext =
           scanSession.canvas.getContext("2d", { willReadFrequently: true }) ||
           scanSession.canvas.getContext("2d");
       }
 
-      if (!scanSession.context) {
+      if (!scanSession.canvasContext) {
         console.warn("Unable to initialise fallback QR canvas context");
         scanSession.useJsQr = false;
         return;
@@ -1264,10 +1459,10 @@
         scanSession.canvas.height = drawHeight;
       }
 
-      scanSession.context.drawImage(scannerVideo, 0, 0, drawWidth, drawHeight);
+      scanSession.canvasContext.drawImage(scannerVideo, 0, 0, drawWidth, drawHeight);
 
       try {
-        const imageData = scanSession.context.getImageData(0, 0, drawWidth, drawHeight);
+        const imageData = scanSession.canvasContext.getImageData(0, 0, drawWidth, drawHeight);
         const detector = window.jsQR;
         if (typeof detector === "function") {
           const result = detector(imageData.data, drawWidth, drawHeight, { inversionAttempts: "dontInvert" });
@@ -1284,43 +1479,217 @@
     }
 
     function handleScanResult(value) {
-      if (scanSession.activePuzzle === null) {
+      const normalizedValue = normalizeCode(value);
+
+      if (!normalizedValue) {
+        updateScanStatus("Unrecognized code. Try again.", "error");
+        queueNextScanFrame();
         return;
       }
 
-      const expected = puzzles[scanSession.activePuzzle].qr;
-      const normalizedValue = normalizeCode(value);
-      const normalizedExpected = normalizeCode(expected);
+      if (Object.prototype.hasOwnProperty.call(GM_TEAM_CODES, normalizedValue)) {
+        handleTeamOverride(GM_TEAM_CODES[normalizedValue], value);
+        return;
+      }
 
-      if (normalizedValue === normalizedExpected) {
-        completePuzzle(scanSession.activePuzzle, value);
-      } else {
-        updateScanStatus("Code mismatch. Ensure you scanned the correct floor QR.", "error");
-        if (scanSession.activePuzzle !== null) {
-          if (scanSession.detector) {
-            scanSession.rafId = requestAnimationFrame(scanLoop);
-          } else if (scanSession.useJsQr) {
-            scanSession.rafId = requestAnimationFrame(scanLoopJsQr);
-          }
-        }
+      if (Object.prototype.hasOwnProperty.call(START_CODES, normalizedValue)) {
+        handleStartCode(START_CODES[normalizedValue], value);
+        return;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(PUZZLE_CODE_LOOKUP, normalizedValue)) {
+        handleLocationScan(PUZZLE_CODE_LOOKUP[normalizedValue]);
+        return;
+      }
+
+      updateScanStatus("Code not recognized for this hunt. Check with the game master.", "error");
+      queueNextScanFrame();
+    }
+
+    function handleStartCode(teamId, rawValue) {
+      if (!Number.isInteger(teamId)) {
+        updateScanStatus("Start code not recognized.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      const result = assignTeamRun(teamId, { sourceLabel: "Start", rawValue });
+      if (!result) {
+        queueNextScanFrame();
       }
     }
 
-    function completePuzzle(puzzleIndex, rawValue) {
-      state.completions[puzzleIndex] = true;
-      saveState();
-      closeScanner(`Code accepted (${rawValue}).`);
-      showStatus(`${puzzles[puzzleIndex].floor} unlocked.`, "success");
-      render();
+    function handleTeamOverride(teamId, rawValue) {
+      if (!Number.isInteger(teamId)) {
+        updateScanStatus("Override code not recognized.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      const result = assignTeamRun(teamId, { sourceLabel: "GM override", rawValue });
+      if (!result) {
+        queueNextScanFrame();
+      }
     }
 
-    function closeScanner(message) {
+    function handleLocationScan(puzzleIndex) {
+      if (!state.hasStarted || !Number.isInteger(state.teamId)) {
+        updateScanStatus("Scan your starting code before visiting floors.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      if (!Number.isInteger(puzzleIndex) || puzzleIndex < 0 || puzzleIndex >= PUZZLE_COUNT) {
+        updateScanStatus("That QR code isn't part of this hunt.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      const floorName = puzzles[puzzleIndex]?.floor ?? "This mission";
+
+      if (state.completions[puzzleIndex]) {
+        updateScanStatus(`${floorName} is already solved.`, "success");
+        queueNextScanFrame();
+        return;
+      }
+
+      if (state.unlocked[puzzleIndex]) {
+        updateScanStatus(`${floorName} is already unlocked. Submit the answer to continue.`, "success");
+        queueNextScanFrame();
+        return;
+      }
+
+      const currentSolving = getCurrentSolvingIndex();
+      if (currentSolving !== null && currentSolving !== puzzleIndex) {
+        const activeName = puzzles[currentSolving]?.floor ?? "your current mission";
+        updateScanStatus(`Finish ${activeName} before scanning another mission.`, "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex !== puzzleIndex) {
+        updateScanStatus(`${floorName} isn't unlocked yet for your team.`, "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      if (!state.revealed[puzzleIndex]) {
+        updateScanStatus("That mission is still hidden. Solve the clue you already unlocked.", "error");
+        queueNextScanFrame();
+        return;
+      }
+
+      state.unlocked[puzzleIndex] = true;
+      state.revealed[puzzleIndex] = true;
+      saveState();
+      render();
+
+      closeScanner(`Location confirmed: ${floorName}.`, "success");
+      showStatus(`${floorName} puzzle unlocked.`, "success");
+
+      window.setTimeout(() => {
+        if (answerInput && !answerInput.disabled) {
+          answerInput.focus({ preventScroll: true });
+        }
+      }, 200);
+    }
+
+    function assignTeamRun(teamId, { sourceLabel = "Team" } = {}) {
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      const existingTeam = Number.isInteger(state.teamId) ? state.teamId : null;
+      const hadProgress = state.hasStarted && hasRecordedProgress();
+      const sameTeamWithoutProgress = state.hasStarted && existingTeam === sanitizedTeam && !hadProgress;
+
+      if (sameTeamWithoutProgress) {
+        updateScanStatus(`Already assigned to ${TEAM_NAMES[sanitizedTeam]}.`, "success");
+        return false;
+      }
+
+      state = defaultState(sanitizedTeam);
+      state.hasStarted = true;
+      revealNextDestination();
+      saveState();
+      render();
+
+      const nextIndex = getNextDestinationIndex();
+      const firstFloor = nextIndex !== null ? puzzles[nextIndex].floor : null;
+      const progressNote = hadProgress ? " Previous progress cleared." : "";
+      const teamName = TEAM_NAMES[sanitizedTeam];
+      const statusMessage = `${teamName} mission queue ready.${firstFloor ? ` Head to ${firstFloor}.` : ""}${progressNote}`.trim();
+
+      closeScanner(`${sourceLabel} code accepted for ${teamName}.`, "success");
+      showStatus(statusMessage, "success");
+      return true;
+    }
+
+    function hasRecordedProgress() {
+      return state.unlocked.some(Boolean) || state.completions.some(Boolean);
+    }
+
+    function revealNextDestination() {
+      const nextIndex = getNextDestinationIndex();
+      if (nextIndex === null) {
+        return null;
+      }
+      state.revealed[nextIndex] = true;
+      return nextIndex;
+    }
+
+    function submitPuzzleAnswer() {
+      if (!answerInput || answerInput.disabled) {
+        setPuzzleFeedback("Unlock a puzzle before submitting an answer.", "error");
+        return;
+      }
+
+      const solvingIndex = getCurrentSolvingIndex();
+      if (solvingIndex === null) {
+        setPuzzleFeedback("Unlock a puzzle before submitting an answer.", "error");
+        return;
+      }
+
+      const guess = answerInput.value.trim();
+      if (!guess) {
+        setPuzzleFeedback("Enter an answer before submitting.", "error");
+        answerInput.focus();
+        return;
+      }
+
+      const puzzle = puzzles[solvingIndex];
+      const normalizedGuess = normalizeAnswer(guess);
+      const expectedAnswer = normalizeAnswer(puzzle.answer ?? "");
+
+      if (expectedAnswer && normalizedGuess !== expectedAnswer) {
+        setPuzzleFeedback("That answer isn't correct yet. Keep trying.", "error");
+        answerInput.select();
+        return;
+      }
+
+      answerInput.value = "";
+      state.unlocked[solvingIndex] = true;
+      state.completions[solvingIndex] = true;
+      const nextIndex = revealNextDestination();
+      saveState();
+      render();
+
+      const parts = [`${puzzle.floor} solved!`];
+      if (nextIndex !== null) {
+        parts.push(`Next mission revealed: ${puzzles[nextIndex].floor}.`);
+      } else {
+        parts.push("All missions complete!");
+      }
+
+      const summary = parts.join(" ");
+      setPuzzleFeedback(summary, "success");
+      showStatus(summary, "success");
+    }
+
+    function closeScanner(message, tone) {
       if (message) {
-        updateScanStatus(message, message.includes("accepted") ? "success" : undefined);
+        updateScanStatus(message, tone);
       }
       stopScannerStream();
       scannerModal.hidden = true;
-      scanSession.activePuzzle = null;
     }
 
     function stopScannerStream() {
@@ -1337,6 +1706,7 @@
       }
       scanSession.detector = null;
       scanSession.useJsQr = false;
+      scanSession.intent = null;
     }
 
     function updateScanStatus(message, tone) {
@@ -1351,6 +1721,10 @@
 
     function normalizeCode(value) {
       return value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+    }
+
+    function normalizeAnswer(value) {
+      return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     }
 
     function showStatus(message, tone = "info") {
