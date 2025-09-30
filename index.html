@@ -33,15 +33,16 @@
     }
 
     main {
-      width: min(1100px, 100%);
-      background: rgba(3, 9, 21, 0.72);
+      width: min(1200px, 100%);
+      background: rgba(3, 9, 21, 0.78);
       border: 1px solid rgba(91, 192, 190, 0.25);
-      border-radius: 20px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 30px 70px -40px black;
+      border-radius: 24px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 30px 70px -35px black;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      min-height: calc(100vh - 6rem);
     }
 
     header {
@@ -75,40 +76,7 @@
       border-bottom: 1px solid rgba(91, 192, 190, 0.18);
     }
 
-    .team-selector {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-    }
-
-    .team-button {
-      border: 1px solid rgba(91, 192, 190, 0.45);
-      background: rgba(4, 17, 40, 0.8);
-      color: var(--text);
-      padding: 0.65rem 1rem;
-      border-radius: 999px;
-      cursor: pointer;
-      font-size: 0.95rem;
-      letter-spacing: 0.05em;
-      transition: all 0.18s ease;
-    }
-
-    .team-button:hover,
-    .team-button:focus-visible {
-      outline: none;
-      border-color: var(--accent);
-      background: rgba(91, 192, 190, 0.16);
-    }
-
-    .team-button.active {
-      background: var(--accent);
-      color: #041128;
-      font-weight: 600;
-      box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.28);
-    }
-
     .progress-panel {
-      margin-left: auto;
       display: flex;
       gap: 1rem;
       align-items: center;
@@ -227,194 +195,70 @@
       border-color: rgba(246, 114, 128, 0.9);
     }
 
-    .content {
-      padding: 2rem clamp(1.5rem, 4vw, 3rem) 3rem;
+    .stage {
+      flex: 1;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: minmax(0, 2.1fr) minmax(220px, 1fr);
+      gap: clamp(1.5rem, 4vw, 2.5rem);
+      padding: clamp(1.5rem, 5vw, 3rem);
+      background: rgba(4, 12, 24, 0.78);
+    }
+
+    .puzzle-view {
+      border: 1px solid rgba(91, 192, 190, 0.25);
+      background: rgba(8, 22, 46, 0.82);
+      border-radius: 22px;
+      padding: clamp(1.5rem, 4vw, 3rem);
+      display: flex;
+      flex-direction: column;
       gap: 1.5rem;
-      background: rgba(4, 12, 24, 0.75);
+      min-height: 480px;
+      box-shadow: inset 0 0 35px -28px rgba(91, 192, 190, 0.6);
     }
 
-    .overview {
-      padding: 1.5rem clamp(1.5rem, 4vw, 3rem) 0.5rem;
-      background: rgba(4, 12, 24, 0.8);
-      border-bottom: 1px solid rgba(91, 192, 190, 0.18);
+    .puzzle-hero {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
-    .overview h2 {
-      margin: 0 0 1rem;
-      font-size: 1.1rem;
+    .puzzle-hero h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.8rem);
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: var(--text-muted);
     }
 
-    .overview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 1rem;
-    }
-
-    .overview-card {
-      border: 1px solid rgba(91, 192, 190, 0.25);
-      background: rgba(8, 22, 46, 0.55);
-      border-radius: 14px;
-      padding: 1rem 1.1rem;
+    .puzzle-meta-line {
       display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      cursor: pointer;
-      transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-      appearance: none;
-      text-align: left;
-      font: inherit;
-      color: inherit;
-    }
-
-    .overview-card:hover,
-    .overview-card:focus-visible {
-      outline: none;
-      border-color: rgba(91, 192, 190, 0.55);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 24px -18px black;
-    }
-
-    .overview-card.active {
-      border-color: rgba(91, 192, 190, 0.85);
-      background: rgba(28, 53, 74, 0.72);
-      box-shadow: 0 10px 24px -14px var(--accent);
-    }
-
-    .overview-team {
-      font-size: 0.9rem;
-      letter-spacing: 0.1em;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: var(--accent);
     }
 
-    .overview-progress {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .overview-bar {
-      appearance: none;
-      width: 100%;
-      height: 6px;
-      border-radius: 999px;
-      background: rgba(91, 192, 190, 0.12);
-      overflow: hidden;
-    }
-
-    .overview-bar::-webkit-progress-bar {
-      background: rgba(91, 192, 190, 0.12);
-    }
-
-    .overview-bar::-webkit-progress-value {
-      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
-      border-radius: 999px;
-    }
-
-    .overview-bar::-moz-progress-bar {
-      background: linear-gradient(90deg, var(--accent) 0%, #68d8d6 100%);
-      border-radius: 999px;
-    }
-
-    .puzzle-card {
-      position: relative;
-      border: 1px solid rgba(91, 192, 190, 0.25);
-      background: rgba(8, 22, 46, 0.75);
-      border-radius: 16px;
-      padding: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      min-height: 240px;
-      transition: border-color 0.2s ease, transform 0.2s ease;
-    }
-
-    .puzzle-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(91, 192, 190, 0.45);
-    }
-
-    .puzzle-meta {
-      font-size: 0.85rem;
-      color: var(--accent);
-      letter-spacing: 0.1em;
-    }
-
-    .puzzle-description {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      line-height: 1.55;
-      flex-grow: 1;
-    }
-
-    .answer-form {
-      display: flex;
-      gap: 0.75rem;
-      align-items: stretch;
-      margin-top: auto;
-    }
-
-    .answer-input {
+    .puzzle-body {
       flex: 1;
-      border: 1px solid rgba(91, 192, 190, 0.25);
-      border-radius: 10px;
-      background: rgba(3, 15, 32, 0.72);
-      color: var(--text);
-      padding: 0.65rem 0.85rem;
-      font-size: 0.95rem;
-      letter-spacing: 0.04em;
-      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+      font-size: clamp(1rem, 2.6vw, 1.15rem);
+      line-height: 1.7;
+      color: var(--text-muted);
+      max-width: 70ch;
     }
 
-    .answer-input:focus {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.18);
-    }
-
-    .submit-btn {
-      border: none;
-      border-radius: 10px;
-      padding: 0.75rem 1.2rem;
-      cursor: pointer;
-      font-size: 0.95rem;
-      letter-spacing: 0.04em;
-      font-weight: 600;
-      background: linear-gradient(135deg, var(--accent), #6ff0eb);
-      color: #041128;
-      box-shadow: 0 8px 18px -10px var(--accent);
-      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-    }
-
-    .submit-btn:hover,
-    .submit-btn:focus-visible {
-      outline: none;
-      transform: translateY(-1px);
-      box-shadow: 0 10px 22px -10px var(--accent);
-      filter: brightness(1.04);
-    }
-
-    .submit-btn:disabled {
-      cursor: not-allowed;
-      opacity: 0.65;
-      transform: none;
-      box-shadow: none;
-      filter: none;
+    .stage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
     }
 
     .answer-feedback {
-      margin-top: 0.6rem;
-      font-size: 0.8rem;
-      letter-spacing: 0.04em;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
       color: var(--text-muted);
-      min-height: 1.1rem;
+      min-height: 1.2rem;
     }
 
     .answer-feedback.success {
@@ -425,35 +269,270 @@
       color: var(--danger);
     }
 
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      border: 0;
+    .primary-action {
+      border: none;
+      border-radius: 12px;
+      padding: 0.85rem 1.6rem;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--accent), #6ff0eb);
+      color: #041128;
+      box-shadow: 0 15px 32px -20px var(--accent);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
     }
 
-    .puzzle-card.solved {
-      border-color: rgba(91, 192, 190, 0.85);
-      background: rgba(28, 53, 74, 0.72);
+    .primary-action:hover,
+    .primary-action:focus-visible {
+      outline: none;
+      transform: translateY(-2px);
+      box-shadow: 0 18px 36px -18px var(--accent);
+      filter: brightness(1.05);
     }
 
-    .puzzle-card.solved::after {
-      content: "Solved";
-      position: absolute;
-      top: 18px;
-      right: 18px;
-      font-size: 0.7rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(4, 17, 40, 0.74);
-      background: rgba(91, 192, 190, 0.92);
-      padding: 0.3rem 0.6rem;
+    .secondary-link {
+      background: none;
+      border: 1px solid rgba(91, 192, 190, 0.4);
+      color: var(--accent);
       border-radius: 999px;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease;
     }
+
+    .secondary-link:hover,
+    .secondary-link:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(91, 192, 190, 0.18);
+    }
+
+    .progress-track {
+      border: 1px solid rgba(91, 192, 190, 0.2);
+      background: rgba(5, 16, 35, 0.82);
+      border-radius: 20px;
+      padding: clamp(1.2rem, 3vw, 2rem);
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      position: relative;
+    }
+
+    .progress-track h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .progress-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      overflow: auto;
+      max-height: min(60vh, 520px);
+      padding-right: 0.3rem;
+    }
+
+    .progress-item {
+      border: 1px solid rgba(91, 192, 190, 0.2);
+      border-radius: 14px;
+      padding: 0.8rem 1rem;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.75rem;
+      align-items: center;
+      background: rgba(8, 24, 48, 0.7);
+      font-size: 0.92rem;
+      letter-spacing: 0.04em;
+      transition: border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .progress-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .progress-item.active {
+      border-color: rgba(91, 192, 190, 0.6);
+      background: rgba(18, 44, 72, 0.85);
+      box-shadow: 0 20px 40px -28px var(--accent);
+      transform: translateX(6px);
+    }
+
+    .progress-item.complete {
+      border-color: rgba(91, 192, 190, 0.8);
+      background: rgba(28, 53, 74, 0.85);
+    }
+
+    .progress-index {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 600;
+      background: rgba(91, 192, 190, 0.18);
+      color: var(--accent);
+    }
+
+    .progress-item.complete .progress-index {
+      background: var(--accent);
+      color: #041128;
+    }
+
+    .progress-status {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.6);
+    }
+
+    .progress-status.unlocked {
+      color: var(--accent);
+    }
+
+    .progress-status.locked {
+      color: rgba(224, 241, 255, 0.35);
+    }
+
+    .platform-tag {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.6);
+      display: inline-flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 10, 22, 0.8);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      z-index: 1000;
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .modal-dialog {
+      background: rgba(6, 18, 40, 0.9);
+      border: 1px solid rgba(91, 192, 190, 0.35);
+      border-radius: 20px;
+      padding: clamp(1.5rem, 4vw, 2.5rem);
+      width: min(480px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      color: var(--text);
+      box-shadow: 0 30px 80px -45px black;
+    }
+
+    .modal-dialog h2 {
+      margin: 0;
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .modal-dialog p {
+      margin: 0;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.9rem;
+    }
+
+    .team-select {
+      border: 1px solid rgba(91, 192, 190, 0.4);
+      border-radius: 14px;
+      padding: 0.85rem 1rem;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+      background: rgba(12, 30, 54, 0.8);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .team-select:hover,
+    .team-select:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(91, 192, 190, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .scanner-shell {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .scanner-video {
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(91, 192, 190, 0.3);
+      background: rgba(3, 9, 21, 0.8);
+    }
+
+    .scan-status {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      min-height: 1.2rem;
+    }
+
+    .scan-status.success {
+      color: var(--accent);
+    }
+
+    .scan-status.error {
+      color: var(--danger);
+    }
+
+    .manual-entry {
+      display: flex;
+      gap: 0.75rem;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .manual-entry input {
+      flex: 1;
+      min-width: 180px;
+      border-radius: 12px;
+      border: 1px solid rgba(91, 192, 190, 0.3);
+      background: rgba(3, 15, 32, 0.72);
+      color: var(--text);
+      padding: 0.65rem 0.85rem;
+      letter-spacing: 0.05em;
+      font-size: 0.95rem;
+    }
+
+    .manual-entry input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91, 192, 190, 0.18);
+    }
+
 
     .footer-note {
       padding: 1rem clamp(1.5rem, 4vw, 3rem) 2.2rem;
@@ -465,14 +544,79 @@
     }
 
     @media (max-width: 780px) {
+      main {
+        border-radius: 0;
+        min-height: 100vh;
+      }
+
+      .control-bar {
+        padding: 1.25rem clamp(1rem, 6vw, 1.75rem);
+        gap: 1.25rem;
+      }
+
       .progress-panel {
-        margin-left: 0;
         width: 100%;
         justify-content: flex-start;
       }
 
       .progress-wrapper {
         width: 100%;
+      }
+
+      .stage {
+        display: flex;
+        flex-direction: column;
+        padding: clamp(1.1rem, 6vw, 1.8rem);
+        gap: 1.25rem;
+      }
+
+      .puzzle-view {
+        min-height: 380px;
+        padding: clamp(1.1rem, 5vw, 1.8rem);
+      }
+
+      .progress-track {
+        padding: clamp(1rem, 5vw, 1.6rem);
+        max-height: none;
+      }
+
+      .progress-list {
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: visible;
+        max-height: none;
+        gap: 0.75rem;
+      }
+
+      .progress-item {
+        min-width: 220px;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+    }
+
+    @media (max-width: 520px) {
+      body {
+        padding: 0;
+      }
+
+      main {
+        border-radius: 0;
+      }
+
+      .puzzle-hero h2 {
+        font-size: clamp(1.6rem, 8vw, 2rem);
+      }
+
+      .stage-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .primary-action,
+      .secondary-link {
+        width: 100%;
+        text-align: center;
       }
     }
   </style>
@@ -482,18 +626,17 @@
     <header>
       <h1>The Tower Scavenger Hunt</h1>
       <p>
-        Six teams enter the tower with one mission: conquer eleven floors of challenges. As puzzle content is finalized, replace
-        the filler text inside each floor card. Progress is saved locally with cookies, so teams can safely refresh or return to
-        the public GitHub Pages site without losing their standings.
+        Track your tower run across eleven floors of challenges. As puzzle content is finalized, replace the filler text inside
+        each floor card. Progress is saved locally with cookies, so you can refresh or return to this page without losing your
+        place.
       </p>
     </header>
 
     <section class="control-bar">
-      <div class="team-selector" id="teamSelector" aria-label="Select a team"></div>
       <div class="progress-panel">
         <div class="progress-wrapper">
           <div class="progress-label">
-            <span id="progressLabel">Team Progress</span>
+            <span id="progressLabel">Hunt Progress</span>
             <span id="progressCount"></span>
           </div>
           <progress id="progressBar" class="progress-bar" value="0" max="11"></progress>
@@ -502,17 +645,30 @@
       <div class="action-buttons">
         <button type="button" class="action-button" id="exportProgress">Copy Progress Code</button>
         <button type="button" class="action-button" id="importProgress">Import Progress</button>
-        <button type="button" class="reset-button" id="resetAll">Reset All Teams</button>
+        <button type="button" class="reset-button" id="resetAll">Reset Progress</button>
       </div>
       <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
     </section>
 
-    <section class="overview" aria-label="Team overview snapshot">
-      <h2>Team Snapshot</h2>
-      <div class="overview-grid" id="teamOverview"></div>
+    <section class="stage" aria-live="polite">
+      <article class="puzzle-view" id="puzzleView">
+        <div class="puzzle-hero">
+          <h2 id="puzzleTitle">Loading Mission</h2>
+          <div class="puzzle-meta-line" id="puzzleMeta"></div>
+        </div>
+        <div class="puzzle-body" id="puzzleBody"></div>
+        <div class="stage-actions">
+          <button type="button" class="primary-action" id="scanButton" disabled>Start QR Scan</button>
+          <button type="button" class="secondary-link" id="reviewProgress">View Mission Queue</button>
+        </div>
+        <div class="answer-feedback" id="puzzleFeedback" aria-live="polite"></div>
+      </article>
+      <aside class="progress-track" id="progressPanel">
+        <div class="platform-tag" id="platformTag">Platform: Detecting…</div>
+        <h3>Mission Queue</h3>
+        <div class="progress-list" id="progressList"></div>
+      </aside>
     </section>
-
-    <section class="content" id="puzzleBoard" aria-live="polite"></section>
 
     <footer class="footer-note">
       Tip: want to stage new puzzle text? Update the placeholders here and commit the file to GitHub Pages. Cookie storage lasts
@@ -520,71 +676,233 @@
     </footer>
   </main>
 
-  <template id="puzzle-card-template">
-    <article class="puzzle-card">
-      <div class="puzzle-meta"></div>
-      <p class="puzzle-description"></p>
-      <form class="answer-form">
-        <label class="sr-only">Enter answer for this floor</label>
-        <input type="text" class="answer-input" autocomplete="off" />
-        <button type="submit" class="submit-btn">Submit Answer</button>
-      </form>
-      <div class="answer-feedback" aria-live="polite"></div>
-    </article>
-  </template>
+  <div class="modal-backdrop" id="teamModal">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="teamModalTitle">
+      <h2 id="teamModalTitle">Select Your Team</h2>
+      <p>
+        Each team tackles the tower floors in a unique sequence. Choose your team to load the proper mission order. Progress saves
+        to this device.
+      </p>
+      <div class="team-grid" id="teamGrid" role="listbox" aria-label="Available teams"></div>
+    </div>
+  </div>
 
-  <script>
+  <div class="modal-backdrop" id="scannerModal" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
+      <div class="scanner-shell">
+        <h2 id="scannerTitle">Scan Mission QR</h2>
+        <p id="scannerInstruction">Align the QR code inside the frame. We’ll automatically validate the code for this floor.</p>
+        <video class="scanner-video" id="scannerVideo" playsinline></video>
+        <div class="scan-status" id="scanStatus"></div>
+        <div class="manual-entry">
+          <input type="text" id="manualCode" placeholder="Enter code manually" autocomplete="off" inputmode="search" />
+          <button type="button" class="primary-action" id="submitCode">Submit Code</button>
+          <button type="button" class="secondary-link" id="cancelScan">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <script>
     const TEAM_COUNT = 6;
     const PUZZLE_COUNT = 11;
     const COOKIE_NAME = "towerHuntProgress";
-    const CACHE_DURATION_DAYS = 365; // keep cookies alive for one year
+    const CACHE_DURATION_DAYS = 365;
 
-    const SHARED_ANSWER = "tower";
-
-    const puzzles = [
-      { floor: "Lobby", prompt: `Calibrate the welcome console by typing "${SHARED_ANSWER}" exactly.` },
-      { floor: "Floor 2", prompt: `Stabilize the mechanical gauges: submit the mission keyword "${SHARED_ANSWER}".` },
-      { floor: "Floor 3", prompt: `Unlock the archives drawer with the shared answer "${SHARED_ANSWER}".` },
-      { floor: "Floor 4", prompt: `Sync the greenhouse sensors by entering "${SHARED_ANSWER}".` },
-      { floor: "Floor 5", prompt: `Align the observatory lens using the same passphrase "${SHARED_ANSWER}".` },
-      { floor: "Floor 6", prompt: `Balance the power core conduits; submit "${SHARED_ANSWER}" to proceed.` },
-      { floor: "Floor 7", prompt: `Activate the gallery projectors with the keyword "${SHARED_ANSWER}".` },
-      { floor: "Floor 8", prompt: `Tune the communications hub by typing "${SHARED_ANSWER}".` },
-      { floor: "Floor 9", prompt: `Override the security wing locks using "${SHARED_ANSWER}".` },
-      { floor: "Floor 10", prompt: `Ready the helipad beacon; enter "${SHARED_ANSWER}".` },
-      { floor: "Summit", prompt: `Seal the command suite console with the final answer "${SHARED_ANSWER}".` }
+    const TEAM_NAMES = [
+      "Team Apex",
+      "Team Beacon",
+      "Team Catalyst",
+      "Team Drift",
+      "Team Echo",
+      "Team Flux"
     ];
 
-    const teamSelector = document.getElementById("teamSelector");
-    const puzzleBoard = document.getElementById("puzzleBoard");
-    const template = document.getElementById("puzzle-card-template");
+    const TEAM_ORDERS = [
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      [2, 4, 1, 6, 0, 8, 3, 5, 7, 10, 9],
+      [5, 0, 3, 8, 2, 6, 1, 9, 4, 10, 7],
+      [1, 3, 5, 7, 9, 0, 2, 4, 6, 8, 10],
+      [4, 2, 6, 0, 7, 3, 9, 1, 8, 5, 10],
+      [6, 8, 0, 5, 2, 7, 4, 9, 1, 3, 10]
+    ];
+
+    const puzzles = [
+      { floor: "Lobby", prompt: "Calibrate the lobby console by confirming mission credentials, then scan the QR badge to advance.", qr: "TOWER-LOBBY-QR" },
+      { floor: "Mechanical Workshop", prompt: "Tune the workshop gears to align the timing marks. Scan the mechanic's clearance tag to release the lift.", qr: "WORKSHOP-QR-214" },
+      { floor: "Archives", prompt: "Decode the archive catalog entry and scan the restored label to unseal the restricted stacks.", qr: "ARCHIVE-QR-717" },
+      { floor: "Greenhouse", prompt: "Match the plant genomes and scan the botanist's access code hidden among the vines.", qr: "GREENHOUSE-QR-552" },
+      { floor: "Observatory", prompt: "Synchronize the telescope arrays, then scan the stellar calibration glyph to lock the coordinates.", qr: "OBSERVATORY-QR-904" },
+      { floor: "Power Core", prompt: "Balance the energy conduits and scan the reactor checksum to stabilize the grid.", qr: "POWERCORE-QR-331" },
+      { floor: "Art Gallery", prompt: "Identify the forged artwork and scan the curator's seal to secure the exhibit.", qr: "GALLERY-QR-128" },
+      { floor: "Communications Hub", prompt: "Patch the comm relays and scan the relay authorization card to restore the uplink.", qr: "COMMS-QR-642" },
+      { floor: "Security Wing", prompt: "Solve the security override riddle, then scan the guard's cipher badge to clear the alarms.", qr: "SECURITY-QR-885" },
+      { floor: "Helipad", prompt: "Plot the evac trajectory and scan the pilot's manifest to fuel the transport.", qr: "HELIPAD-QR-473" },
+      { floor: "Summit", prompt: "Assemble the final meta-key and scan the commander's crest to unlock the summit chamber.", qr: "SUMMIT-QR-999" }
+    ];
+
     const progressBar = document.getElementById("progressBar");
     const progressCount = document.getElementById("progressCount");
     const progressLabel = document.getElementById("progressLabel");
     const resetButton = document.getElementById("resetAll");
-    const overviewBoard = document.getElementById("teamOverview");
     const exportButton = document.getElementById("exportProgress");
     const importButton = document.getElementById("importProgress");
     const statusMessage = document.getElementById("statusMessage");
 
-    const defaultState = () => ({
-      activeTeam: 0,
-      progress: Array.from({ length: TEAM_COUNT }, () => Array.from({ length: PUZZLE_COUNT }, () => false))
+    const puzzleTitle = document.getElementById("puzzleTitle");
+    const puzzleMeta = document.getElementById("puzzleMeta");
+    const puzzleBody = document.getElementById("puzzleBody");
+    const puzzleFeedback = document.getElementById("puzzleFeedback");
+    const scanButton = document.getElementById("scanButton");
+    const reviewProgressButton = document.getElementById("reviewProgress");
+    const platformTag = document.getElementById("platformTag");
+    const progressList = document.getElementById("progressList");
+    const progressPanel = document.getElementById("progressPanel");
+
+    const teamModal = document.getElementById("teamModal");
+    const teamGrid = document.getElementById("teamGrid");
+    const scannerModal = document.getElementById("scannerModal");
+    const scannerVideo = document.getElementById("scannerVideo");
+    const scanStatus = document.getElementById("scanStatus");
+    const manualCodeInput = document.getElementById("manualCode");
+    const submitCodeButton = document.getElementById("submitCode");
+    const cancelScanButton = document.getElementById("cancelScan");
+
+    const defaultState = (teamId = null) => ({
+      teamId,
+      completions: Array.from({ length: PUZZLE_COUNT }, () => false)
     });
 
     let state = loadState();
     let statusTimeoutId = null;
+    let scanSession = {
+      stream: null,
+      detector: null,
+      rafId: null,
+      activePuzzle: null
+    };
+
+    const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
+
+    initialize();
+
+    function initialize() {
+      populateTeamGrid();
+      detectPlatform();
+      attachEventListeners();
+      render();
+    }
+
+    function populateTeamGrid() {
+      teamGrid.innerHTML = "";
+      TEAM_NAMES.forEach((name, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "team-select";
+        button.textContent = name;
+        button.dataset.team = index;
+        button.addEventListener("click", () => handleTeamSelect(index));
+        teamGrid.append(button);
+      });
+    }
+
+    function handleTeamSelect(teamId) {
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      const switchingTeams = state.teamId !== null && state.teamId !== sanitizedTeam && state.completions.some(Boolean);
+
+      if (switchingTeams && !confirm("Switch teams and reset progress on this device?")) {
+        return;
+      }
+
+      state = defaultState(sanitizedTeam);
+      saveState();
+      closeTeamModal();
+      showStatus(`${TEAM_NAMES[sanitizedTeam]} mission queue ready.`, "success");
+      render();
+    }
+
+    function openTeamModal() {
+      teamModal.hidden = false;
+    }
+
+    function closeTeamModal() {
+      teamModal.hidden = true;
+    }
+
+    function detectPlatform() {
+      const ua = navigator.userAgent || "";
+      const isIOS = /iPad|iPhone|iPod/.test(ua);
+      const isAndroid = /Android/.test(ua);
+      const isMobile = /Mobi|Android/i.test(ua);
+      let label = isMobile ? "Platform: Mobile" : "Platform: Desktop";
+      if (isIOS) label += " • iOS";
+      if (isAndroid) label += " • Android";
+      if (!hasMediaDevices) {
+        label += " • Camera unavailable";
+      }
+      platformTag.textContent = label;
+    }
+
+    function attachEventListeners() {
+      resetButton?.addEventListener("click", () => {
+        if (!confirm("Reset all progress on this device?")) return;
+        state = defaultState(state.teamId);
+        saveState();
+        render();
+        showStatus("Progress reset.", "success");
+      });
+
+      exportButton?.addEventListener("click", exportProgress);
+      importButton?.addEventListener("click", importProgress);
+
+      scanButton?.addEventListener("click", () => {
+        const activePuzzle = getActivePuzzleIndex();
+        if (activePuzzle === null) {
+          showStatus("All missions already cleared.");
+          return;
+        }
+        openScanner(activePuzzle);
+      });
+
+      reviewProgressButton?.addEventListener("click", () => {
+        progressPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+        showStatus("Mission queue updated.");
+      });
+
+      submitCodeButton?.addEventListener("click", () => {
+        const code = manualCodeInput.value.trim();
+        if (!code) {
+          updateScanStatus("Enter a code before submitting.", "error");
+          manualCodeInput.focus();
+          return;
+        }
+        handleScanResult(code);
+      });
+
+      cancelScanButton?.addEventListener("click", () => {
+        closeScanner("Scan cancelled.");
+      });
+
+      window.addEventListener("beforeunload", stopScannerStream);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopScannerStream();
+        }
+      });
+    }
 
     function loadState() {
       const cookieValue = getCookie(COOKIE_NAME);
-      if (!cookieValue) return defaultState();
+      if (!cookieValue) {
+        return defaultState(null);
+      }
       try {
         const decoded = decodeCookieValue(cookieValue);
         const parsed = JSON.parse(decoded);
         return sanitizeState(parsed);
       } catch (err) {
         console.warn("Failed to parse cookie, resetting progress", err);
-        return defaultState();
+        return defaultState(null);
       }
     }
 
@@ -614,20 +932,36 @@
     }
 
     function sanitizeState(candidate) {
-      const fallback = defaultState();
+      const fallback = defaultState(null);
       if (!candidate || typeof candidate !== "object") {
         return fallback;
       }
 
-      const sanitized = {
-        activeTeam: clampNumber(candidate.activeTeam ?? fallback.activeTeam, 0, TEAM_COUNT - 1),
-        progress: fallback.progress.map((teamList, teamIndex) => {
-          const source = Array.isArray(candidate.progress?.[teamIndex]) ? candidate.progress[teamIndex] : [];
-          return teamList.map((_, puzzleIndex) => Boolean(source[puzzleIndex]));
-        })
-      };
+      let teamId = candidate.teamId;
+      if (!Number.isInteger(teamId)) {
+        teamId = clampNumber(candidate.activeTeam ?? 0, 0, TEAM_COUNT - 1);
+      }
+      teamId = clampNumber(teamId, 0, TEAM_COUNT - 1);
 
-      return sanitized;
+      let completions = candidate.completions;
+
+      if (Array.isArray(candidate.progress) && candidate.progress.every(Array.isArray)) {
+        const source = candidate.progress[clampNumber(candidate.activeTeam ?? teamId, 0, candidate.progress.length - 1)] ?? [];
+        completions = source.map(Boolean);
+      } else if (Array.isArray(candidate.progress)) {
+        completions = candidate.progress.map(Boolean);
+      }
+
+      if (!Array.isArray(completions)) {
+        completions = [];
+      }
+
+      const sanitizedCompletions = Array.from({ length: PUZZLE_COUNT }, (_, index) => Boolean(completions[index]));
+
+      return {
+        teamId,
+        completions: sanitizedCompletions
+      };
     }
 
     function clampNumber(value, min, max) {
@@ -635,142 +969,251 @@
       return Math.min(Math.max(n, min), max);
     }
 
-    function handleTeamSelect(teamIndex) {
-      state.activeTeam = teamIndex;
-      saveState();
-      render();
+    function getTeamOrder() {
+      if (!Number.isInteger(state.teamId)) {
+        return [];
+      }
+      return TEAM_ORDERS[state.teamId]?.slice() ?? TEAM_ORDERS[0].slice();
     }
 
-    function normalizeAnswer(value) {
-      return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    function solvedCount() {
+      return state.completions.filter(Boolean).length;
     }
 
-    function isCorrectAnswer(value) {
-      return normalizeAnswer(value) === normalizeAnswer(SHARED_ANSWER);
+    function getActivePuzzleIndex() {
+      if (!Number.isInteger(state.teamId)) {
+        return null;
+      }
+      const order = getTeamOrder();
+      const next = order.find(index => !state.completions[index]);
+      return typeof next === "number" ? next : null;
     }
 
-    function handleAnswerSubmit(puzzleIndex, inputElement, feedbackElement) {
-      const attempt = inputElement.value.trim();
-      const floorLabel = puzzles[puzzleIndex]?.floor ?? `Floor ${puzzleIndex + 1}`;
-
-      feedbackElement.className = "answer-feedback";
-
-      if (!attempt) {
-        feedbackElement.classList.add("error");
-        feedbackElement.textContent = "Enter an answer before submitting.";
-        inputElement.focus();
-        return;
+    function render() {
+      if (!Number.isInteger(state.teamId)) {
+        openTeamModal();
+        disableStage();
+      } else {
+        closeTeamModal();
+        enableStage();
       }
 
-      if (isCorrectAnswer(attempt)) {
-        state.progress[state.activeTeam][puzzleIndex] = true;
-        saveState();
-        showStatus(`Team ${state.activeTeam + 1} cleared ${floorLabel}.`, "success");
-        render();
-        return;
-      }
-
-      feedbackElement.classList.add("error");
-      feedbackElement.textContent = "Incorrect answer. Try again.";
-      showStatus("Incorrect answer. Try again.", "error");
-      inputElement.select();
+      renderProgress();
+      renderProgressList();
+      renderPuzzle();
     }
 
-    function solvedCountForTeam(teamIndex) {
-      return state.progress[teamIndex].filter(Boolean).length;
+    function disableStage() {
+      scanButton.disabled = true;
+      reviewProgressButton.disabled = true;
+      puzzleTitle.textContent = "Select a Team";
+      puzzleMeta.textContent = "Awaiting mission queue";
+      puzzleBody.textContent = "Choose your team to load the tower mission order.";
+      puzzleFeedback.textContent = "";
     }
 
-    function renderOverview() {
-      if (!overviewBoard) return;
-      overviewBoard.innerHTML = "";
-
-      for (let i = 0; i < TEAM_COUNT; i += 1) {
-        const solved = solvedCountForTeam(i);
-        const percentage = Math.round((solved / PUZZLE_COUNT) * 100);
-
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = `overview-card${state.activeTeam === i ? " active" : ""}`;
-        card.innerHTML = `
-          <div class="overview-team">Team ${i + 1}</div>
-          <div class="overview-progress">
-            <span>${solved} / ${PUZZLE_COUNT} solved</span>
-            <span>${percentage}%</span>
-          </div>
-          <progress class="overview-bar" value="${solved}" max="${PUZZLE_COUNT}"></progress>
-        `;
-        card.addEventListener("click", () => handleTeamSelect(i));
-        overviewBoard.append(card);
-      }
-    }
-
-    function renderTeams() {
-      teamSelector.innerHTML = "";
-      for (let i = 0; i < TEAM_COUNT; i += 1) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `team-button${state.activeTeam === i ? " active" : ""}`;
-        button.dataset.team = i;
-        button.textContent = `Team ${i + 1}`;
-        button.addEventListener("click", () => handleTeamSelect(i));
-        teamSelector.append(button);
-      }
+    function enableStage() {
+      scanButton.disabled = false;
+      reviewProgressButton.disabled = false;
     }
 
     function renderProgress() {
-      const solved = solvedCountForTeam(state.activeTeam);
+      const solved = solvedCount();
+      progressBar.max = PUZZLE_COUNT;
       progressBar.value = solved;
-      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} solved`;
-      progressLabel.textContent = `Team ${state.activeTeam + 1} Progress`;
+      progressCount.textContent = `${solved} / ${PUZZLE_COUNT} floors cleared`;
+      const teamName = Number.isInteger(state.teamId) ? TEAM_NAMES[state.teamId] : "";
+      progressLabel.textContent = teamName ? `${teamName} Progress` : "Hunt Progress";
     }
 
-    function renderPuzzles() {
-      puzzleBoard.innerHTML = "";
-      puzzles.forEach((puzzle, index) => {
-        const card = template.content.firstElementChild.cloneNode(true);
-        const meta = card.querySelector(".puzzle-meta");
-        const body = card.querySelector(".puzzle-description");
-        const form = card.querySelector(".answer-form");
-        const label = form.querySelector("label");
-        const input = card.querySelector(".answer-input");
-        const button = card.querySelector(".submit-btn");
-        const feedback = card.querySelector(".answer-feedback");
+    function renderProgressList() {
+      const order = getTeamOrder();
+      if (!order.length) {
+        progressList.innerHTML = "<p>No team selected.</p>";
+        return;
+      }
 
-        const floorLabel = puzzle.floor ?? `Floor ${index + 1}`;
-        meta.textContent = floorLabel;
-        body.textContent = puzzle.prompt;
+      const active = getActivePuzzleIndex();
 
-        const inputId = `team${state.activeTeam + 1}-floor${index + 1}`;
-        label.setAttribute("for", inputId);
-        label.textContent = `Answer for ${floorLabel}`;
-        input.id = inputId;
-        input.placeholder = "Enter answer";
+      progressList.innerHTML = "";
+      order.forEach((puzzleIndex, sequenceIndex) => {
+        const item = document.createElement("div");
+        item.className = "progress-item";
 
-        const solved = state.progress[state.activeTeam][index];
-        card.classList.toggle("solved", solved);
-
-        feedback.className = "answer-feedback";
-
-        if (solved) {
-          input.value = "";
-          input.disabled = true;
-          button.disabled = true;
-          feedback.textContent = "Answer accepted. Floor cleared for this team.";
-          feedback.classList.add("success");
-        } else {
-          input.disabled = false;
-          button.disabled = false;
-          input.value = "";
-          feedback.textContent = "Submit the shared answer to mark this floor complete.";
+        if (state.completions[puzzleIndex]) {
+          item.classList.add("complete");
+        } else if (puzzleIndex === active) {
+          item.classList.add("active");
         }
 
-        form.addEventListener("submit", event => {
-          event.preventDefault();
-          handleAnswerSubmit(index, input, feedback);
-        });
+        const indexBadge = document.createElement("div");
+        indexBadge.className = "progress-index";
+        indexBadge.textContent = sequenceIndex + 1;
 
-        puzzleBoard.append(card);
+        const content = document.createElement("div");
+        content.className = "progress-content";
+        const title = document.createElement("div");
+        title.textContent = puzzles[puzzleIndex].floor;
+
+        const status = document.createElement("div");
+        status.className = "progress-status";
+        if (state.completions[puzzleIndex]) {
+          status.classList.add("unlocked");
+          status.textContent = "Cleared";
+        } else if (puzzleIndex === active) {
+          status.classList.add("unlocked");
+          status.textContent = "Ready";
+        } else {
+          status.classList.add("locked");
+          status.textContent = "Locked";
+        }
+
+        content.append(title, status);
+        item.append(indexBadge, content);
+        progressList.append(item);
       });
+    }
+
+    function renderPuzzle() {
+      const activePuzzle = getActivePuzzleIndex();
+
+      if (activePuzzle === null) {
+        puzzleTitle.textContent = "Summit Secured";
+        puzzleMeta.textContent = Number.isInteger(state.teamId)
+          ? `${TEAM_NAMES[state.teamId]} • Mission complete`
+          : "Mission complete";
+        puzzleBody.textContent = "All tower floors are cleared. Await instructions from command or reset to replay.";
+        puzzleFeedback.textContent = "";
+        scanButton.disabled = true;
+        return;
+      }
+
+      const order = getTeamOrder();
+      const stepNumber = order.indexOf(activePuzzle) + 1;
+      const puzzle = puzzles[activePuzzle];
+
+      puzzleTitle.textContent = puzzle.floor;
+      puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
+      puzzleBody.textContent = puzzle.prompt;
+      puzzleFeedback.textContent = "Scan the QR code for this floor to unlock the next mission.";
+      scanButton.disabled = false;
+    }
+
+    function openScanner(puzzleIndex) {
+      scanSession.activePuzzle = puzzleIndex;
+      scannerModal.hidden = false;
+      manualCodeInput.value = "";
+      updateScanStatus("Initializing camera…");
+      startScannerStream();
+    }
+
+    async function startScannerStream() {
+      stopScannerStream();
+
+      if (!hasMediaDevices) {
+        updateScanStatus("Camera unavailable. Enter the code manually.", "error");
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        scanSession.stream = stream;
+        scannerVideo.srcObject = stream;
+        await scannerVideo.play();
+
+        if (window.BarcodeDetector) {
+          scanSession.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+          scanSession.rafId = requestAnimationFrame(scanLoop);
+          updateScanStatus("Scanning… Align the QR inside the frame.");
+        } else {
+          updateScanStatus("QR detector unavailable. Enter the code manually.", "error");
+        }
+      } catch (err) {
+        console.error("Unable to start camera", err);
+        updateScanStatus("Camera access denied. Enter the code manually.", "error");
+      }
+    }
+
+    async function scanLoop() {
+      if (!scanSession.detector || scannerVideo.readyState !== 4) {
+        scanSession.rafId = requestAnimationFrame(scanLoop);
+        return;
+      }
+
+      try {
+        const barcodes = await scanSession.detector.detect(scannerVideo);
+        if (barcodes.length > 0) {
+          const value = barcodes[0].rawValue;
+          handleScanResult(value);
+          return;
+        }
+      } catch (err) {
+        console.error("Barcode detection failed", err);
+      }
+
+      scanSession.rafId = requestAnimationFrame(scanLoop);
+    }
+
+    function handleScanResult(value) {
+      if (scanSession.activePuzzle === null) {
+        return;
+      }
+
+      const expected = puzzles[scanSession.activePuzzle].qr;
+      const normalizedValue = normalizeCode(value);
+      const normalizedExpected = normalizeCode(expected);
+
+      if (normalizedValue === normalizedExpected) {
+        completePuzzle(scanSession.activePuzzle, value);
+      } else {
+        updateScanStatus("Code mismatch. Ensure you scanned the correct floor QR.", "error");
+      }
+    }
+
+    function completePuzzle(puzzleIndex, rawValue) {
+      state.completions[puzzleIndex] = true;
+      saveState();
+      closeScanner(`Code accepted (${rawValue}).`);
+      showStatus(`${puzzles[puzzleIndex].floor} unlocked.`, "success");
+      render();
+    }
+
+    function closeScanner(message) {
+      if (message) {
+        updateScanStatus(message, message.includes("accepted") ? "success" : undefined);
+      }
+      stopScannerStream();
+      scannerModal.hidden = true;
+      scanSession.activePuzzle = null;
+    }
+
+    function stopScannerStream() {
+      if (scanSession.rafId) {
+        cancelAnimationFrame(scanSession.rafId);
+        scanSession.rafId = null;
+      }
+      if (scanSession.stream) {
+        scanSession.stream.getTracks().forEach(track => track.stop());
+        scanSession.stream = null;
+      }
+      if (scannerVideo.srcObject) {
+        scannerVideo.srcObject = null;
+      }
+      scanSession.detector = null;
+    }
+
+    function updateScanStatus(message, tone) {
+      scanStatus.textContent = message;
+      scanStatus.className = "scan-status";
+      if (tone === "success") {
+        scanStatus.classList.add("success");
+      } else if (tone === "error") {
+        scanStatus.classList.add("error");
+      }
+    }
+
+    function normalizeCode(value) {
+      return value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
     }
 
     function showStatus(message, tone = "info") {
@@ -788,11 +1231,10 @@
         clearTimeout(statusTimeoutId);
       }
       statusTimeoutId = window.setTimeout(() => {
-        if (!statusMessage) return;
         statusMessage.className = "status-message";
         statusMessage.textContent = "";
         statusTimeoutId = null;
-      }, 4000);
+      }, 4500);
     }
 
     function fallbackCopyPrompt(code) {
@@ -842,13 +1284,13 @@
       try {
         candidates.add(atob(encoded));
       } catch (err) {
-        // ignore invalid base64 inputs
+        // ignore
       }
 
       try {
         candidates.add(atob(decoded));
       } catch (err) {
-        // ignore invalid decoded base64 inputs
+        // ignore
       }
 
       for (const candidate of candidates) {
@@ -856,7 +1298,7 @@
         try {
           return JSON.parse(candidate);
         } catch (err) {
-          // continue trying other candidates
+          // continue
         }
       }
 
@@ -886,27 +1328,6 @@
         showStatus("Import failed. Check the code and try again.", "error");
       }
     }
-
-    function resetAllProgress() {
-      if (!confirm("Reset progress for all teams?")) return;
-      state = defaultState();
-      saveState();
-      render();
-      showStatus("All team progress reset.", "success");
-    }
-
-    function render() {
-      renderTeams();
-      renderProgress();
-      renderOverview();
-      renderPuzzles();
-    }
-
-    resetButton?.addEventListener("click", resetAllProgress);
-    exportButton?.addEventListener("click", exportProgress);
-    importButton?.addEventListener("click", importProgress);
-
-    render();
   </script>
 </body>
 </html>
