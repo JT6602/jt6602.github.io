@@ -497,7 +497,7 @@
     .gm-qr-overlay-code img {
       width: 100% !important;
       height: 100% !important;
-      animation: qrReveal 1s ease forwards;
+      animation: qrReveal .5s ease forwards;
     }
     .map-overlay {
       position: fixed;
