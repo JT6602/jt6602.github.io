@@ -140,6 +140,7 @@ const TEAM_COUNT = 11;
     const puzzleView = document.getElementById("puzzleView");
     const puzzleLock = document.getElementById("puzzleLock");
     const puzzleLockMessage = document.getElementById("puzzleLockMessage");
+    const puzzleLockAction = document.getElementById("puzzleLockAction");
 
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
@@ -215,6 +216,14 @@ const TEAM_COUNT = 11;
       window.location.pathname?.toLowerCase().includes("/gm-sheet") ||
       (searchParams.get("view") ?? "").toLowerCase() === "gm" ||
       window.location.hash?.toLowerCase().includes("gm-sheet");
+
+    puzzleLockAction?.addEventListener("click", () => {
+      if (scanButton?.disabled) {
+        return;
+      }
+      scanButton.click();
+    });
+
 
     initialize();
 
@@ -619,21 +628,20 @@ const TEAM_COUNT = 11;
       }
 
       gmQrOverlayCode.innerHTML = "";
-
-      if (typeof window.QRCode === "function") {
-        new window.QRCode(gmQrOverlayCode, {
-          text: code,
-          width: 520,
-          height: 520,
-          colorDark: "#041128",
-          colorLight: "#ffffff",
-          correctLevel: window.QRCode.CorrectLevel.H
-        });
-      } else {
-        const fallback = document.createElement("div");
-        fallback.textContent = "QR generator unavailable.";
-        gmQrOverlayCode.append(fallback);
-      }
+      const size = 520;
+      const encoded = encodeURIComponent(code ?? "");
+      const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=" + size + "x" + size + "&data=" + encoded + "&margin=20";
+      const img = document.createElement("img");
+      img.src = qrUrl;
+      img.alt = label ? `QR code for ${label}` : "QR code";
+      img.width = size;
+      img.height = size;
+      img.loading = "lazy";
+      img.decoding = "async";
+      img.addEventListener("error", () => {
+        img.replaceWith(document.createTextNode("Unable to load QR code."));
+      });
+      gmQrOverlayCode.append(img);
 
       if (gmQrOverlayTitle) {
         gmQrOverlayTitle.textContent = label;
@@ -1201,13 +1209,23 @@ const TEAM_COUNT = 11;
       });
     }
 
-    function setPuzzleLockState(stateName, { message } = {}) {
+    function setPuzzleLockState(stateName, { message, actionLabel, actionDisabled = false } = {}) {
       if (!puzzleLock) {
         return;
       }
 
-      if (message && puzzleLockMessage) {
-        puzzleLockMessage.textContent = message;
+      if (puzzleLockMessage) {
+        puzzleLockMessage.textContent = message ?? "";
+      }
+
+      if (puzzleLockAction) {
+        if (actionLabel) {
+          puzzleLockAction.hidden = false;
+          puzzleLockAction.textContent = actionLabel;
+          puzzleLockAction.disabled = Boolean(actionDisabled);
+        } else {
+          puzzleLockAction.hidden = true;
+        }
       }
 
       if (puzzleLockTimeoutId) {
@@ -1218,13 +1236,13 @@ const TEAM_COUNT = 11;
       puzzleLock.classList.remove("is-unlocking");
 
       if (stateName === "hidden") {
-        if (puzzleLockCurrentState === "hidden") {
-          return;
-        }
         puzzleLock.classList.remove("is-visible");
         puzzleLock.setAttribute("aria-hidden", "true");
         puzzleView?.classList.remove("is-locked");
         puzzleLockCurrentState = "hidden";
+        if (puzzleLockAction) {
+          puzzleLockAction.hidden = true;
+        }
         return;
       }
 
@@ -1233,6 +1251,9 @@ const TEAM_COUNT = 11;
       puzzleView?.classList.add("is-locked");
 
       if (stateName === "unlocking") {
+        if (puzzleLockAction) {
+          puzzleLockAction.hidden = true;
+        }
         puzzleLock.classList.add("is-unlocking");
         puzzleLockCurrentState = "unlocking";
         puzzleLockTimeoutId = window.setTimeout(() => {
@@ -1260,7 +1281,11 @@ const TEAM_COUNT = 11;
         scanButton.textContent = "Scan Start Code";
         toggleAnswerForm(false);
         toggleWaitingAnimation(true);
-        setPuzzleLockState("hidden");
+        setPuzzleLockState("locked", {
+          message: "Locked • Ready to scan start code",
+          actionLabel: scanButton.textContent,
+          actionDisabled: scanButton.disabled
+        });
         if (!state.hasStarted && !state.revealed.some(Boolean)) {
           showStatus("Ready to scan the team start QR code.", "success");
         }
@@ -1315,7 +1340,11 @@ const TEAM_COUNT = 11;
         setPuzzleFeedback("");
         scanButton.disabled = false;
         scanButton.textContent = "Scan Location QR";
-        setPuzzleLockState("locked", { message: `Locked • Scan ${destination}` });
+        setPuzzleLockState("locked", {
+          message: `Locked • Scan ${destination}`,
+          actionLabel: scanButton.textContent,
+          actionDisabled: scanButton.disabled
+        });
       } else {
         puzzleTitle.textContent = "Mission Locked";
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
@@ -1323,7 +1352,7 @@ const TEAM_COUNT = 11;
         setPuzzleFeedback("Use a GM override code here if you need to switch teams.");
         scanButton.disabled = false;
         scanButton.textContent = "Scan QR Code";
-        setPuzzleLockState("locked", { message: "Locked • Solve current mission" });
+        setPuzzleLockState("hidden");
       }
 
       toggleAnswerForm(false);
