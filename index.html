@@ -737,19 +737,34 @@
       [11, 9, 4, 6, 5, 3, 8, 10, 1, 7, 2, 0]
     ];
 
+    const QR_CODES = Object.freeze({
+      BASEMENT: "BASEMENT-QR-000",
+      FLOOR_1: "FLOOR1-QR-101",
+      FLOOR_2: "FLOOR2-QR-202",
+      FLOOR_3: "FLOOR3-QR-303",
+      FLOOR_4: "FLOOR4-QR-404",
+      FLOOR_5: "FLOOR5-QR-505",
+      FLOOR_6: "FLOOR6-QR-606",
+      FLOOR_7: "FLOOR7-QR-707",
+      FLOOR_8: "FLOOR8-QR-808",
+      FLOOR_9: "FLOOR9-QR-909",
+      FLOOR_10: "FLOOR10-QR-010",
+      FLOOR_11: "FLOOR11-QR-111"
+    });
+
     const puzzles = [
-      { floor: "Basement", prompt: "The answer is: 'tower'", qr: "BASEMENT-QR-000" },
-      { floor: "Floor 1", prompt: "The answer is: 'tower'", qr: "FLOOR1-QR-101" },
-      { floor: "Floor 2", prompt: "The answer is: 'tower'", qr: "FLOOR2-QR-202" },
-      { floor: "Floor 3", prompt: "The answer is: 'tower'", qr: "FLOOR3-QR-303" },
-      { floor: "Floor 4", prompt: "The answer is: 'tower'", qr: "FLOOR4-QR-404" },
-      { floor: "Floor 5", prompt: "The answer is: 'tower'", qr: "FLOOR5-QR-505" },
-      { floor: "Floor 6", prompt: "The answer is: 'tower'", qr: "FLOOR6-QR-606" },
-      { floor: "Floor 7", prompt: "The answer is: 'tower'", qr: "FLOOR7-QR-707" },
-      { floor: "Floor 8", prompt: "The answer is: 'tower'", qr: "FLOOR8-QR-808" },
-      { floor: "Floor 9", prompt: "The answer is: 'tower'", qr: "FLOOR9-QR-909" },
-      { floor: "Floor 10", prompt: "The answer is: 'tower'", qr: "FLOOR10-QR-010" },
-      { floor: "Floor 11", prompt: "The answer is: 'tower'", qr: "FLOOR11-QR-111" }
+      { floor: "Basement", prompt: "The answer is: 'tower'", qr: QR_CODES.BASEMENT },
+      { floor: "Floor 1", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_1 },
+      { floor: "Floor 2", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_2 },
+      { floor: "Floor 3", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_3 },
+      { floor: "Floor 4", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_4 },
+      { floor: "Floor 5", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_5 },
+      { floor: "Floor 6", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_6 },
+      { floor: "Floor 7", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_7 },
+      { floor: "Floor 8", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_8 },
+      { floor: "Floor 9", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_9 },
+      { floor: "Floor 10", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_10 },
+      { floor: "Floor 11", prompt: "The answer is: 'tower'", qr: QR_CODES.FLOOR_11 }
     ];
 
     const progressBar = document.getElementById("progressBar");
