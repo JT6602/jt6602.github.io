@@ -141,6 +141,10 @@ const TEAM_COUNT = 11;
     const floorTransitionNext = document.getElementById("floorTransitionNext");
     const floorTransitionLabel = document.getElementById("floorTransitionLabel");
     const floorTransitionMap = document.getElementById("floorTransitionMap");
+    const answerOverlay = document.getElementById("answerOverlay");
+    const answerOverlayLoadingText = document.getElementById("answerOverlayLoadingText");
+    const answerOverlayMessage = document.getElementById("answerOverlayMessage");
+    const answerOverlaySubtext = document.getElementById("answerOverlaySubtext");
     const startGameOverlay = document.getElementById("startGameOverlay");
     const startGameTeamLabel = document.getElementById("startGameTeam");
     const startGameSummary = document.getElementById("startGameSummary");
@@ -237,6 +241,7 @@ const TEAM_COUNT = 11;
     const floorTransitionStageTimers = [];
     let startOverlayEscapeBound = false;
     let pendingTeamStart = null;
+    let answerOverlayTimers = [];
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -329,13 +334,22 @@ const TEAM_COUNT = 11;
         return;
       }
 
-      const alreadyPrompted = sessionStorage.getItem("towerWinPrompted");
+      let alreadyPrompted = null;
+      try {
+        alreadyPrompted = window.sessionStorage?.getItem("towerWinPrompted") ?? null;
+      } catch (err) {
+        alreadyPrompted = null;
+      }
       if (alreadyPrompted === "yes") {
         return;
       }
 
       const goToWin = window.confirm("Tower complete! Visit the celebration screen now?");
-      sessionStorage.setItem("towerWinPrompted", "yes");
+      try {
+        window.sessionStorage?.setItem("towerWinPrompted", "yes");
+      } catch (err) {
+        // ignore storage failures
+      }
       if (goToWin) {
         window.location.assign("/win.html");
       }
@@ -911,6 +925,91 @@ const TEAM_COUNT = 11;
       });
     }
 
+    function clearAnswerOverlayTimers() {
+      if (!answerOverlayTimers.length) {
+        return;
+      }
+      answerOverlayTimers.forEach(id => window.clearTimeout(id));
+      answerOverlayTimers = [];
+    }
+
+    function hideAnswerOverlay({ immediate = false } = {}) {
+      if (!answerOverlay) {
+        return;
+      }
+      clearAnswerOverlayTimers();
+      if (immediate) {
+        answerOverlay.classList.remove("is-visible", "is-loading", "is-result", "is-success", "is-error", "is-closing");
+        answerOverlay.setAttribute("hidden", "true");
+        answerOverlay.setAttribute("aria-hidden", "true");
+        return;
+      }
+      answerOverlay.classList.add("is-closing");
+      const removalTimer = window.setTimeout(() => {
+        answerOverlay.classList.remove("is-visible", "is-loading", "is-result", "is-success", "is-error", "is-closing");
+        answerOverlay.setAttribute("hidden", "true");
+        answerOverlay.setAttribute("aria-hidden", "true");
+      }, 240);
+      answerOverlayTimers.push(removalTimer);
+    }
+
+    function runAnswerOverlay({ status, floorName }) {
+      if (!answerOverlay) {
+        return Promise.resolve();
+      }
+
+      clearAnswerOverlayTimers();
+      answerOverlay.classList.remove("is-result", "is-success", "is-error", "is-closing");
+      answerOverlay.classList.add("is-visible", "is-loading");
+      answerOverlay.removeAttribute("hidden");
+      answerOverlay.setAttribute("aria-hidden", "false");
+
+      if (answerOverlayLoadingText) {
+        const label = floorName ? `Checking ${floorName}…` : "Checking answer…";
+        answerOverlayLoadingText.textContent = label;
+      }
+      if (answerOverlayMessage) {
+        answerOverlayMessage.textContent = "";
+      }
+      if (answerOverlaySubtext) {
+        answerOverlaySubtext.textContent = "";
+      }
+
+      return new Promise(resolve => {
+        const loadingTimer = window.setTimeout(() => {
+          answerOverlay.classList.remove("is-loading");
+          answerOverlay.classList.add("is-result");
+
+          const isCorrect = status === "correct";
+          answerOverlay.classList.toggle("is-success", isCorrect);
+          answerOverlay.classList.toggle("is-error", !isCorrect);
+
+          if (answerOverlayMessage) {
+            answerOverlayMessage.textContent = isCorrect ? "Correct!" : "Not Quite";
+          }
+          if (answerOverlaySubtext) {
+            const name = floorName ?? "this puzzle";
+            answerOverlaySubtext.textContent = isCorrect
+              ? `${name} cleared.`
+              : `Try again on ${name}.`;
+          }
+
+          const resultTimer = window.setTimeout(() => {
+            answerOverlay.classList.add("is-closing");
+            const closeTimer = window.setTimeout(() => {
+              hideAnswerOverlay({ immediate: true });
+              resolve();
+            }, 240);
+            answerOverlayTimers.push(closeTimer);
+          }, 1500);
+
+          answerOverlayTimers.push(resultTimer);
+        }, 500);
+
+        answerOverlayTimers.push(loadingTimer);
+      });
+    }
+
     function openGmOverrideOverlay(teamId) {
       if (!gmOverrideOverlay || !gmOverrideOptions) {
         return;
@@ -1369,9 +1468,13 @@ const TEAM_COUNT = 11;
         openScanner(intent);
       });
 
-      answerForm?.addEventListener("submit", event => {
+      answerForm?.addEventListener("submit", async event => {
         event.preventDefault();
-        submitPuzzleAnswer();
+        try {
+          await submitPuzzleAnswer();
+        } catch (err) {
+          console.error("Answer submission failed", err);
+        }
       });
 
       submitCodeButton?.addEventListener("click", () => {
@@ -1533,48 +1636,6 @@ const TEAM_COUNT = 11;
           break;
         }
         current = decoded;
-      }
-
-      return results;
-    }
-
-    function expandDecodeCandidates(initial) {
-      const queue = [initial];
-      const results = [];
-      const seen = new Set();
-      const maxIterations = 16;
-
-      while (queue.length && results.length < maxIterations) {
-        const candidate = queue.shift();
-        if (typeof candidate !== "string") {
-          continue;
-        }
-        const trimmed = candidate.trim();
-        if (!trimmed || seen.has(trimmed)) {
-          continue;
-        }
-        seen.add(trimmed);
-        results.push(trimmed);
-
-        const percentEncoded = /%(?:[0-9A-Fa-f]{2})/.test(trimmed);
-        if (percentEncoded) {
-          const decoded = safeDecodeURIComponent(trimmed);
-          if (decoded !== trimmed) {
-            queue.push(decoded);
-          }
-        }
-
-        try {
-          const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
-          const padLength = (4 - (normalized.length % 4)) % 4;
-          const padded = normalized + "=".repeat(padLength);
-          const ascii = atob(padded);
-          if (ascii && ascii !== trimmed) {
-            queue.push(ascii);
-          }
-        } catch (err) {
-          // ignore non-base64 values
-        }
       }
 
       return results;
@@ -3136,7 +3197,7 @@ const TEAM_COUNT = 11;
       return nextIndex;
     }
 
-    function submitPuzzleAnswer() {
+    async function submitPuzzleAnswer() {
       if (!answerInput || answerInput.disabled) {
         setPuzzleFeedback("Unlock a puzzle before submitting an answer.", "error");
         return;
@@ -3160,10 +3221,13 @@ const TEAM_COUNT = 11;
       const expectedAnswer = normalizeAnswer(puzzle.answer ?? "");
 
       if (expectedAnswer && normalizedGuess !== expectedAnswer) {
+        await runAnswerOverlay({ status: "incorrect", floorName: puzzle.floor });
         setPuzzleFeedback("That answer isn't correct yet. Keep trying.", "error");
         answerInput.select();
         return;
       }
+
+      await runAnswerOverlay({ status: "correct", floorName: puzzle.floor });
 
       answerInput.value = "";
       state.unlocked[solvingIndex] = true;
@@ -3193,6 +3257,7 @@ const TEAM_COUNT = 11;
         triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
       }
     }
+
 
     function closeScanner(message, tone) {
       if (message) {

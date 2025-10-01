@@ -197,6 +197,19 @@
     </div>
   </div>
 
+  <div class="answer-overlay" id="answerOverlay" hidden aria-live="assertive" aria-modal="true">
+    <div class="answer-overlay-card">
+      <div class="answer-overlay-stage answer-overlay-loading">
+        <div class="answer-overlay-spinner" id="answerOverlaySpinner"></div>
+        <p id="answerOverlayLoadingText">Checking answer…</p>
+      </div>
+      <div class="answer-overlay-stage answer-overlay-result">
+        <h3 id="answerOverlayMessage"></h3>
+        <p id="answerOverlaySubtext"></p>
+      </div>
+    </div>
+  </div>
+
   <div class="start-overlay" id="startGameOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="startGameTitle">
     <div class="start-overlay-card">
       <header class="start-overlay-header">
