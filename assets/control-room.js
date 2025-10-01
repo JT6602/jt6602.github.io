@@ -1469,11 +1469,7 @@ const TEAM_COUNT = 11;
         return null;
       }
 
-      const candidates = new Set([value]);
-      const decodedVariant = safeDecodeURIComponent(value);
-      if (decodedVariant !== value) {
-        candidates.add(decodedVariant);
-      }
+      const candidates = new Set(expandDecodeCandidates(value));
 
       for (const candidate of candidates) {
         if (!candidate) continue;
@@ -1498,6 +1494,48 @@ const TEAM_COUNT = 11;
       }
 
       return null;
+    }
+
+    function expandDecodeCandidates(initial) {
+      const queue = [initial];
+      const results = [];
+      const seen = new Set();
+      const maxIterations = 16;
+
+      while (queue.length && results.length < maxIterations) {
+        const candidate = queue.shift();
+        if (typeof candidate !== "string") {
+          continue;
+        }
+        const trimmed = candidate.trim();
+        if (!trimmed || seen.has(trimmed)) {
+          continue;
+        }
+        seen.add(trimmed);
+        results.push(trimmed);
+
+        const percentEncoded = /%(?:[0-9A-Fa-f]{2})/.test(trimmed);
+        if (percentEncoded) {
+          const decoded = safeDecodeURIComponent(trimmed);
+          if (decoded !== trimmed) {
+            queue.push(decoded);
+          }
+        }
+
+        try {
+          const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+          const padLength = (4 - (normalized.length % 4)) % 4;
+          const padded = normalized + "=".repeat(padLength);
+          const ascii = atob(padded);
+          if (ascii && ascii !== trimmed) {
+            queue.push(ascii);
+          }
+        } catch (err) {
+          // ignore non-base64 values
+        }
+      }
+
+      return results;
     }
 
     function tryDecodeObfuscated(candidate) {
