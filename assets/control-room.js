@@ -318,6 +318,27 @@ const TEAM_COUNT = 11;
       detectPlatform();
       attachEventListeners();
       render();
+      maybePromptForWin();
+    }
+
+    function maybePromptForWin() {
+      if (!state?.hasWon || isWinView || isGmSheet) {
+        return;
+      }
+      if (window.location.pathname && window.location.pathname.toLowerCase().includes("/win")) {
+        return;
+      }
+
+      const alreadyPrompted = sessionStorage.getItem("towerWinPrompted");
+      if (alreadyPrompted === "yes") {
+        return;
+      }
+
+      const goToWin = window.confirm("Tower complete! Visit the celebration screen now?");
+      sessionStorage.setItem("towerWinPrompted", "yes");
+      if (goToWin) {
+        window.location.assign("/win.html");
+      }
     }
 
     function renderWinPage() {
@@ -1451,13 +1472,7 @@ const TEAM_COUNT = 11;
     function encodeStatePayload(currentState) {
       try {
         const sanitized = sanitizeState(currentState);
-        const json = JSON.stringify(sanitized);
-        const signature = simpleSignature(json + COOKIE_SECRET);
-        const combined = `${signature}:${json}`;
-        const reversed = combined.split("").reverse().join("");
-        const reversedBytes = encodeUtf8(reversed);
-        const obfuscated = xorBytes(reversedBytes);
-        return bytesToBase64Url(obfuscated);
+        return JSON.stringify(sanitized);
       } catch (error) {
         console.error("Failed to encode state", error);
         return null;
@@ -1469,31 +1484,58 @@ const TEAM_COUNT = 11;
         return null;
       }
 
-      const candidates = new Set(expandDecodeCandidates(value));
+      const candidates = buildDecodeCandidates(value);
 
       for (const candidate of candidates) {
         if (!candidate) continue;
 
-        const obfuscated = tryDecodeObfuscated(candidate);
-        if (obfuscated) {
-          return obfuscated;
-        }
-
         try {
           return JSON.parse(candidate);
         } catch (err) {
-          // continue legacy parsing
-        }
+          const legacy = tryDecodeObfuscated(candidate);
+          if (legacy) {
+            return legacy;
+          }
 
-        try {
-          const legacy = atob(candidate);
-          return JSON.parse(legacy);
-        } catch (err) {
-          // continue
+          try {
+            const ascii = atob(candidate);
+            if (ascii) {
+              const nested = JSON.parse(ascii);
+              return nested;
+            }
+          } catch (err2) {
+            // ignore
+          }
         }
       }
 
       return null;
+    }
+
+    function buildDecodeCandidates(initial) {
+      const results = [];
+      const seen = new Set();
+      let current = initial;
+
+      for (let index = 0; index < 4; index += 1) {
+        if (typeof current !== "string" || !current) {
+          break;
+        }
+        const trimmed = current.trim();
+        if (!trimmed || seen.has(trimmed)) {
+          break;
+        }
+        seen.add(trimmed);
+        results.push(trimmed);
+
+        const decoded = safeDecodeURIComponent(trimmed);
+        if (decoded === trimmed) {
+          break;
+        }
+        current = decoded;
+      }
+
+      return results;
     }
 
     function expandDecodeCandidates(initial) {
