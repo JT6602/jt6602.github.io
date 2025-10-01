@@ -1041,8 +1041,150 @@ const TEAM_COUNT = 11;
     }
 
 
+    const WORD_SEARCH_DIRECTIONS = Object.freeze([
+      { row: 1, col: 0 },
+      { row: -1, col: 0 },
+      { row: 0, col: 1 },
+      { row: 0, col: -1 },
+      { row: 1, col: 1 },
+      { row: -1, col: -1 },
+      { row: 1, col: -1 },
+      { row: -1, col: 1 }
+    ]);
+
+    function shuffleArray(values) {
+      const array = Array.isArray(values) ? values.slice() : [];
+      for (let index = array.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        const temp = array[index];
+        array[index] = array[swapIndex];
+        array[swapIndex] = temp;
+      }
+      return array;
+    }
+
+    function randomLetter() {
+      return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    }
+
+    function createWordSearchLayout(wordEntries, desiredSize) {
+      const normalizedSize = clampNumber(Number(desiredSize) || 10, 3, 26);
+      const grid = Array.from({ length: normalizedSize }, () => Array(normalizedSize).fill(null));
+      const placements = [];
+      const coordinates = Array.from({ length: normalizedSize * normalizedSize }, (_, index) => ({
+        row: Math.floor(index / normalizedSize),
+        col: index % normalizedSize
+      }));
+
+      wordEntries.forEach(entry => {
+        const letters = entry.word.split("");
+        let placed = false;
+
+        const directionOptions = shuffleArray(WORD_SEARCH_DIRECTIONS);
+        for (const direction of directionOptions) {
+          if (placed) {
+            break;
+          }
+
+          const startPositions = shuffleArray(coordinates);
+          for (const start of startPositions) {
+            const path = [];
+            let canPlace = true;
+
+            for (let step = 0; step < letters.length; step += 1) {
+              const targetRow = start.row + direction.row * step;
+              const targetCol = start.col + direction.col * step;
+
+              if (
+                targetRow < 0 ||
+                targetRow >= normalizedSize ||
+                targetCol < 0 ||
+                targetCol >= normalizedSize
+              ) {
+                canPlace = false;
+                break;
+              }
+
+              const existing = grid[targetRow][targetCol];
+              if (existing !== null && existing !== letters[step]) {
+                canPlace = false;
+                break;
+              }
+
+              path.push({ row: targetRow, col: targetCol });
+            }
+
+            if (canPlace) {
+              path.forEach((position, index) => {
+                grid[position.row][position.col] = letters[index];
+              });
+              placements.push({ key: entry.key, word: entry.word, path });
+              placed = true;
+              break;
+            }
+          }
+        }
+
+        if (!placed) {
+          throw new Error(`Unable to place word "${entry.word}" in word search grid.`);
+        }
+      });
+
+      for (let row = 0; row < normalizedSize; row += 1) {
+        for (let col = 0; col < normalizedSize; col += 1) {
+          if (grid[row][col] === null) {
+            grid[row][col] = randomLetter();
+          }
+        }
+      }
+
+      return { grid, placements };
+    }
+
     function renderWordSearchPuzzle(container, { wordSearch, prompt }) {
-      if (!container || !wordSearch || !Array.isArray(wordSearch.grid)) {
+      if (!container || !wordSearch) {
+        return;
+      }
+
+      const words = Array.isArray(wordSearch.words)
+        ? wordSearch.words
+            .map((word, index) => {
+              const trimmed = String(word ?? "").trim();
+              if (!trimmed) {
+                return null;
+              }
+              const normalized = trimmed.toUpperCase();
+              return {
+                key: `${normalized}-${index}`,
+                word: normalized,
+                display: normalized
+              };
+            })
+            .filter(Boolean)
+        : [];
+
+      let generatedGrid;
+      let placements = [];
+
+      if (words.length) {
+        try {
+          const layout = createWordSearchLayout(words, wordSearch.size ?? 10);
+          generatedGrid = layout.grid;
+          placements = layout.placements;
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      if (!generatedGrid && Array.isArray(wordSearch.grid)) {
+        generatedGrid = wordSearch.grid.map(row =>
+          (Array.isArray(row) ? row : String(row ?? "").trim().split(/\s+/)).map(letter =>
+            String(letter ?? "").slice(0, 1).toUpperCase()
+          )
+        );
+      }
+
+      if (!Array.isArray(generatedGrid)) {
         return;
       }
 
@@ -1060,30 +1202,45 @@ const TEAM_COUNT = 11;
 
       const grid = document.createElement("div");
       grid.className = "word-search-grid";
-      wordSearch.grid.forEach(row => {
+      const cellMatrix = generatedGrid.map(() => []);
+
+      generatedGrid.forEach((rowLetters, rowIndex) => {
         const rowEl = document.createElement("div");
         rowEl.className = "word-search-row";
-        const letters = Array.isArray(row) ? row : String(row).trim().split(/\s+/);
-        letters.forEach(letter => {
+
+        rowLetters.forEach((letter, colIndex) => {
           const cell = document.createElement("span");
           cell.className = "word-search-cell";
-          cell.textContent = String(letter ?? "").slice(0, 1).toUpperCase();
+          const cellLetter = String(letter ?? "").slice(0, 1).toUpperCase();
+          cell.textContent = cellLetter;
+          cell.dataset.row = String(rowIndex);
+          cell.dataset.col = String(colIndex);
+          cell.dataset.letter = cellLetter;
           rowEl.append(cell);
+          cellMatrix[rowIndex][colIndex] = cell;
         });
+
         grid.append(rowEl);
       });
+
       wrapper.append(grid);
 
-      if (Array.isArray(wordSearch.words) && wordSearch.words.length) {
-        const wordList = document.createElement("div");
+      let wordList;
+      const wordListItems = new Map();
+      const foundPlacements = new Set();
+
+      if (words.length) {
+        wordList = document.createElement("div");
         wordList.className = "word-search-word-list";
         const heading = document.createElement("h4");
         heading.textContent = "Words to find";
         wordList.append(heading);
         const list = document.createElement("ul");
-        wordSearch.words.forEach(word => {
+        words.forEach(entry => {
           const item = document.createElement("li");
-          item.textContent = String(word ?? "").toUpperCase();
+          item.textContent = entry.display;
+          item.dataset.wordKey = entry.key;
+          wordListItems.set(entry.key, item);
           list.append(item);
         });
         wordList.append(list);
@@ -1091,6 +1248,239 @@ const TEAM_COUNT = 11;
       }
 
       container.append(wrapper);
+
+      if (!words.length || !placements.length) {
+        return;
+      }
+
+      const selectionState = {
+        pointerId: null,
+        direction: null,
+        cells: [],
+        start: null
+      };
+
+      function resetSelectionClasses() {
+        selectionState.cells.forEach(cell => {
+          if (!cell.element.classList.contains("is-found")) {
+            cell.element.classList.remove("is-selecting");
+          }
+        });
+      }
+
+      function clearSelectionState() {
+        resetSelectionClasses();
+        selectionState.pointerId = null;
+        selectionState.direction = null;
+        selectionState.cells = [];
+        selectionState.start = null;
+      }
+
+      function getCellFromCoordinates(row, col) {
+        if (row < 0 || col < 0) {
+          return null;
+        }
+        return cellMatrix[row] ? cellMatrix[row][col] : null;
+      }
+
+      function setSelectionCells(cells) {
+        resetSelectionClasses();
+        selectionState.cells = cells;
+        cells.forEach(cell => {
+          if (!cell.element.classList.contains("is-found")) {
+            cell.element.classList.add("is-selecting");
+          }
+        });
+      }
+
+      function startSelection(cell, pointerId) {
+        const row = Number(cell.dataset.row);
+        const col = Number(cell.dataset.col);
+        selectionState.pointerId = pointerId;
+        selectionState.direction = null;
+        selectionState.start = { row, col };
+        setSelectionCells([
+          {
+            row,
+            col,
+            element: cell
+          }
+        ]);
+      }
+
+      function updateSelection(cell) {
+        if (!selectionState.start) {
+          return;
+        }
+
+        const targetRow = Number(cell.dataset.row);
+        const targetCol = Number(cell.dataset.col);
+        const rowDelta = targetRow - selectionState.start.row;
+        const colDelta = targetCol - selectionState.start.col;
+
+        if (rowDelta === 0 && colDelta === 0) {
+          return;
+        }
+
+        const stepRow = rowDelta === 0 ? 0 : rowDelta / Math.abs(rowDelta);
+        const stepCol = colDelta === 0 ? 0 : colDelta / Math.abs(colDelta);
+
+        if (stepRow !== 0 && stepCol !== 0 && Math.abs(rowDelta) !== Math.abs(colDelta)) {
+          return;
+        }
+
+        const proposedDirection = { row: stepRow, col: stepCol };
+        if (!selectionState.direction) {
+          selectionState.direction = proposedDirection;
+        }
+
+        if (
+          selectionState.direction.row !== proposedDirection.row ||
+          selectionState.direction.col !== proposedDirection.col
+        ) {
+          return;
+        }
+
+        const steps = Math.max(Math.abs(rowDelta), Math.abs(colDelta));
+        const cells = [];
+        for (let step = 0; step <= steps; step += 1) {
+          const row = selectionState.start.row + selectionState.direction.row * step;
+          const col = selectionState.start.col + selectionState.direction.col * step;
+          const targetCell = getCellFromCoordinates(row, col);
+          if (!targetCell) {
+            return;
+          }
+          cells.push({
+            row,
+            col,
+            element: targetCell
+          });
+        }
+
+        setSelectionCells(cells);
+      }
+
+      function findMatchingPlacement(cells) {
+        const coordinates = cells.map(cell => ({ row: cell.row, col: cell.col }));
+        return placements.find(placement => {
+          if (foundPlacements.has(placement.key) || placement.path.length !== coordinates.length) {
+            return false;
+          }
+
+          const directMatch = placement.path.every((position, index) => {
+            const coordinate = coordinates[index];
+            return coordinate.row === position.row && coordinate.col === position.col;
+          });
+
+          if (directMatch) {
+            return true;
+          }
+
+          return placement.path.every((position, index) => {
+            const coordinate = coordinates[coordinates.length - 1 - index];
+            return coordinate.row === position.row && coordinate.col === position.col;
+          });
+        });
+      }
+
+      function markPlacementFound(placement, cells) {
+        foundPlacements.add(placement.key);
+        cells.forEach(cell => {
+          cell.element.classList.remove("is-selecting");
+          cell.element.classList.add("is-found");
+        });
+
+        const listItem = wordListItems.get(placement.key);
+        if (listItem) {
+          listItem.classList.add("is-found");
+        }
+      }
+
+      function completeSelection() {
+        if (!selectionState.cells.length) {
+          clearSelectionState();
+          return;
+        }
+
+        const placement = findMatchingPlacement(selectionState.cells);
+        if (placement) {
+          markPlacementFound(placement, selectionState.cells);
+        }
+
+        clearSelectionState();
+      }
+
+      function handlePointerDown(event) {
+        const cell = event.target.closest(".word-search-cell");
+        if (!cell || !grid.contains(cell)) {
+          return;
+        }
+
+        if (event.pointerType === "mouse" && event.button !== 0) {
+          return;
+        }
+
+        event.preventDefault();
+        grid.setPointerCapture(event.pointerId);
+        startSelection(cell, event.pointerId);
+      }
+
+      function handlePointerMove(event) {
+        if (selectionState.pointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        const element = document.elementFromPoint(event.clientX, event.clientY);
+        const cell = element ? element.closest(".word-search-cell") : null;
+
+        if (cell && grid.contains(cell)) {
+          updateSelection(cell);
+        }
+      }
+
+      function handlePointerUp(event) {
+        if (selectionState.pointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        if (grid.hasPointerCapture && grid.hasPointerCapture(event.pointerId)) {
+          grid.releasePointerCapture(event.pointerId);
+        }
+        const element = document.elementFromPoint(event.clientX, event.clientY);
+        const cell = element ? element.closest(".word-search-cell") : null;
+        if (cell && grid.contains(cell)) {
+          updateSelection(cell);
+        }
+        completeSelection();
+      }
+
+      function handlePointerCancel(event) {
+        if (selectionState.pointerId !== event.pointerId) {
+          return;
+        }
+        if (grid.hasPointerCapture && grid.hasPointerCapture(event.pointerId)) {
+          grid.releasePointerCapture(event.pointerId);
+        }
+        clearSelectionState();
+      }
+
+      grid.addEventListener("pointerdown", handlePointerDown);
+      grid.addEventListener("pointermove", handlePointerMove);
+      grid.addEventListener("pointerup", handlePointerUp);
+      grid.addEventListener("pointercancel", handlePointerCancel);
+      grid.addEventListener("pointerleave", event => {
+        if (selectionState.pointerId !== event.pointerId) {
+          return;
+        }
+
+        if (grid.hasPointerCapture && grid.hasPointerCapture(event.pointerId)) {
+          handlePointerUp(event);
+        } else {
+          clearSelectionState();
+        }
+      });
     }
 
     function openGmOverrideOverlay(teamId) {

@@ -1045,12 +1045,15 @@
     .word-search-grid {
       display: grid;
       gap: clamp(0.35rem, 1vw, 0.55rem);
+      touch-action: none;
+      user-select: none;
     }
 
     .word-search-row {
       display: grid;
       grid-auto-flow: column;
       gap: clamp(0.35rem, 1vw, 0.55rem);
+      user-select: none;
     }
 
     .word-search-cell {
@@ -1067,6 +1070,20 @@
       color: rgba(224, 241, 255, 0.92);
       text-transform: uppercase;
       box-shadow: 0 12px 28px -22px rgba(110, 230, 228, 0.7);
+      user-select: none;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .word-search-cell.is-selecting {
+      border-color: rgba(110, 230, 228, 0.8);
+      background: rgba(91, 192, 190, 0.32);
+    }
+
+    .word-search-cell.is-found {
+      border-color: rgba(110, 230, 228, 0.95);
+      background: rgba(91, 192, 190, 0.65);
+      color: rgba(6, 18, 32, 0.92);
+      font-weight: 600;
     }
 
     .word-search-word-list {
@@ -1093,6 +1110,11 @@
 
     .word-search-word-list li {
       list-style: disc;
+    }
+
+    .word-search-word-list li.is-found {
+      color: rgba(110, 230, 228, 0.9);
+      text-decoration: line-through;
     }
 
     .answer-overlay-card {
