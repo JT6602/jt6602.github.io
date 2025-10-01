@@ -416,6 +416,13 @@ const TEAM_COUNT = 11;
       puzzleState: {}
     });
 
+    const DASHBOARD_SYNC_DEBOUNCE_MS = 600;
+    let dashboardConfig = createDashboardConfig(resolveDashboardBase());
+    let dashboardSyncTimer = null;
+    let dashboardPendingReason = "state-change";
+    let dashboardLastPayload = null;
+    let dashboardOverridePayload = null;
+
     function ensurePuzzleStateContainer() {
       if (!state.puzzleState || typeof state.puzzleState !== "object") {
         state.puzzleState = {};
@@ -579,6 +586,7 @@ const TEAM_COUNT = 11;
       attachEventListeners();
       render();
       maybePromptForWin();
+      scheduleDashboardSync("init");
     }
 
     function maybePromptForWin() {
@@ -3697,6 +3705,13 @@ const TEAM_COUNT = 11;
     function attachEventListeners() {
       resetButton?.addEventListener("click", () => {
         if (!confirm("Reset all progress on this device?")) return;
+        const previousTeamId = Number.isInteger(state.teamId) ? state.teamId : null;
+        if (previousTeamId !== null) {
+          const overrideState = defaultState(previousTeamId);
+          queueDashboardOverride(overrideState, "reset");
+        } else {
+          scheduleDashboardSync("reset");
+        }
         state = defaultState(null);
         pendingPuzzleUnlockIndex = null;
         clearStateCookie();
@@ -3803,11 +3818,298 @@ const TEAM_COUNT = 11;
       state = sanitizeState(state);
       const payload = encodeStatePayload(state);
       if (!payload) {
+        scheduleDashboardSync("state-save");
         return;
       }
       const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
       const encoded = encodeURIComponent(payload);
       document.cookie = `${COOKIE_NAME}=${encoded}; max-age=${maxAge}; path=/; SameSite=Lax`;
+      scheduleDashboardSync("state-save");
+    }
+
+    function scheduleDashboardSync(reason = "state-change") {
+      if (!dashboardConfig || typeof window === "undefined") {
+        return;
+      }
+      dashboardPendingReason = reason;
+      if (dashboardSyncTimer !== null) {
+        window.clearTimeout(dashboardSyncTimer);
+      }
+      dashboardSyncTimer = window.setTimeout(() => {
+        dashboardSyncTimer = null;
+        sendDashboardSync(dashboardPendingReason).catch(error => {
+          console.warn("Dashboard sync failed", error);
+        });
+      }, DASHBOARD_SYNC_DEBOUNCE_MS);
+    }
+
+    async function sendDashboardSync(reason = "state-change") {
+      if (!dashboardConfig) {
+        return false;
+      }
+
+      const overridePayload = dashboardOverridePayload;
+      dashboardOverridePayload = null;
+
+      const payload = overridePayload ?? buildDashboardPayload(reason);
+      if (!payload) {
+        return false;
+      }
+      if (!payload.reason) {
+        payload.reason = reason;
+      }
+
+      const serialized = JSON.stringify(payload);
+      if (serialized === dashboardLastPayload) {
+        return true;
+      }
+
+      const endpoint = dashboardConfig.progressEndpoint;
+
+      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        try {
+          const beaconBlob = new Blob([serialized], { type: "application/json" });
+          const sent = navigator.sendBeacon(endpoint, beaconBlob);
+          if (sent) {
+            dashboardLastPayload = serialized;
+            return true;
+          }
+        } catch (err) {
+          console.warn("Beacon dashboard sync failed", err);
+        }
+      }
+
+      try {
+        let controller = null;
+        let timeoutId = null;
+        if (typeof AbortController === "function") {
+          controller = new AbortController();
+          timeoutId = window.setTimeout(() => {
+            try {
+              controller.abort();
+            } catch (err) {
+              // ignore
+            }
+          }, 5000);
+        }
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: serialized,
+          mode: "cors",
+          credentials: "omit",
+          signal: controller?.signal
+        });
+
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+
+        if (response.ok) {
+          dashboardLastPayload = serialized;
+          return true;
+        }
+
+        console.warn("Dashboard sync responded with", response.status);
+      } catch (err) {
+        console.warn("Dashboard sync network error", err);
+      }
+
+      return false;
+    }
+
+    function buildDashboardPayload(reason = "state-change") {
+      return buildDashboardPayloadFromState(state, reason);
+    }
+
+    function buildDashboardPayloadFromState(targetState, reason = "state-change") {
+      if (!targetState || typeof targetState !== "object") {
+        return null;
+      }
+
+      const teamId = Number.isInteger(targetState.teamId)
+        ? clampNumber(targetState.teamId, 0, TEAM_COUNT - 1)
+        : null;
+
+      const completions = safeBooleanArray(targetState.completions, PUZZLE_COUNT);
+      const unlocked = safeBooleanArray(targetState.unlocked, PUZZLE_COUNT).map((value, index) =>
+        value || completions[index]
+      );
+
+      const hasStarted = Boolean(targetState.hasStarted) || completions.some(Boolean) || unlocked.some(Boolean);
+
+      if (teamId === null && !hasStarted) {
+        return null;
+      }
+
+      const solved = completions.filter(Boolean).length;
+      const puzzleCount = PUZZLE_COUNT;
+      const teamName = Number.isInteger(teamId) ? TEAM_NAMES[teamId] ?? `Team ${teamId + 1}` : "Unassigned device";
+      const order = getOrderForTeam(teamId);
+
+      const currentIndex = targetState === state && Number.isInteger(teamId)
+        ? getCurrentSolvingIndex()
+        : inferCurrentIndexFromSnapshot({ completions, unlocked }, order);
+
+      const nextIndex = targetState === state && Number.isInteger(teamId)
+        ? getNextDestinationIndex()
+        : inferNextIndexFromSnapshot(completions, order);
+
+      const nextPuzzleLabel = Number.isInteger(nextIndex)
+        ? puzzles[nextIndex]?.floor ?? `Mission ${(nextIndex ?? 0) + 1}`
+        : null;
+
+      const payload = {
+        teamId,
+        teamName,
+        hasStarted,
+        hasWon: Boolean(targetState.hasWon) || solved >= puzzleCount,
+        solved,
+        puzzleCount,
+        completions,
+        unlocked,
+        currentPuzzleIndex: Number.isInteger(currentIndex) ? currentIndex : null,
+        nextPuzzleIndex: Number.isInteger(nextIndex) ? nextIndex : null,
+        nextPuzzleLabel,
+        timestamp: new Date().toISOString(),
+        reason,
+        progressPercent: puzzleCount > 0 ? Math.round((solved / puzzleCount) * 100) : 0
+      };
+
+      return payload;
+    }
+
+    function queueDashboardOverride(stateSnapshot, reason = "override") {
+      const snapshotPayload = buildDashboardPayloadFromState(stateSnapshot, reason);
+      dashboardOverridePayload = snapshotPayload ?? null;
+      if (snapshotPayload) {
+        dashboardLastPayload = null;
+        scheduleDashboardSync(reason);
+      }
+    }
+
+    function safeBooleanArray(source, length) {
+      const result = Array.from({ length }, () => false);
+      if (!Array.isArray(source)) {
+        return result;
+      }
+      for (let index = 0; index < length; index += 1) {
+        result[index] = Boolean(source[index]);
+      }
+      return result;
+    }
+
+    function inferCurrentIndexFromSnapshot(snapshot, order) {
+      if (!Array.isArray(order) || !order.length) {
+        return null;
+      }
+      for (let i = 0; i < order.length; i += 1) {
+        const index = order[i];
+        if (snapshot.unlocked[index] && !snapshot.completions[index]) {
+          return index;
+        }
+      }
+      return null;
+    }
+
+    function inferNextIndexFromSnapshot(completions, order) {
+      if (!Array.isArray(order) || !order.length) {
+        return null;
+      }
+      for (let i = 0; i < order.length; i += 1) {
+        const index = order[i];
+        if (!completions[index]) {
+          return index;
+        }
+      }
+      return null;
+    }
+
+    function resolveDashboardBase() {
+      if (typeof window === "undefined") {
+        return null;
+      }
+      if (typeof window.__TOWER_DASHBOARD_ENDPOINT__ === "string") {
+        const configured = window.__TOWER_DASHBOARD_ENDPOINT__.trim();
+        if (configured) {
+          return configured;
+        }
+      }
+      const meta = document.querySelector('meta[name="tower-dashboard-base"]');
+      if (meta?.content?.trim()) {
+        return meta.content.trim();
+      }
+      const bodyAttr = document.body?.dataset?.dashboardBase?.trim();
+      if (bodyAttr) {
+        return bodyAttr;
+      }
+      return null;
+    }
+
+    function sanitizeEndpointBase(value) {
+      if (!value) {
+        return null;
+      }
+      const trimmed = String(value).trim();
+      if (!trimmed) {
+        return null;
+      }
+      return trimmed.replace(/\/+$/, "");
+    }
+
+    function createDashboardConfig(base) {
+      const sanitized = sanitizeEndpointBase(base);
+      if (!sanitized) {
+        return null;
+      }
+      return {
+        base: sanitized,
+        progressEndpoint: `${sanitized}/progress`,
+        stateEndpoint: `${sanitized}/state`
+      };
+    }
+
+    function updateDashboardConfig(newBase) {
+      dashboardConfig = createDashboardConfig(newBase ?? resolveDashboardBase());
+      if (!dashboardConfig) {
+        return null;
+      }
+      dashboardLastPayload = null;
+      scheduleDashboardSync("config-update");
+      return dashboardConfig;
+    }
+
+    function setupDashboardDebugApi() {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      const api = {
+        getStateSnapshot: () => {
+          try {
+            return JSON.parse(JSON.stringify(state));
+          } catch (err) {
+            return sanitizeState(state);
+          }
+        },
+        getDashboardConfig: () => (dashboardConfig ? { ...dashboardConfig } : null),
+        setDashboardEndpoint: value => updateDashboardConfig(value),
+        getPayloadPreview: reason => buildDashboardPayload(reason ?? "preview"),
+        syncNow: reason => sendDashboardSync(reason ?? "manual"),
+        scheduleSync: reason => scheduleDashboardSync(reason ?? "manual"),
+        resolveConfiguredEndpoint: () => resolveDashboardBase(),
+        queueOverrideSnapshot: snapshot => queueDashboardOverride(snapshot, "manual-override")
+      };
+
+      try {
+        Object.defineProperty(window, "TowerHunt", {
+          value: Object.freeze(api),
+          configurable: true
+        });
+      } catch (err) {
+        window.TowerHunt = api;
+      }
     }
 
     function clearStateCookie() {
@@ -4087,10 +4389,14 @@ const TEAM_COUNT = 11;
     }
 
     function getTeamOrder(teamIdOverride = state.teamId) {
-      if (!Number.isInteger(teamIdOverride)) {
+      return getOrderForTeam(teamIdOverride);
+    }
+
+    function getOrderForTeam(teamId) {
+      if (!Number.isInteger(teamId)) {
         return [];
       }
-      const sanitized = clampNumber(teamIdOverride, 0, TEAM_COUNT - 1);
+      const sanitized = clampNumber(teamId, 0, TEAM_COUNT - 1);
       return TEAM_ORDERS[sanitized]?.slice() ?? [];
     }
 
@@ -6034,4 +6340,5 @@ const TEAM_COUNT = 11;
       }
     }
 
+    setupDashboardDebugApi();
     initialize();

@@ -79,4 +79,81 @@ describe('repo dashboard worker', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(endpoints.length);
     expect(fetchSpy).toHaveBeenNthCalledWith(1, 'https://api.github.com/repos/JT6602/jt6602.github.io', expect.anything());
   });
+
+  it('returns an empty game state when no devices have synced', async () => {
+    const request = makeRequest('/api/game/state');
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('access-control-allow-origin')).toBe('*');
+
+    const body = await response.json();
+    expect(body).toMatchObject({ teams: {}, totalTeams: 11 });
+  });
+
+  it('accepts team progress updates and exposes them via the game state endpoint', async () => {
+    const progressPayload = {
+      teamId: 3,
+      teamName: 'Ranger Unit',
+      hasStarted: true,
+      hasWon: false,
+      completions: [true, true, false, false],
+      unlocked: [true, true, true, false],
+      currentPuzzleIndex: 2,
+      nextPuzzleIndex: 2,
+      nextPuzzleLabel: 'Floor 3',
+      puzzleCount: 12,
+      timestamp: '2024-02-01T10:00:00Z',
+      reason: 'puzzle-solved'
+    };
+
+    const postRequest = new IncomingRequest('https://example.com/api/game/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(progressPayload)
+    });
+
+    const postCtx = createExecutionContext();
+    const postResponse = await worker.fetch(postRequest, env, postCtx);
+    await waitOnExecutionContext(postCtx);
+
+    expect(postResponse.status).toBe(200);
+    expect(postResponse.headers.get('access-control-allow-origin')).toBe('*');
+
+    const stateRequest = makeRequest('/api/game/state');
+    const stateCtx = createExecutionContext();
+    const stateResponse = await worker.fetch(stateRequest, env, stateCtx);
+    await waitOnExecutionContext(stateCtx);
+
+    const stateBody = await stateResponse.json();
+    const teamEntry = stateBody.teams?.['3'];
+
+    expect(teamEntry).toBeTruthy();
+    expect(teamEntry.teamId).toBe(3);
+    expect(teamEntry.teamName).toBe('Ranger Unit');
+    expect(teamEntry.hasStarted).toBe(true);
+    expect(teamEntry.solved).toBe(2);
+    expect(teamEntry.completions).toHaveLength(12);
+    expect(teamEntry.unlocked).toHaveLength(12);
+    expect(teamEntry.nextPuzzleLabel).toBe('Floor 3');
+    expect(teamEntry.progressPercent).toBeGreaterThanOrEqual(0);
+  });
+
+  it('rejects malformed progress payloads with a 400 response', async () => {
+    const badRequest = new IncomingRequest('https://example.com/api/game/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(badRequest, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body?.error).toBeTruthy();
+  });
 });
