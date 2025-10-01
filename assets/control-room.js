@@ -94,7 +94,19 @@ const TEAM_COUNT = 11;
         answer: "tower",
         wordSearch: {
           size: 10,
-          words: ["tower", "fun", "test"]
+          words: ["tower", "fun", "test"],
+          grid: [
+            "T O W E R Q L M N O",
+            "A B C D E F G H I J",
+            "K L T E S T U V W X",
+            "P Q R S T U V W X Y",
+            "F U N A B C D E F G",
+            "H I J K L M N O P Q",
+            "R S T U V W X Y Z A",
+            "B C D E F G H I J K",
+            "L M N O P Q R S T U",
+            "V W X Y Z A B C D E"
+          ]
         },
         qr: QR_CODES.FLOOR_6
       },
@@ -1048,76 +1060,160 @@ const TEAM_COUNT = 11;
 
     function createWordSearchLayout(wordEntries, desiredSize) {
       const normalizedSize = clampNumber(Number(desiredSize) || 10, 3, 26);
-      const grid = Array.from({ length: normalizedSize }, () => Array(normalizedSize).fill(null));
-      const placements = [];
-      const coordinates = Array.from({ length: normalizedSize * normalizedSize }, (_, index) => ({
+      const normalizedEntries = Array.isArray(wordEntries) ? wordEntries.slice() : [];
+      if (!normalizedEntries.length) {
+        return { grid: [], placements: [] };
+      }
+
+      const coordinatePool = Array.from({ length: normalizedSize * normalizedSize }, (_, index) => ({
         row: Math.floor(index / normalizedSize),
         col: index % normalizedSize
       }));
 
-      wordEntries.forEach(entry => {
-        const letters = entry.word.split("");
-        let placed = false;
+      const maxAttempts = Math.max(18, normalizedEntries.length * 12);
 
-        const directionOptions = shuffleArray(WORD_SEARCH_DIRECTIONS);
-        for (const direction of directionOptions) {
-          if (placed) {
-            break;
-          }
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const grid = Array.from({ length: normalizedSize }, () => Array(normalizedSize).fill(null));
+        const placements = [];
+        const entries = attempt === 0 ? normalizedEntries : shuffleArray(normalizedEntries);
+        let failed = false;
 
-          const startPositions = shuffleArray(coordinates);
-          for (const start of startPositions) {
-            const path = [];
-            let canPlace = true;
+        for (const entry of entries) {
+          const letters = entry.word.split("");
+          let placed = false;
 
-            for (let step = 0; step < letters.length; step += 1) {
-              const targetRow = start.row + direction.row * step;
-              const targetCol = start.col + direction.col * step;
-
-              if (
-                targetRow < 0 ||
-                targetRow >= normalizedSize ||
-                targetCol < 0 ||
-                targetCol >= normalizedSize
-              ) {
-                canPlace = false;
-                break;
-              }
-
-              const existing = grid[targetRow][targetCol];
-              if (existing !== null && existing !== letters[step]) {
-                canPlace = false;
-                break;
-              }
-
-              path.push({ row: targetRow, col: targetCol });
-            }
-
-            if (canPlace) {
-              path.forEach((position, index) => {
-                grid[position.row][position.col] = letters[index];
-              });
-              placements.push({ key: entry.key, word: entry.word, path });
-              placed = true;
+          const directionOptions = shuffleArray(WORD_SEARCH_DIRECTIONS);
+          for (const direction of directionOptions) {
+            if (placed) {
               break;
             }
+
+            const startPositions = shuffleArray(coordinatePool);
+            for (const start of startPositions) {
+              const path = [];
+              let canPlace = true;
+
+              for (let step = 0; step < letters.length; step += 1) {
+                const targetRow = start.row + direction.row * step;
+                const targetCol = start.col + direction.col * step;
+
+                if (
+                  targetRow < 0 ||
+                  targetRow >= normalizedSize ||
+                  targetCol < 0 ||
+                  targetCol >= normalizedSize
+                ) {
+                  canPlace = false;
+                  break;
+                }
+
+                const existing = grid[targetRow][targetCol];
+                if (existing !== null && existing !== letters[step]) {
+                  canPlace = false;
+                  break;
+                }
+
+                path.push({ row: targetRow, col: targetCol });
+              }
+
+              if (canPlace) {
+                path.forEach((position, index) => {
+                  grid[position.row][position.col] = letters[index];
+                });
+                placements.push({ key: entry.key, word: entry.word, path });
+                placed = true;
+                break;
+              }
+            }
+          }
+
+          if (!placed) {
+            failed = true;
+            break;
           }
         }
 
-        if (!placed) {
-          throw new Error(`Unable to place word "${entry.word}" in word search grid.`);
-        }
-      });
-
-      for (let row = 0; row < normalizedSize; row += 1) {
-        for (let col = 0; col < normalizedSize; col += 1) {
-          if (grid[row][col] === null) {
-            grid[row][col] = randomLetter();
+        if (!failed) {
+          for (let row = 0; row < normalizedSize; row += 1) {
+            for (let col = 0; col < normalizedSize; col += 1) {
+              if (grid[row][col] === null) {
+                grid[row][col] = randomLetter();
+              }
+            }
           }
+
+          return { grid, placements };
         }
       }
 
-      return { grid, placements };
+      throw new Error(`Unable to place all words after ${maxAttempts} attempts.`);
+    }
+
+    function findWordPlacementsFromGrid(grid, wordEntries) {
+      if (!Array.isArray(grid) || !grid.length || !Array.isArray(wordEntries) || !wordEntries.length) {
+        return null;
+      }
+
+      const rowCount = grid.length;
+      const colCount = Array.isArray(grid[0]) ? grid[0].length : 0;
+      if (!colCount) {
+        return null;
+      }
+
+      const placements = [];
+
+      wordEntries.forEach(entry => {
+        const letters = entry.word.split("");
+        let foundPath = null;
+
+        for (let row = 0; row < rowCount && !foundPath; row += 1) {
+          for (let col = 0; col < colCount && !foundPath; col += 1) {
+            if (grid[row][col] !== letters[0]) {
+              continue;
+            }
+
+            for (const direction of WORD_SEARCH_DIRECTIONS) {
+              const path = [];
+              let matches = true;
+
+              for (let step = 0; step < letters.length; step += 1) {
+                const targetRow = row + direction.row * step;
+                const targetCol = col + direction.col * step;
+
+                if (
+                  targetRow < 0 ||
+                  targetRow >= rowCount ||
+                  targetCol < 0 ||
+                  targetCol >= colCount ||
+                  grid[targetRow][targetCol] !== letters[step]
+                ) {
+                  matches = false;
+                  break;
+                }
+
+                path.push({ row: targetRow, col: targetCol });
+              }
+
+              if (matches) {
+                foundPath = path;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!foundPath) {
+          placements.push(null);
+        } else {
+          placements.push({ key: entry.key, word: entry.word, path: foundPath });
+        }
+      });
+
+      if (placements.some(placement => !placement)) {
+        return null;
+      }
+
+      return placements;
     }
 
     function renderWordSearchPuzzle(container, { wordSearch, prompt, onSolved }) {
@@ -1156,14 +1252,32 @@ const TEAM_COUNT = 11;
       }
 
       if (!generatedGrid && Array.isArray(wordSearch.grid)) {
-        generatedGrid = wordSearch.grid.map(row =>
+        const fallbackGrid = wordSearch.grid.map(row =>
           (Array.isArray(row) ? row : String(row ?? "").trim().split(/\s+/)).map(letter =>
             String(letter ?? "").slice(0, 1).toUpperCase()
           )
         );
+
+        const fallbackPlacements = findWordPlacementsFromGrid(fallbackGrid, words);
+        if (fallbackPlacements) {
+          generatedGrid = fallbackGrid;
+          placements = fallbackPlacements;
+        }
+      }
+
+      if (placements.length === 0 && Array.isArray(generatedGrid)) {
+        const derivedPlacements = findWordPlacementsFromGrid(generatedGrid, words);
+        if (derivedPlacements) {
+          placements = derivedPlacements;
+        }
       }
 
       if (!Array.isArray(generatedGrid)) {
+        container.innerHTML = "";
+        const error = document.createElement("div");
+        error.className = "word-search-error";
+        error.textContent = "Word search failed to load. Please refresh or contact a game master.";
+        container.append(error);
         return;
       }
 
@@ -1230,6 +1344,12 @@ const TEAM_COUNT = 11;
       container.append(wrapper);
 
       if (!words.length || !placements.length) {
+        const notice = document.createElement("div");
+        notice.className = "word-search-error";
+        notice.textContent = !words.length
+          ? "No words available for this puzzle."
+          : "Word search data incomplete. Please refresh or contact a game master.";
+        wrapper.append(notice);
         return;
       }
 
