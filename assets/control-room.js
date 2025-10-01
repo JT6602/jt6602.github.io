@@ -296,8 +296,58 @@ const TEAM_COUNT = 11;
       completions: Array.from({ length: PUZZLE_COUNT }, () => false),
       unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
       revealed: Array.from({ length: PUZZLE_COUNT }, () => false),
-      hasWon: false
+      hasWon: false,
+      puzzleState: {}
     });
+
+    function ensurePuzzleStateContainer() {
+      if (!state.puzzleState || typeof state.puzzleState !== "object") {
+        state.puzzleState = {};
+      }
+      return state.puzzleState;
+    }
+
+    function getPuzzleInteractiveState(puzzleIndex) {
+      if (!Number.isInteger(puzzleIndex)) {
+        return null;
+      }
+      const container = state.puzzleState;
+      if (!container || typeof container !== "object") {
+        return null;
+      }
+      return container[puzzleIndex] ?? null;
+    }
+
+    function setPuzzleInteractiveState(puzzleIndex, value, { save = true } = {}) {
+      if (!Number.isInteger(puzzleIndex) || !value || typeof value !== "object") {
+        return;
+      }
+      const container = ensurePuzzleStateContainer();
+      container[puzzleIndex] = value;
+      if (save) {
+        saveState();
+      }
+    }
+
+    function clearPuzzleInteractiveState(puzzleIndex, { save = true } = {}) {
+      if (!Number.isInteger(puzzleIndex)) {
+        return;
+      }
+      const container = state.puzzleState;
+      if (!container || typeof container !== "object") {
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(container, puzzleIndex)) {
+        return;
+      }
+      delete container[puzzleIndex];
+      if (Object.keys(container).length === 0) {
+        state.puzzleState = {};
+      }
+      if (save) {
+        saveState();
+      }
+    }
 
     let state = loadState();
     let statusTimeoutId = null;
@@ -1287,10 +1337,73 @@ const TEAM_COUNT = 11;
       return placements;
     }
 
-    function renderWordSearchPuzzle(container, { wordSearch, prompt, onSolved }) {
+    function cloneWordSearchGrid(grid) {
+      return Array.isArray(grid) ? grid.map(row => (Array.isArray(row) ? row.slice() : [])) : [];
+    }
+
+    function wordSearchGridsEqual(gridA, gridB) {
+      if (!Array.isArray(gridA) || !Array.isArray(gridB) || gridA.length !== gridB.length) {
+        return false;
+      }
+      for (let row = 0; row < gridA.length; row += 1) {
+        const rowA = gridA[row];
+        const rowB = gridB[row];
+        if (!Array.isArray(rowA) || !Array.isArray(rowB) || rowA.length !== rowB.length) {
+          return false;
+        }
+        for (let col = 0; col < rowA.length; col += 1) {
+          const letterA = String(rowA[col] ?? "").toUpperCase();
+          const letterB = String(rowB[col] ?? "").toUpperCase();
+          if (letterA !== letterB) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function sanitizeWordSearchGrid(grid) {
+      if (!Array.isArray(grid) || !grid.length) {
+        return null;
+      }
+
+      const sanitized = [];
+      let columnCount = null;
+
+      for (const row of grid) {
+        const letters = Array.isArray(row)
+          ? row
+          : typeof row === "string"
+          ? row.trim().split(/\s+/)
+          : null;
+
+        if (!letters || !letters.length) {
+          return null;
+        }
+
+        const sanitizedRow = letters.map(letter => String(letter ?? "").slice(0, 1).toUpperCase());
+        if (sanitizedRow.length === 0) {
+          return null;
+        }
+
+        if (columnCount === null) {
+          columnCount = sanitizedRow.length;
+        } else if (sanitizedRow.length !== columnCount) {
+          return null;
+        }
+
+        sanitized.push(sanitizedRow);
+      }
+
+      return sanitized.length ? sanitized : null;
+    }
+
+    function renderWordSearchPuzzle(container, { puzzleIndex, wordSearch, prompt, onSolved }) {
       if (!container || !wordSearch) {
         return;
       }
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
 
       const words = Array.isArray(wordSearch.words)
         ? wordSearch.words
@@ -1312,7 +1425,27 @@ const TEAM_COUNT = 11;
       let generatedGrid;
       let placements = [];
 
-      if (words.length) {
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedWordSearchState = storedInteractiveState?.wordSearch ?? null;
+      const storedFoundKeys = Array.isArray(storedWordSearchState?.foundKeys)
+        ? storedWordSearchState.foundKeys.map(key => String(key ?? "").trim()).filter(Boolean)
+        : [];
+
+      if (!generatedGrid && Array.isArray(storedWordSearchState?.grid)) {
+        const restoredGrid = sanitizeWordSearchGrid(storedWordSearchState.grid);
+        if (restoredGrid) {
+          generatedGrid = restoredGrid.map(row => row.slice());
+          const restoredPlacements = findWordPlacementsFromGrid(generatedGrid, words);
+          if (restoredPlacements) {
+            placements = restoredPlacements;
+          } else {
+            generatedGrid = undefined;
+            placements = [];
+          }
+        }
+      }
+
+      if (!generatedGrid && words.length) {
         try {
           const layout = createWordSearchLayout(words, wordSearch.size ?? 10);
           generatedGrid = layout.grid;
@@ -1351,6 +1484,21 @@ const TEAM_COUNT = 11;
         container.append(error);
         return;
       }
+
+      const validPlacementKeys = new Set(placements.map(entry => entry.key));
+      const foundPlacements = new Set();
+      storedFoundKeys.forEach(key => {
+        if (validPlacementKeys.has(key)) {
+          foundPlacements.add(key);
+        }
+      });
+
+      const hadInvalidStoredKeys = foundPlacements.size !== storedFoundKeys.length;
+
+      const shouldPersistInitialLayout =
+        Number.isInteger(normalizedIndex) &&
+        (!storedWordSearchState || !Array.isArray(storedWordSearchState.grid) ||
+          !wordSearchGridsEqual(storedWordSearchState.grid, generatedGrid));
 
       container.innerHTML = "";
 
@@ -1391,7 +1539,6 @@ const TEAM_COUNT = 11;
 
       let wordList;
       const wordListItems = new Map();
-      const foundPlacements = new Set();
       let puzzleCompleted = false;
 
       if (words.length) {
@@ -1424,12 +1571,60 @@ const TEAM_COUNT = 11;
         return;
       }
 
+      function persistWordSearchState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        if (!Array.isArray(generatedGrid) || !generatedGrid.length) {
+          return;
+        }
+        setPuzzleInteractiveState(normalizedIndex, {
+          wordSearch: {
+            grid: cloneWordSearchGrid(generatedGrid),
+            foundKeys: Array.from(foundPlacements)
+          }
+        });
+      }
+
+      if (shouldPersistInitialLayout || hadInvalidStoredKeys) {
+        persistWordSearchState();
+      }
+
       const selectionState = {
         pointerId: null,
         direction: null,
         cells: [],
         start: null
       };
+
+      if (foundPlacements.size) {
+        foundPlacements.forEach(key => {
+          const placement = placements.find(entry => entry.key === key);
+          if (!placement) {
+            return;
+          }
+          placement.path.forEach(position => {
+            const cell = getCellFromCoordinates(position.row, position.col);
+            if (cell) {
+              cell.classList.add("is-found");
+            }
+          });
+          const listItem = wordListItems.get(key);
+          if (listItem) {
+            listItem.classList.add("is-found");
+          }
+        });
+
+        if (!puzzleCompleted && foundPlacements.size === placements.length && placements.length) {
+          window.setTimeout(() => {
+            try {
+              maybeComplete();
+            } catch (error) {
+              console.error("Word search auto-complete failed", error);
+            }
+          }, 0);
+        }
+      }
 
       function resetSelectionClasses() {
         selectionState.cells.forEach(cell => {
@@ -1566,6 +1761,7 @@ const TEAM_COUNT = 11;
           listItem.classList.add("is-found");
         }
 
+        persistWordSearchState();
         maybeComplete();
       }
 
@@ -2524,13 +2720,16 @@ const TEAM_COUNT = 11;
         hasWon = true;
       }
 
+      const sanitizedPuzzleState = sanitizePuzzleState(candidate.puzzleState, sanitizedCompletions);
+
       return {
         teamId,
         hasStarted,
         completions: sanitizedCompletions,
         unlocked: sanitizedUnlocked,
         revealed: sanitizedRevealed,
-        hasWon
+        hasWon,
+        puzzleState: sanitizedPuzzleState
       };
     }
 
@@ -2573,6 +2772,49 @@ const TEAM_COUNT = 11;
       const order = getTeamOrder();
       const position = order.indexOf(puzzleIndex);
       return position === -1 ? null : position + 1;
+    }
+
+    function sanitizePuzzleState(candidate, completions) {
+      if (!candidate || typeof candidate !== "object") {
+        return {};
+      }
+
+      const result = {};
+
+      Object.entries(candidate).forEach(([key, value]) => {
+        const index = Number(key);
+        if (!Number.isInteger(index) || index < 0 || index >= PUZZLE_COUNT) {
+          return;
+        }
+        if (completions[index]) {
+          return;
+        }
+        if (!value || typeof value !== "object") {
+          return;
+        }
+
+        if (value.wordSearch && typeof value.wordSearch === "object") {
+          const sanitizedWordSearch = sanitizeStoredWordSearch(value.wordSearch);
+          if (sanitizedWordSearch) {
+            result[index] = { wordSearch: sanitizedWordSearch };
+          }
+        }
+      });
+
+      return result;
+    }
+
+    function sanitizeStoredWordSearch(candidate) {
+      const grid = sanitizeWordSearchGrid(candidate?.grid);
+      if (!grid) {
+        return null;
+      }
+
+      const foundKeys = Array.isArray(candidate?.foundKeys)
+        ? candidate.foundKeys.map(key => String(key ?? "").trim()).filter(Boolean)
+        : [];
+
+      return { grid, foundKeys };
     }
 
     function buildScanIntent() {
@@ -3002,6 +3244,7 @@ const TEAM_COUNT = 11;
           };
 
           renderWordSearchPuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
             wordSearch: puzzle.wordSearch,
             prompt: puzzle.prompt,
             onSolved: handleWordSearchSolved
@@ -4052,6 +4295,8 @@ const TEAM_COUNT = 11;
       if (answerInput) {
         answerInput.value = "";
       }
+
+      clearPuzzleInteractiveState(sanitizedIndex, { save: false });
 
       state.unlocked[sanitizedIndex] = true;
       state.completions[sanitizedIndex] = true;
