@@ -33,8 +33,30 @@ async function gh(request: Request, env: Env, path: string) {
   if (cached) return cached;
 
   const res = await fetch(url, { headers });
-  const out = new Response(res.body, { headers: { "Content-Type": res.headers.get("Content-Type") || "application/json" }, status: res.status });
-  if (res.ok) await cache.put(cacheKey, new Response(out.clone().body, out));
+  const responseHeaders = new Headers();
+  for (const [key, value] of res.headers) {
+    responseHeaders.set(key, value);
+  }
+  if (!responseHeaders.has("Content-Type")) {
+    responseHeaders.set("Content-Type", "application/json");
+  }
+  responseHeaders.delete("content-encoding");
+  responseHeaders.delete("transfer-encoding");
+
+  const bodyBuffer = await res.arrayBuffer();
+  responseHeaders.delete("content-length");
+  if (res.status !== 204 && res.status !== 304) {
+    responseHeaders.set("Content-Length", bodyBuffer.byteLength.toString());
+  }
+
+  const out = new Response(bodyBuffer, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: responseHeaders
+  });
+  if (res.ok) {
+    await cache.put(cacheKey, out.clone());
+  }
   return out;
 }
 
@@ -78,6 +100,15 @@ function pageTemplate() {
     const owner = "${OWNER}";
     const repo = "${REPO}";
     const fmtDate = s => new Date(s).toLocaleString();
+    const decodeBase64 = input => {
+      if (!input) return "";
+      try {
+        return atob(String(input).replace(/\s+/g, ""));
+      } catch (err) {
+        console.error("Failed to decode base64", err);
+        return "";
+      }
+    };
 
     async function getJSON(path) {
       const res = await fetch(path);
@@ -103,7 +134,7 @@ function pageTemplate() {
           <p><a href="\${repoInfo.html_url}" target="_blank" rel="noreferrer">Open on GitHub</a></p>
         \`;
 
-        const readmeHtml = atob(readme.content || "");
+        const readmeHtml = decodeBase64(readme.content);
         document.querySelector("#readmeCard").innerHTML = \`
           <h2>README</h2>
           <div class="muted">\${readme.name} — \${(readme.size/1024).toFixed(1)} KB</div>
