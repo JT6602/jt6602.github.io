@@ -140,6 +140,24 @@ const TEAM_COUNT = 11;
     const floorTransitionCurrent = document.getElementById("floorTransitionCurrent");
     const floorTransitionNext = document.getElementById("floorTransitionNext");
     const floorTransitionLabel = document.getElementById("floorTransitionLabel");
+    const floorTransitionMap = document.getElementById("floorTransitionMap");
+    const FLOOR_TRANSITION_STAGE_CLASSES = [
+      "is-stage-hold",
+      "is-stage-zoom-in",
+      "is-stage-travel",
+      "is-stage-mid",
+      "is-stage-zoom-out",
+      "is-stage-final"
+    ];
+    const FLOOR_TRANSITION_STAGE_TIMELINE = [
+      { stage: "is-stage-hold", delay: 0 },
+      { stage: "is-stage-zoom-in", delay: 250 },
+      { stage: "is-stage-travel", delay: 500 },
+      { stage: "is-stage-mid", delay: 2000 },
+      { stage: "is-stage-zoom-out", delay: 2250 },
+      { stage: "is-stage-final", delay: 2500 }
+    ];
+    const FLOOR_TRANSITION_TOTAL_DURATION = 2750;
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
     const gmStartList = document.getElementById("gmStartList");
@@ -205,6 +223,7 @@ const TEAM_COUNT = 11;
     };
     let obfuscationSecretBytes = null;
     let floorTransitionTimeoutId = null;
+    const floorTransitionStageTimers = [];
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -2005,15 +2024,21 @@ const TEAM_COUNT = 11;
         return;
       }
 
+      clearFloorTransitionStageTimers();
+      if (floorTransitionTimeoutId) {
+        clearTimeout(floorTransitionTimeoutId);
+        floorTransitionTimeoutId = null;
+      }
+
       const direction = determineFloorDirection(fromIndex, toIndex);
       const currentLabel = resolveFloorLabel(fromIndex);
       const nextLabel = resolveFloorLabel(toIndex);
       const callout = buildFloorCallout(toIndex);
 
-      if (floorTransitionTimeoutId) {
-        clearTimeout(floorTransitionTimeoutId);
-        floorTransitionTimeoutId = null;
-      }
+      const mapDetails = renderFloorTransitionMapContent({ fromIndex, toIndex }) ?? {};
+      const mapRoot = mapDetails.mapRoot ?? null;
+      const currentLevel = mapDetails.currentEl ?? null;
+      const targetLevel = mapDetails.targetEl ?? null;
 
       floorTransition.dataset.direction = direction;
       if (floorTransitionCurrent) {
@@ -2024,33 +2049,83 @@ const TEAM_COUNT = 11;
       }
 
       if (floorTransitionLabel) {
-        if (toIndex === 0) {
-          floorTransitionLabel.textContent = "GET TO THE BASEMENT FOR THE FINAL PUZZLE!!";
-        } else {
-          floorTransitionLabel.textContent = `GO TO FLOOR: ${callout}`;
-        }
+        floorTransitionLabel.textContent = toIndex === 0
+          ? "GET TO THE BASEMENT FOR THE FINAL PUZZLE!!"
+          : `GO TO FLOOR: ${callout}`;
       }
 
       floorTransition.classList.add("is-active");
       floorTransition.removeAttribute("hidden");
       floorTransition.setAttribute("aria-hidden", "false");
+      setFloorTransitionStage("is-stage-hold");
+
+      if (floorTransitionMap) {
+        floorTransitionMap.style.setProperty("--floor-shift", "0px");
+      }
+
+      requestAnimationFrame(() => {
+        if (!floorTransition || !floorTransition.classList.contains("is-active")) {
+          return;
+        }
+
+        const shift = calculateFloorTransitionShift({
+          mapRoot,
+          currentEl: currentLevel,
+          targetEl: targetLevel
+        });
+
+        if (floorTransitionMap) {
+          const value = Number.isFinite(shift) ? `${shift}px` : "0px";
+          floorTransitionMap.style.setProperty("--floor-shift", value);
+        }
+
+        if (!floorTransition || !floorTransition.classList.contains("is-active")) {
+          return;
+        }
+
+        FLOOR_TRANSITION_STAGE_TIMELINE.forEach(({ stage, delay }) => {
+          scheduleFloorTransitionStage(stage, delay);
+        });
+      });
 
       floorTransitionTimeoutId = window.setTimeout(() => {
         hideFloorTransition();
-      }, 3200);
+      }, FLOOR_TRANSITION_TOTAL_DURATION + 400);
     }
 
     function hideFloorTransition() {
       if (!floorTransition) {
         return;
       }
+
+      clearFloorTransitionStageTimers();
+
       if (floorTransitionTimeoutId) {
         clearTimeout(floorTransitionTimeoutId);
         floorTransitionTimeoutId = null;
       }
+
+      setFloorTransitionStage(null);
+
       floorTransition.classList.remove("is-active");
       floorTransition.setAttribute("hidden", "true");
       floorTransition.setAttribute("aria-hidden", "true");
+      floorTransition.dataset.direction = "";
+
+      if (floorTransitionCurrent) {
+        floorTransitionCurrent.textContent = "";
+      }
+      if (floorTransitionNext) {
+        floorTransitionNext.textContent = "";
+      }
+      if (floorTransitionLabel) {
+        floorTransitionLabel.textContent = "";
+      }
+
+      if (floorTransitionMap) {
+        floorTransitionMap.style.removeProperty("--floor-shift");
+        floorTransitionMap.replaceChildren();
+      }
     }
 
     function resolveFloorLabel(index) {
@@ -2077,6 +2152,143 @@ const TEAM_COUNT = 11;
         return match[1];
       }
       return label.toUpperCase();
+    }
+
+    function scheduleFloorTransitionStage(stage, delay) {
+      const timerId = window.setTimeout(() => {
+        setFloorTransitionStage(stage);
+      }, delay);
+      floorTransitionStageTimers.push(timerId);
+    }
+
+    function setFloorTransitionStage(stage) {
+      if (!floorTransition) {
+        return;
+      }
+      FLOOR_TRANSITION_STAGE_CLASSES.forEach(className => {
+        floorTransition.classList.remove(className);
+      });
+      if (stage) {
+        floorTransition.classList.add(stage);
+      }
+    }
+
+    function clearFloorTransitionStageTimers() {
+      while (floorTransitionStageTimers.length > 0) {
+        const timerId = floorTransitionStageTimers.pop();
+        if (timerId) {
+          clearTimeout(timerId);
+        }
+      }
+    }
+
+    function renderFloorTransitionMapContent({ fromIndex, toIndex }) {
+      if (!floorTransitionMap) {
+        return null;
+      }
+
+      floorTransitionMap.replaceChildren();
+
+      let sourceElement = null;
+      if (towerLevels) {
+        sourceElement = towerLevels.cloneNode(true);
+        sourceElement.removeAttribute("id");
+      } else {
+        sourceElement = buildFallbackTransitionLevels();
+      }
+
+      let mapWrapper = null;
+      if (sourceElement.classList.contains("tower-map")) {
+        mapWrapper = sourceElement;
+      } else {
+        mapWrapper = document.createElement("div");
+        mapWrapper.className = "tower-map";
+        mapWrapper.append(sourceElement);
+      }
+
+      const levelsRoot = mapWrapper.querySelector(".tower-map-levels") ?? mapWrapper;
+      levelsRoot.querySelectorAll(".tower-map-level").forEach(level => {
+        level.classList.remove("is-just-unlocked", "is-current-floor", "is-target-floor");
+      });
+
+      let currentEl = Number.isInteger(fromIndex)
+        ? levelsRoot.querySelector(`[data-floor-index="${fromIndex}"]`)
+        : null;
+      const targetEl = levelsRoot.querySelector(`[data-floor-index="${toIndex}"]`) ?? null;
+
+      if (currentEl) {
+        currentEl.classList.add("is-current-floor");
+      }
+
+      if (targetEl) {
+        targetEl.classList.add("is-target-floor");
+      }
+
+      if (!currentEl && targetEl) {
+        targetEl.classList.add("is-current-floor");
+        currentEl = targetEl;
+      }
+
+      floorTransitionMap.append(mapWrapper);
+
+      return {
+        mapRoot: levelsRoot,
+        currentEl,
+        targetEl
+      };
+    }
+
+    function buildFallbackTransitionLevels() {
+      const levels = document.createElement("div");
+      levels.className = "tower-map-levels";
+
+      for (let index = puzzles.length - 1; index >= 0; index -= 1) {
+        const level = document.createElement("div");
+        level.className = "tower-map-level";
+        level.dataset.floorIndex = String(index);
+
+        const entry = document.createElement("div");
+        entry.className = "tower-map-entry";
+
+        const lock = createTowerLockIcon();
+
+        const label = document.createElement("div");
+        label.className = "tower-map-label";
+        label.textContent = puzzles[index]?.floor ?? `Floor ${index}`;
+
+        entry.append(lock, label);
+
+        const status = document.createElement("div");
+        status.className = "tower-map-status";
+        status.textContent = "";
+
+        level.append(entry, status);
+        levels.append(level);
+
+        if (index === 1) {
+          const ground = document.createElement("div");
+          ground.className = "tower-ground-line";
+          levels.append(ground);
+        }
+      }
+
+      return levels;
+    }
+
+    function calculateFloorTransitionShift({ mapRoot, currentEl, targetEl }) {
+      if (!mapRoot || !targetEl) {
+        return 0;
+      }
+
+      const referenceEl = currentEl ?? targetEl;
+      const targetRect = targetEl.getBoundingClientRect();
+      const referenceRect = referenceEl.getBoundingClientRect();
+
+      if (!targetRect || !referenceRect) {
+        return 0;
+      }
+
+      return referenceRect.top - targetRect.top;
     }
 
     function determineFloorDirection(fromIndex, toIndex) {
