@@ -242,6 +242,7 @@ const TEAM_COUNT = 11;
     let startOverlayEscapeBound = false;
     let pendingTeamStart = null;
     let answerOverlayTimers = [];
+    let scannerListenersBound = false;
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -416,6 +417,8 @@ const TEAM_COUNT = 11;
           });
         }
       }
+
+      ensureScannerListeners();
     }
 
     function enforceGmPassword() {
@@ -1467,6 +1470,30 @@ const TEAM_COUNT = 11;
         }
       });
 
+      ensureScannerListeners();
+
+      gmOverrideClose?.addEventListener("click", event => {
+        event.preventDefault();
+        closeGmOverrideOverlay();
+      });
+
+      gmOverrideCancel?.addEventListener("click", event => {
+        event.preventDefault();
+        closeGmOverrideOverlay();
+      });
+
+      gmOverrideOverlay?.addEventListener("click", event => {
+        if (event.target === gmOverrideOverlay) {
+          closeGmOverrideOverlay();
+        }
+      });
+
+      gmOverrideForm?.addEventListener("submit", handleGmOverrideSubmit);
+    }
+    function ensureScannerListeners() {
+      if (scannerListenersBound) {
+        return;
+      }
       scanButton?.addEventListener("click", () => {
         const intent = buildScanIntent();
         if (intent.mode === "complete") {
@@ -1506,24 +1533,9 @@ const TEAM_COUNT = 11;
         }
       });
 
-      gmOverrideClose?.addEventListener("click", event => {
-        event.preventDefault();
-        closeGmOverrideOverlay();
-      });
-
-      gmOverrideCancel?.addEventListener("click", event => {
-        event.preventDefault();
-        closeGmOverrideOverlay();
-      });
-
-      gmOverrideOverlay?.addEventListener("click", event => {
-        if (event.target === gmOverrideOverlay) {
-          closeGmOverrideOverlay();
-        }
-      });
-
-      gmOverrideForm?.addEventListener("submit", handleGmOverrideSubmit);
+      scannerListenersBound = true;
     }
+
 
     function loadState() {
       const cookieValue = getCookie(COOKIE_NAME);
