@@ -81,17 +81,58 @@ const TEAM_COUNT = 11;
     const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
     const COOKIE_SECRET = "tower-hunt-shield-9317";
 
+    const ANSWER_TYPES = Object.freeze({
+      TEXT: "text",
+      PUZZLE: "puzzle"
+    });
+
     const puzzles = [
-      { floor: "Basement", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.BASEMENT },
-      { floor: "Floor 1", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_1 },
-      { floor: "Floor 2", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_2 },
-      { floor: "Floor 3", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_3 },
-      { floor: "Floor 4", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_4 },
-      { floor: "Floor 5", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_5 },
+      {
+        floor: "Basement",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.BASEMENT
+      },
+      {
+        floor: "Floor 1",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_1
+      },
+      {
+        floor: "Floor 2",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_2
+      },
+      {
+        floor: "Floor 3",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_3
+      },
+      {
+        floor: "Floor 4",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_4
+      },
+      {
+        floor: "Floor 5",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_5
+      },
       {
         floor: "Floor 6",
         prompt: "Locate the hidden words in this grid: tower, fun, test",
-        answer: "tower",
+        answerType: ANSWER_TYPES.PUZZLE,
         wordSearch: {
           size: 10,
           words: ["tower", "fun", "test"],
@@ -110,11 +151,41 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_6
       },
-      { floor: "Floor 7", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_7 },
-      { floor: "Floor 8", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_8 },
-      { floor: "Floor 9", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_9 },
-      { floor: "Floor 10", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_10 },
-      { floor: "Floor 11", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_11 }
+      {
+        floor: "Floor 7",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_7
+      },
+      {
+        floor: "Floor 8",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_8
+      },
+      {
+        floor: "Floor 9",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_9
+      },
+      {
+        floor: "Floor 10",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_10
+      },
+      {
+        floor: "Floor 11",
+        prompt: "The answer is: 'tower'",
+        answerType: ANSWER_TYPES.TEXT,
+        answer: "tower",
+        qr: QR_CODES.FLOOR_11
+      }
     ];
 
     const PUZZLE_CODE_LOOKUP = Object.freeze(
@@ -1554,7 +1625,9 @@ const TEAM_COUNT = 11;
         }
 
         event.preventDefault();
-        grid.setPointerCapture(event.pointerId);
+        if (typeof grid.setPointerCapture === "function") {
+          grid.setPointerCapture(event.pointerId);
+        }
         startSelection(cell, event.pointerId);
       }
 
@@ -1586,7 +1659,11 @@ const TEAM_COUNT = 11;
         }
 
         event.preventDefault();
-        if (grid.hasPointerCapture && grid.hasPointerCapture(event.pointerId)) {
+        if (
+          typeof grid.releasePointerCapture === "function" &&
+          grid.hasPointerCapture &&
+          grid.hasPointerCapture(event.pointerId)
+        ) {
           grid.releasePointerCapture(event.pointerId);
         }
         const element = document.elementFromPoint(event.clientX, event.clientY);
@@ -1605,7 +1682,11 @@ const TEAM_COUNT = 11;
         if (selectionState.pointerId !== event.pointerId) {
           return;
         }
-        if (grid.hasPointerCapture && grid.hasPointerCapture(event.pointerId)) {
+        if (
+          typeof grid.releasePointerCapture === "function" &&
+          grid.hasPointerCapture &&
+          grid.hasPointerCapture(event.pointerId)
+        ) {
           grid.releasePointerCapture(event.pointerId);
         }
         clearSelectionState();
@@ -2870,6 +2951,7 @@ const TEAM_COUNT = 11;
         const puzzle = puzzles[currentSolving];
         const fallbackPuzzleLabel = stepNumber ? `Puzzle ${stepNumber}` : `Puzzle ${currentSolving + 1}`;
         const puzzleName = puzzle?.floor ?? fallbackPuzzleLabel;
+        const usesInteractiveAnswer = puzzleUsesInteractiveAnswer(puzzle);
         puzzleTitle.textContent = puzzleName;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
         if (puzzle?.wordSearch) {
@@ -2877,6 +2959,21 @@ const TEAM_COUNT = 11;
             const solvingIndex = getCurrentSolvingIndex();
             if (solvingIndex !== currentSolving) {
               return null;
+            }
+
+            if (usesInteractiveAnswer) {
+              try {
+                const completion = completePuzzleSolve({ puzzleIndex: currentSolving });
+                if (completion && typeof completion.catch === "function") {
+                  completion.catch(error => {
+                    console.error("Puzzle completion failed", error);
+                  });
+                }
+                return completion;
+              } catch (error) {
+                console.error("Puzzle completion failed", error);
+                return null;
+              }
             }
 
             if (!answerInput || answerInput.disabled) {
@@ -2910,9 +3007,17 @@ const TEAM_COUNT = 11;
             onSolved: handleWordSearchSolved
           });
         } else {
-          puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
+          if (usesInteractiveAnswer) {
+            puzzleBody.textContent = puzzle?.prompt ?? "Complete the puzzle to continue.";
+          } else {
+            puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
+          }
         }
-        setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
+        if (usesInteractiveAnswer) {
+          setPuzzleFeedback("Complete the puzzle to unlock the next destination.");
+        } else {
+          setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
+        }
         scanButton.disabled = false;
         scanButton.textContent = "Scan QR Code";
         if (pendingPuzzleUnlockIndex === currentSolving) {
@@ -2921,7 +3026,7 @@ const TEAM_COUNT = 11;
         } else {
           setPuzzleLockState("hidden");
         }
-        toggleAnswerForm(true);
+        toggleAnswerForm(!usesInteractiveAnswer);
         return;
       }
 
@@ -3901,6 +4006,12 @@ const TEAM_COUNT = 11;
         return;
       }
 
+      const puzzle = puzzles[solvingIndex];
+      if (!puzzleUsesTextAnswer(puzzle)) {
+        setPuzzleFeedback("Solve the interactive challenge to continue. No text answer needed here.", "error");
+        return;
+      }
+
       const guess = answerInput.value.trim();
       if (!guess) {
         setPuzzleFeedback("Enter an answer before submitting.", "error");
@@ -3908,9 +4019,8 @@ const TEAM_COUNT = 11;
         return;
       }
 
-      const puzzle = puzzles[solvingIndex];
       const normalizedGuess = normalizeAnswer(guess);
-      const expectedAnswer = normalizeAnswer(puzzle.answer ?? "");
+      const expectedAnswer = normalizeAnswer(String(puzzle?.answer ?? ""));
 
       if (expectedAnswer && normalizedGuess !== expectedAnswer) {
         await runAnswerOverlay({ status: "incorrect", floorName: puzzle.floor });
@@ -3919,23 +4029,48 @@ const TEAM_COUNT = 11;
         return;
       }
 
-      await runAnswerOverlay({ status: "correct", floorName: puzzle.floor });
+      await completePuzzleSolve({ puzzleIndex: solvingIndex });
+    }
 
-      answerInput.value = "";
-      state.unlocked[solvingIndex] = true;
-      state.completions[solvingIndex] = true;
+    async function completePuzzleSolve({ puzzleIndex, skipOverlay = false } = {}) {
+      if (!Number.isInteger(puzzleIndex)) {
+        return false;
+      }
+
+      const sanitizedIndex = clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1);
+
+      if (state.completions[sanitizedIndex]) {
+        return true;
+      }
+
+      const puzzle = puzzles[sanitizedIndex] ?? null;
+
+      if (!skipOverlay) {
+        await runAnswerOverlay({ status: "correct", floorName: puzzle?.floor });
+      }
+
+      if (answerInput) {
+        answerInput.value = "";
+      }
+
+      state.unlocked[sanitizedIndex] = true;
+      state.completions[sanitizedIndex] = true;
       const nextIndex = revealNextDestination();
       state.hasWon = nextIndex === null;
       saveState();
       render();
 
-      if (nextIndex !== null) {
-        triggerFloorTransition({ fromIndex: solvingIndex, toIndex: nextIndex });
+      if (Number.isInteger(nextIndex)) {
+        triggerFloorTransition({ fromIndex: sanitizedIndex, toIndex: nextIndex });
       }
 
-      const parts = [`${puzzle.floor} solved!`];
-      if (nextIndex !== null) {
-        parts.push(`Next mission revealed: ${puzzles[nextIndex].floor}.`);
+      const currentLabel = puzzle?.floor ?? `Puzzle ${sanitizedIndex + 1}`;
+      const parts = [`${currentLabel} solved!`];
+
+      if (Number.isInteger(nextIndex)) {
+        const nextPuzzle = puzzles[nextIndex];
+        const nextLabel = nextPuzzle?.floor ?? `Puzzle ${nextIndex + 1}`;
+        parts.push(`Next mission revealed: ${nextLabel}.`);
       } else {
         parts.push("All missions complete!");
       }
@@ -3943,7 +4078,10 @@ const TEAM_COUNT = 11;
       const summary = parts.join(" ");
       setPuzzleFeedback(summary, "success");
       showStatus(summary, "success");
-      if (nextIndex === null) {
+
+      if (Number.isInteger(nextIndex)) {
+        triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
+      } else {
         triggerConfetti({ theme: "finale", pieces: 180, spread: 16 });
         window.setTimeout(() => {
           try {
@@ -3952,9 +4090,9 @@ const TEAM_COUNT = 11;
             // ignore navigation errors
           }
         }, 200);
-      } else {
-        triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
       }
+
+      return true;
     }
 
 
@@ -4006,6 +4144,21 @@ const TEAM_COUNT = 11;
 
     function normalizeAnswer(value) {
       return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    }
+
+    function getPuzzleAnswerType(puzzle) {
+      if (!puzzle || puzzle.answerType === ANSWER_TYPES.TEXT) {
+        return ANSWER_TYPES.TEXT;
+      }
+      return puzzle.answerType === ANSWER_TYPES.PUZZLE ? ANSWER_TYPES.PUZZLE : ANSWER_TYPES.TEXT;
+    }
+
+    function puzzleUsesTextAnswer(puzzle) {
+      return getPuzzleAnswerType(puzzle) === ANSWER_TYPES.TEXT;
+    }
+
+    function puzzleUsesInteractiveAnswer(puzzle) {
+      return getPuzzleAnswerType(puzzle) === ANSWER_TYPES.PUZZLE;
     }
 
     function showStatus(message, tone = "info") {
