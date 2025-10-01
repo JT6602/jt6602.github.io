@@ -425,6 +425,7 @@ const TEAM_COUNT = 11;
     let dashboardPendingReason = "state-change";
     let dashboardLastSignature = null;
     let dashboardOverridePayload = null;
+    let dashboardRetryCount = 0;
 
     function ensurePuzzleStateContainer() {
       if (!state.puzzleState || typeof state.puzzleState !== "object") {
@@ -3830,6 +3831,13 @@ const TEAM_COUNT = 11;
       scheduleDashboardSync("state-save");
     }
 
+    function scheduleDashboardRetry(reason = "retry") {
+      if (typeof window === "undefined") {
+        return;
+      }
+      window.setTimeout(() => scheduleDashboardSync(reason), Math.max(120, Math.min(600, DASHBOARD_SYNC_DEBOUNCE_MS)));
+    }
+
     function scheduleDashboardSync(reason = "state-change") {
       if (!dashboardConfig || typeof window === "undefined") {
         return;
@@ -3902,6 +3910,7 @@ const TEAM_COUNT = 11;
           dashboardConfig.activeProgressIndex = index;
           dashboardLastSignature = signature;
           dashboardOverridePayload = null;
+          dashboardRetryCount = 0;
           return true;
         }
       }
@@ -3909,6 +3918,13 @@ const TEAM_COUNT = 11;
       dashboardOverridePayload = overridePayload ?? payload;
       if (endpoints.length > 1) {
         dashboardConfig.activeProgressIndex = (startIndex + 1) % endpoints.length;
+      }
+      if (dashboardRetryCount < Math.max(3, endpoints.length * 2)) {
+        dashboardRetryCount += 1;
+        scheduleDashboardRetry('retry');
+      } else {
+        console.warn('Dashboard sync exhausted endpoints');
+        dashboardRetryCount = 0;
       }
       return false;
     }
