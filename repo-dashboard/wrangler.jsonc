@@ -12,8 +12,8 @@
 	},
 	"d1_databases": [
 		{
-			"binding": "my_db_name",
-			"database_name": "my-db-name",
+			"binding": "database",
+			"database_name": "dash-database",
 			"database_id": "e6c7a9ef-cae9-4a05-9ef3-0c3a72b19d55"
 		}
 	]

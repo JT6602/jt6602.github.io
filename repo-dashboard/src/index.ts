@@ -12,6 +12,10 @@
  */
 export interface Env {
   GITHUB_TOKEN?: string;
+  /** Primary D1 database binding (set to `database` in wrangler configuration). */
+  database?: D1Database;
+  /** Optional fallback binding names maintained during migration. */
+  my_db_name?: D1Database;
 }
 
 const OWNER = "JT6602";
@@ -51,6 +55,119 @@ interface SanitizedProgress {
 }
 
 let scoreboardMemory: ScoreboardState | null = null;
+let schemaSetupPromise: Promise<void> | null = null;
+
+function getDatabase(env: Env): D1Database | undefined {
+  if (env.database) return env.database;
+  if (env.my_db_name) return env.my_db_name;
+  const dynamic = env as Record<string, unknown>;
+  const dashBinding = dynamic["dash-database"] as D1Database | undefined;
+  return dashBinding;
+}
+
+interface TeamProgressRow {
+  team_id: number;
+  team_name: string;
+  payload_json: string;
+  updated_at: string;
+}
+
+async function ensureSchema(env: Env): Promise<void> {
+  const database = getDatabase(env);
+  if (!database) return;
+  if (!schemaSetupPromise) {
+    schemaSetupPromise = (async () => {
+      await database
+        .prepare(
+          `CREATE TABLE IF NOT EXISTS team_progress (
+            team_id INTEGER PRIMARY KEY,
+            team_name TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )`
+        )
+        .run();
+      await database
+        .prepare(
+          `CREATE INDEX IF NOT EXISTS team_progress_updated_at
+            ON team_progress(updated_at DESC)`
+        )
+        .run();
+    })().catch(err => {
+      schemaSetupPromise = null;
+      console.error("Failed to initialize D1 schema", err);
+      throw err;
+    });
+  }
+  await schemaSetupPromise;
+}
+
+async function readScoreboardFromDatabase(env: Env): Promise<ScoreboardState> {
+  await ensureSchema(env);
+  const database = getDatabase(env);
+  if (!database) return blankScoreboard();
+  const scoreboard = blankScoreboard();
+  try {
+    const result = await database
+      .prepare(
+        `SELECT team_id, team_name, payload_json, updated_at
+         FROM team_progress
+         ORDER BY team_id`
+      )
+      .all<TeamProgressRow>();
+
+    const rows = result.results ?? [];
+    let latest = scoreboard.updatedAt;
+
+    for (const row of rows) {
+      try {
+        const payload = JSON.parse(row.payload_json) as ScoreboardEntry;
+        const entry = cloneEntry({
+          ...payload,
+          teamId: row.team_id,
+          teamName: row.team_name,
+          updatedAt: row.updated_at
+        });
+        scoreboard.puzzleCount = Math.max(scoreboard.puzzleCount, entry.puzzleCount);
+        scoreboard.totalTeams = Math.max(scoreboard.totalTeams, entry.teamId + 1);
+        scoreboard.teams[String(entry.teamId)] = entry;
+        if (!latest || Date.parse(entry.updatedAt) > Date.parse(latest)) {
+          latest = entry.updatedAt;
+        }
+      } catch (err) {
+        console.warn("Failed to parse scoreboard payload", row.team_id, err);
+      }
+    }
+
+    scoreboard.updatedAt = latest;
+  } catch (err) {
+    console.error("Failed to read scoreboard from D1", err);
+  }
+
+  return scoreboard;
+}
+
+async function upsertTeamProgress(env: Env, entry: ScoreboardEntry): Promise<void> {
+  const database = getDatabase(env);
+  if (!database) return;
+  await ensureSchema(env);
+  try {
+    await database
+      .prepare(
+        `INSERT INTO team_progress (team_id, team_name, payload_json, updated_at)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(team_id) DO UPDATE SET
+           team_name = excluded.team_name,
+           payload_json = excluded.payload_json,
+           updated_at = excluded.updated_at`
+      )
+      .bind(entry.teamId, entry.teamName, JSON.stringify(entry), entry.updatedAt)
+      .run();
+  } catch (err) {
+    console.error("Failed to persist scoreboard entry", entry.teamId, err);
+    throw err;
+  }
+}
 
 async function gh(request: Request, env: Env, path: string) {
   const url = `${API}${path}`;
@@ -124,7 +241,19 @@ function cloneScoreboard(state: ScoreboardState): ScoreboardState {
   };
 }
 
-async function readScoreboard(): Promise<ScoreboardState> {
+async function readScoreboard(env: Env): Promise<ScoreboardState> {
+  const database = getDatabase(env);
+  if (database) {
+    if (!scoreboardMemory) {
+      const fromDb = await readScoreboardFromDatabase(env);
+      await persistScoreboardCache(fromDb);
+    }
+    if (!scoreboardMemory) {
+      scoreboardMemory = blankScoreboard();
+    }
+    return cloneScoreboard(scoreboardMemory);
+  }
+
   if (scoreboardMemory) {
     return cloneScoreboard(scoreboardMemory);
   }
@@ -142,7 +271,7 @@ async function readScoreboard(): Promise<ScoreboardState> {
   return cloneScoreboard(scoreboardMemory);
 }
 
-async function persistScoreboard(state: ScoreboardState): Promise<void> {
+async function persistScoreboardCache(state: ScoreboardState): Promise<void> {
   scoreboardMemory = cloneScoreboard(state);
   try {
     const response = new Response(JSON.stringify(scoreboardMemory), {
@@ -564,7 +693,7 @@ export default {
         return corsPreflight();
       }
       if (request.method === "GET") {
-        const scoreboard = await readScoreboard();
+        const scoreboard = await readScoreboard(env);
         return jsonResponse(scoreboard);
       }
       return methodNotAllowed(["GET", "OPTIONS"]);
@@ -582,9 +711,14 @@ export default {
       if (!sanitized) {
         return badRequest("Missing or invalid team progress data");
       }
-      const current = await readScoreboard();
+      const current = await readScoreboard(env);
       const updated = applyProgressUpdate(current, sanitized);
-      await persistScoreboard(updated);
+      try {
+        await upsertTeamProgress(env, sanitized.entry);
+      } catch (err) {
+        console.error("Failed to merge team progress", err);
+      }
+      await persistScoreboardCache(updated);
       return jsonResponse(updated);
     }
 
