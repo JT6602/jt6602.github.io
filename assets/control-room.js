@@ -3058,11 +3058,26 @@ const TEAM_COUNT = 11;
       }
 
       const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
-      scanSession.intent = { mode: "gmOverride" };
       gmOverrideSession.teamId = sanitizedTeam;
       gmOverrideSession.sourceCode = rawValue;
 
       const teamName = TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`;
+
+      const performReset = () => {
+        const applied = applyGmOverrideState({ teamId: sanitizedTeam, mode: "reset" });
+        if (!applied) {
+          showStatus(`Unable to reset ${teamName}. Try a different option.`, "error");
+        }
+      };
+
+      if (isWinView) {
+        closeScanner(`Override badge accepted for ${teamName}.`, "success");
+        performReset();
+        hideAnswerOverlay({ immediate: true });
+        return true;
+      }
+
+      scanSession.intent = { mode: "gmOverride" };
       closeScanner(`Override badge accepted for ${teamName}.`, "success");
       openGmOverrideOverlay(sanitizedTeam);
       return true;
