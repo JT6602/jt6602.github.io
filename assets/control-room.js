@@ -152,7 +152,9 @@ const TEAM_COUNT = 11;
       "is-stage-travel",
       "is-stage-mid",
       "is-stage-zoom-out",
-      "is-stage-final"
+      "is-stage-final",
+      "is-stage-label-rise",
+      "is-stage-label-hold"
     ];
     const FLOOR_TRANSITION_STAGE_TIMELINE = [
       { stage: "is-stage-hold", delay: 0 },
@@ -160,9 +162,11 @@ const TEAM_COUNT = 11;
       { stage: "is-stage-travel", delay: 500 },
       { stage: "is-stage-mid", delay: 2000 },
       { stage: "is-stage-zoom-out", delay: 2250 },
-      { stage: "is-stage-final", delay: 2500 }
+      { stage: "is-stage-final", delay: 2500 },
+      { stage: "is-stage-label-rise", delay: 2750 },
+      { stage: "is-stage-label-hold", delay: 4000 }
     ];
-    const FLOOR_TRANSITION_TOTAL_DURATION = 2750;
+    const FLOOR_TRANSITION_TOTAL_DURATION = 5000;
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
     const gmStartList = document.getElementById("gmStartList");
@@ -195,7 +199,8 @@ const TEAM_COUNT = 11;
       hasStarted: false,
       completions: Array.from({ length: PUZZLE_COUNT }, () => false),
       unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
-      revealed: Array.from({ length: PUZZLE_COUNT }, () => false)
+      revealed: Array.from({ length: PUZZLE_COUNT }, () => false),
+      hasWon: false
     });
 
     let state = loadState();
@@ -272,6 +277,10 @@ const TEAM_COUNT = 11;
       finale: ["#6ff0eb", "#ff6f91", "#ffd460", "#9d65ff", "#f8f4ff"]
     });
     const searchParams = new URLSearchParams(window.location.search ?? "");
+    const isWinView =
+      window.location.pathname?.toLowerCase().includes("/win") ||
+      (searchParams.get("view") ?? "").toLowerCase() === "win" ||
+      window.location.hash?.toLowerCase().includes("win");
     const isGmSheet =
       window.location.pathname?.toLowerCase().includes("/gm-sheet") ||
       (searchParams.get("view") ?? "").toLowerCase() === "gm" ||
@@ -298,6 +307,10 @@ const TEAM_COUNT = 11;
     initialize();
 
     function initialize() {
+      if (isWinView) {
+        renderWinPage();
+        return;
+      }
       if (isGmSheet) {
         enforceGmPassword();
         return;
@@ -305,6 +318,72 @@ const TEAM_COUNT = 11;
       detectPlatform();
       attachEventListeners();
       render();
+    }
+
+    function renderWinPage() {
+      const winPage = document.getElementById("winPage");
+      if (!winPage) {
+        console.error("Win page markup missing");
+        window.location.replace("/");
+        return;
+      }
+
+      const hasVictory = Boolean(state?.hasWon) || (Array.isArray(state?.completions) && state.completions.every(Boolean));
+      if (!hasVictory) {
+        window.location.replace("/");
+        return;
+      }
+
+      document.body.classList.add("win-page-active");
+
+      const teamName = Number.isInteger(state.teamId) ? TEAM_NAMES[state.teamId] : "Tower Champions";
+      const totalSolved = solvedCount();
+
+      const teamLabel = document.getElementById("winTeamName");
+      if (teamLabel) {
+        teamLabel.textContent = teamName;
+      }
+
+      const headline = document.getElementById("winHeadline");
+      if (headline) {
+        headline.textContent = `${teamName} Triumphs`;
+      }
+
+      try {
+        document.title = `${teamName} Triumphs • Tower Scavenger Hunt`;
+      } catch (err) {
+        // ignore document errors
+      }
+
+      const statsLabel = document.getElementById("winStats");
+      if (statsLabel) {
+        statsLabel.textContent = `${totalSolved} / ${PUZZLE_COUNT} missions cracked`;
+      }
+
+      const messageLabel = document.getElementById("winMessage");
+      if (messageLabel) {
+        messageLabel.textContent = `${teamName} dismantled every lock in the tower.`;
+      }
+
+      const continueNote = document.getElementById("winNote");
+      if (continueNote) {
+        continueNote.textContent = "Reconnect with your game master to claim your victory prize.";
+      }
+
+      const confettiButton = document.getElementById("winConfettiButton");
+      const sprayConfetti = () => triggerConfetti({ theme: "finale", pieces: 220, spread: 22 });
+      confettiButton?.addEventListener("click", () => {
+        sprayConfetti();
+        window.setTimeout(sprayConfetti, 320);
+      });
+
+      window.setTimeout(sprayConfetti, 320);
+      window.setTimeout(() => triggerConfetti({ theme: "finale", pieces: 180, spread: 16 }), 1100);
+
+      const replayButton = document.getElementById("winReplayButton");
+      replayButton?.addEventListener("click", () => {
+        window.location.replace("/");
+      });
     }
 
     function enforceGmPassword() {
@@ -1060,11 +1139,13 @@ const TEAM_COUNT = 11;
         if (typeof first === "number") {
           working.revealed[first] = true;
         }
+        working.hasWon = false;
         describe.message = `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} reset. First mission revealed.`;
       } else if (mode === "complete") {
         working.revealed.fill(true);
         working.unlocked.fill(true);
         working.completions.fill(true);
+        working.hasWon = true;
         describe.message = `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} marked as tower complete.`;
       } else if ((mode === "travel" || mode === "solve") && Number.isInteger(puzzleIndex)) {
         const position = order.indexOf(puzzleIndex);
@@ -1082,6 +1163,7 @@ const TEAM_COUNT = 11;
         working.revealed[puzzleIndex] = true;
         working.unlocked[puzzleIndex] = mode === "solve";
         working.completions[puzzleIndex] = false;
+        working.hasWon = false;
 
         const destination = puzzles[puzzleIndex]?.floor ?? `Mission ${puzzleIndex + 1}`;
         describe.message = mode === "solve"
@@ -1563,12 +1645,18 @@ const TEAM_COUNT = 11;
         sanitizedUnlocked.some(Boolean) ||
         sanitizedCompletions.some(Boolean);
 
+      let hasWon = Boolean(candidate.hasWon);
+      if (!hasWon && sanitizedCompletions.every(Boolean)) {
+        hasWon = true;
+      }
+
       return {
         teamId,
         hasStarted,
         completions: sanitizedCompletions,
         unlocked: sanitizedUnlocked,
-        revealed: sanitizedRevealed
+        revealed: sanitizedRevealed,
+        hasWon
       };
     }
 
@@ -2160,6 +2248,12 @@ const TEAM_COUNT = 11;
       floorTransition.removeAttribute("hidden");
       floorTransition.setAttribute("aria-hidden", "false");
       setFloorTransitionStage(null);
+      setFloorTransitionStage("is-stage-hold");
+
+      if (floorTransitionMap) {
+        floorTransitionMap.style.setProperty("--floor-shift-current", "0px");
+        floorTransitionMap.style.setProperty("--floor-shift-target", "0px");
+      }
 
       requestAnimationFrame(() => {
         if (!floorTransition || !floorTransition.classList.contains("is-active")) {
@@ -2218,29 +2312,37 @@ const TEAM_COUNT = 11;
         clearTimeout(floorTransitionTimeoutId);
         floorTransitionTimeoutId = null;
       }
+      const finalizeHide = () => {
+        setFloorTransitionStage(null);
 
-      setFloorTransitionStage(null);
+        floorTransition.classList.remove("is-active", "is-closing");
+        floorTransition.setAttribute("hidden", "true");
+        floorTransition.setAttribute("aria-hidden", "true");
+        floorTransition.dataset.direction = "";
 
-      floorTransition.classList.remove("is-active");
-      floorTransition.setAttribute("hidden", "true");
-      floorTransition.setAttribute("aria-hidden", "true");
-      floorTransition.dataset.direction = "";
+        if (floorTransitionCurrent) {
+          floorTransitionCurrent.textContent = "";
+        }
+        if (floorTransitionNext) {
+          floorTransitionNext.textContent = "";
+        }
+        if (floorTransitionLabel) {
+          floorTransitionLabel.textContent = "";
+        }
 
-      if (floorTransitionCurrent) {
-        floorTransitionCurrent.textContent = "";
-      }
-      if (floorTransitionNext) {
-        floorTransitionNext.textContent = "";
-      }
-      if (floorTransitionLabel) {
-        floorTransitionLabel.textContent = "";
-      }
+        if (floorTransitionMap) {
+          floorTransitionMap.style.removeProperty("--floor-shift");
+          floorTransitionMap.style.removeProperty("--floor-shift-current");
+          floorTransitionMap.style.removeProperty("--floor-shift-target");
+          floorTransitionMap.replaceChildren();
+        }
+      };
 
-      if (floorTransitionMap) {
-        floorTransitionMap.style.removeProperty("--floor-shift");
-        floorTransitionMap.style.removeProperty("--floor-shift-current");
-        floorTransitionMap.style.removeProperty("--floor-shift-target");
-        floorTransitionMap.replaceChildren();
+      if (floorTransition.classList.contains("is-active")) {
+        floorTransition.classList.add("is-closing");
+        window.setTimeout(finalizeHide, 340);
+      } else {
+        finalizeHide();
       }
     }
 
@@ -2972,6 +3074,7 @@ const TEAM_COUNT = 11;
       state.unlocked[solvingIndex] = true;
       state.completions[solvingIndex] = true;
       const nextIndex = revealNextDestination();
+      state.hasWon = nextIndex === null;
       saveState();
       render();
 
