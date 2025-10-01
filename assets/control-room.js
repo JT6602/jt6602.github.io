@@ -450,10 +450,6 @@ const TEAM_COUNT = 11;
       }
     });
 
-    startGameBegin?.addEventListener("click", beginPendingTeamStart);
-
-    initialize();
-
     function initialize() {
       if (isWinView) {
         renderWinPage();
@@ -4503,3 +4499,5 @@ const TEAM_COUNT = 11;
         showStatus("Import failed. Check the code and try again.", "error");
       }
     }
+
+    initialize();
