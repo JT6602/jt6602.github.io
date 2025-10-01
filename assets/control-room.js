@@ -179,6 +179,7 @@ const TEAM_COUNT = 11;
     const scannerVideo = document.getElementById("scannerVideo");
     const scanStatus = document.getElementById("scanStatus");
     const scannerInstruction = document.getElementById("scannerInstruction");
+    const scannerTitle = document.getElementById("scannerTitle");
     const manualCodeInput = document.getElementById("manualCode");
     const submitCodeButton = document.getElementById("submitCode");
     const cancelScanButton = document.getElementById("cancelScan");
@@ -2344,7 +2345,9 @@ const TEAM_COUNT = 11;
         submitCodeButton.disabled = false;
       }
       updateScannerInstruction(intent);
-      updateScanStatus("Initializing camera…");
+      configureScannerUi(intent);
+      const initialStatus = intent?.mode === "gmOverride" ? "Preparing GM override scanner…" : "Initializing camera…";
+      updateScanStatus(initialStatus);
       startScannerStream();
     }
 
@@ -2383,6 +2386,24 @@ const TEAM_COUNT = 11;
       scannerInstruction.textContent = message;
     }
 
+    function configureScannerUi(intent) {
+      const mode = intent?.mode ?? "puzzle";
+      if (scannerTitle) {
+        scannerTitle.textContent = mode === "gmOverride" ? "GM Override Scanner" : "Scan Mission QR";
+      }
+      if (scannerShell) {
+        scannerShell.classList.toggle("is-gm-override", mode === "gmOverride");
+      }
+      if (manualCodeInput) {
+        const placeholder = mode === "gmOverride" ? "Enter GM override code" : "Enter code manually";
+        manualCodeInput.placeholder = placeholder;
+        manualCodeInput.setAttribute("aria-label", mode === "gmOverride" ? "GM override code" : "Manual code entry");
+      }
+      if (submitCodeButton) {
+        submitCodeButton.textContent = mode === "gmOverride" ? "Submit Override" : "Submit Code";
+      }
+    }
+
     async function startScannerStream() {
       stopScannerStream();
 
@@ -2396,6 +2417,8 @@ const TEAM_COUNT = 11;
         return;
       }
 
+      const mode = scanSession.intent?.mode ?? null;
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         scanSession.stream = stream;
@@ -2405,20 +2428,20 @@ const TEAM_COUNT = 11;
         if (window.BarcodeDetector) {
           scanSession.detector = new window.BarcodeDetector({ formats: ["qr_code"] });
           scanSession.rafId = requestAnimationFrame(scanLoop);
-          updateScanStatus("Scanning… Align the QR inside the frame.");
+          updateScanStatus(mode === "gmOverride" ? "Scanning… Align the GM badge inside the frame." : "Scanning… Align the QR inside the frame.");
         } else {
-          updateScanStatus("Preparing fallback scanner…");
+          updateScanStatus(mode === "gmOverride" ? "Loading override scanner fallback…" : "Preparing fallback scanner…");
           const jsQrReady = await loadJsQrLibrary();
           if (jsQrReady) {
             startJsQrLoop();
-            updateScanStatus("Scanning… Align the QR inside the frame.");
+            updateScanStatus(mode === "gmOverride" ? "Scanning… Align the GM badge inside the frame." : "Scanning… Align the QR inside the frame.");
           } else {
             updateScanStatus("QR detector unavailable. Enter the code manually.", "error");
           }
         }
       } catch (err) {
         console.error("Unable to start camera", err);
-        updateScanStatus("Camera access denied. Enter the code manually.", "error");
+        updateScanStatus(mode === "gmOverride" ? "Camera access denied. Enter the override code manually." : "Camera access denied. Enter the code manually.", "error");
         showStatus("Camera access denied. Enter the QR code manually.", "error");
         manualCodeInput?.focus({ preventScroll: true });
         if (typeof manualCodeInput?.select === "function") {
