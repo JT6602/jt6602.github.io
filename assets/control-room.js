@@ -89,49 +89,148 @@ const TEAM_COUNT = 11;
     const puzzles = [
       {
         floor: "Basement",
-        prompt: "The answer is: 'tower'",
-        answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        prompt: "Solve the multi-step cipher with its logic twist; progression triggers automatically once cracked.",
+        answerType: ANSWER_TYPES.PUZZLE,
+        cipherChallenge: {
+          title: "Cipher Relay",
+          intro: "Solve each layer in order. Earlier solutions unlock the later logic check.",
+          steps: [
+            {
+              id: "cipher-caesar",
+              type: "input",
+              label: "Step 1 — Caesar Shift",
+              prompt: "Shift each letter backward by 1 to decode BTDFOE.",
+              solution: "ASCEND",
+              placeholder: "Decoded word",
+              hint: "Reverse a +1 rotation."
+            },
+            {
+              id: "cipher-atbash",
+              type: "input",
+              label: "Step 2 — Atbash Mirror",
+              prompt: "Mirror the alphabet (A↔Z, B↔Y, ...) to decode OEVEV.",
+              solution: "LEVEL",
+              placeholder: "Decoded word",
+              hint: "Flip the alphabet end-to-end."
+            },
+            {
+              id: "cipher-logic",
+              type: "choice",
+              label: "Step 3 — Logic Link",
+              prompt: "Only one of these statements is true about your decoded words. Which one?",
+              choices: [
+                {
+                  id: "choice-a",
+                  label: "They share exactly one letter."
+                },
+                {
+                  id: "choice-b",
+                  label: "Step 1 answer comes alphabetically before Step 2 answer."
+                },
+                {
+                  id: "choice-c",
+                  label: "Both answers are palindromes."
+                }
+              ],
+              correctChoiceId: "choice-b",
+              successMessage: "Logic checks out." 
+            }
+          ],
+          completionMessage: "Cipher relay complete."
+        },
         qr: QR_CODES.BASEMENT
       },
       {
         floor: "Floor 1",
-        prompt: "The answer is: 'tower'",
+        prompt: "Unscramble RACTE.",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "trace",
         qr: QR_CODES.FLOOR_1
       },
       {
         floor: "Floor 2",
-        prompt: "The answer is: 'tower'",
+        prompt:
+          "I have keys but no locks, I have space but no room, you can enter but not go outside. What am I?",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "keyboard",
         qr: QR_CODES.FLOOR_2
       },
       {
         floor: "Floor 3",
-        prompt: "The answer is: 'tower'",
+        prompt: "Decode Mfuud with a Caesar shift of -1.",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "level",
         qr: QR_CODES.FLOOR_3
       },
       {
         floor: "Floor 4",
-        prompt: "The answer is: 'tower'",
-        answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        prompt: "Find the words ring, path, and lamp hidden in the grid to progress.",
+        answerType: ANSWER_TYPES.PUZZLE,
+        wordSearch: {
+          size: 8,
+          words: ["ring", "path", "lamp"],
+          grid: [
+            "R I N G C H A S",
+            "T Q W E R F D G",
+            "L A M P B N V C",
+            "U I O P L K J H",
+            "Y T R E W Q Z X",
+            "P A T H M N B V",
+            "C X Z L K J H G",
+            "F D S A P O I U"
+          ]
+        },
         qr: QR_CODES.FLOOR_4
       },
       {
         floor: "Floor 5",
-        prompt: "The answer is: 'tower'",
-        answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        prompt: "Compare the two images and identify every difference to progress.",
+        answerType: ANSWER_TYPES.PUZZLE,
+        spotDifference: {
+          scenes: [
+            { id: "scene-a", label: "Scene A" },
+            { id: "scene-b", label: "Scene B" }
+          ],
+          differences: [
+            {
+              id: "flag-stripes",
+              label: "Beacon flag stripes",
+              targets: [
+                { scene: "scene-a", topPercent: 6, leftPercent: 64, diameterPercent: 14 },
+                { scene: "scene-b", topPercent: 6, leftPercent: 64, diameterPercent: 14 }
+              ]
+            },
+            {
+              id: "window-shape",
+              label: "Middle window shape",
+              targets: [
+                { scene: "scene-a", topPercent: 36, leftPercent: 46, diameterPercent: 18 },
+                { scene: "scene-b", topPercent: 36, leftPercent: 46, diameterPercent: 18 }
+              ]
+            },
+            {
+              id: "balcony-rail",
+              label: "Balcony rails",
+              targets: [
+                { scene: "scene-a", topPercent: 52, leftPercent: 24, diameterPercent: 20 },
+                { scene: "scene-b", topPercent: 52, leftPercent: 24, diameterPercent: 20 }
+              ]
+            },
+            {
+              id: "door-emblem",
+              label: "Door emblem",
+              targets: [
+                { scene: "scene-a", topPercent: 72, leftPercent: 49, diameterPercent: 18 },
+                { scene: "scene-b", topPercent: 72, leftPercent: 49, diameterPercent: 18 }
+              ]
+            }
+          ]
+        },
         qr: QR_CODES.FLOOR_5
       },
       {
         floor: "Floor 6",
-        prompt: "Locate the hidden words in this grid: tower, fun, test",
+        prompt: "Locate the words tower, fun, and test hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
         wordSearch: {
           size: 10,
@@ -153,37 +252,54 @@ const TEAM_COUNT = 11;
       },
       {
         floor: "Floor 7",
-        prompt: "The answer is: 'tower'",
+        prompt: "What is 7 × 8?",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "56",
         qr: QR_CODES.FLOOR_7
       },
       {
         floor: "Floor 8",
-        prompt: "The answer is: 'tower'",
+        prompt: "Decode the Morse code .-. .. -.. -.. .-.. .",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "riddle",
         qr: QR_CODES.FLOOR_8
       },
       {
         floor: "Floor 9",
-        prompt: "The answer is: 'tower'",
-        answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        prompt: "Trace the keypad path forming an L shape to advance.",
+        answerType: ANSWER_TYPES.PUZZLE,
+        keypadPath: {
+          gridSize: 3,
+          correctPath: [1, 4, 7, 8, 9],
+          hints: [
+            "Begin at the top-left key.",
+            "You must move vertically first, then horizontally."
+          ]
+        },
         qr: QR_CODES.FLOOR_9
       },
       {
         floor: "Floor 10",
-        prompt: "The answer is: 'tower'",
-        answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        prompt: "Match card pairs until the hidden word is revealed to progress.",
+        answerType: ANSWER_TYPES.PUZZLE,
+        memoryGame: {
+          finalWord: "BEACON",
+          pairs: [
+            { id: "letter-b", face: "B" },
+            { id: "letter-e", face: "E" },
+            { id: "letter-a", face: "A" },
+            { id: "letter-c", face: "C" },
+            { id: "letter-o", face: "O" },
+            { id: "letter-n", face: "N" }
+          ]
+        },
         qr: QR_CODES.FLOOR_10
       },
       {
         floor: "Floor 11",
-        prompt: "The answer is: 'tower'",
+        prompt: "Replace each letter with the one before it in the alphabet: uijt.",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "tower",
+        answer: "this",
         qr: QR_CODES.FLOOR_11
       }
     ];
@@ -1901,6 +2017,1242 @@ const TEAM_COUNT = 11;
       });
     }
 
+    function renderCipherChallenge(container, { puzzleIndex, cipherChallenge, prompt, onSolved }) {
+      if (!container || !cipherChallenge || !Array.isArray(cipherChallenge.steps)) {
+        return;
+      }
+
+      const rawSteps = Array.isArray(cipherChallenge.steps) ? cipherChallenge.steps : [];
+      const steps = rawSteps
+        .map((entry, index) => {
+          if (!entry || typeof entry !== "object") {
+            return null;
+          }
+
+          const id = String(entry.id ?? `step-${index + 1}`).trim();
+          if (!id) {
+            return null;
+          }
+
+          const type = entry.type === "choice" ? "choice" : "input";
+          const step = {
+            id,
+            type,
+            label: String(entry.label ?? `Step ${index + 1}`),
+            prompt: String(entry.prompt ?? ""),
+            hint: String(entry.hint ?? ""),
+            successMessage: String(entry.successMessage ?? "Correct."),
+            placeholder: String(entry.placeholder ?? "")
+          };
+
+          if (type === "input") {
+            const solution = String(entry.solution ?? "").trim();
+            if (!solution) {
+              return null;
+            }
+            step.solution = solution;
+          } else {
+            const rawChoices = Array.isArray(entry.choices) ? entry.choices : [];
+            const choices = rawChoices
+              .map((choice, choiceIndex) => {
+                if (!choice || typeof choice !== "object") {
+                  return null;
+                }
+                const choiceId = String(choice.id ?? `${id}-choice-${choiceIndex + 1}`).trim();
+                const label = String(choice.label ?? ``).trim();
+                if (!choiceId || !label) {
+                  return null;
+                }
+                return { id: choiceId, label };
+              })
+              .filter(Boolean);
+
+            if (!choices.length) {
+              return null;
+            }
+
+            const correctChoiceId = String(entry.correctChoiceId ?? choices[0].id).trim();
+            const matchingChoice = choices.find(choice => choice.id === correctChoiceId);
+            step.choices = choices;
+            step.correctChoiceId = matchingChoice ? correctChoiceId : choices[0].id;
+          }
+
+          return step;
+        })
+        .filter(Boolean);
+
+      if (!steps.length) {
+        container.textContent = "Cipher challenge unavailable.";
+        return;
+      }
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedCipherState = storedInteractiveState?.cipherChallenge ?? null;
+
+      const stepIdSet = new Set(steps.map(step => step.id));
+
+      const storedCompleted = Array.isArray(storedCipherState?.completedStepIds)
+        ? storedCipherState.completedStepIds
+            .map(id => String(id ?? "").trim())
+            .filter(id => stepIdSet.has(id))
+        : [];
+      const completedStepIds = new Set(storedCompleted);
+
+      const storedInputs = storedCipherState?.inputs && typeof storedCipherState.inputs === "object"
+        ? storedCipherState.inputs
+        : {};
+      const inputs = {};
+      stepIdSet.forEach(stepId => {
+        const value = storedInputs[stepId];
+        if (typeof value === "string" && value) {
+          inputs[stepId] = value;
+        }
+      });
+
+      const storedChoices = storedCipherState?.selectedChoices && typeof storedCipherState.selectedChoices === "object"
+        ? storedCipherState.selectedChoices
+        : {};
+      const selectedChoices = {};
+      stepIdSet.forEach(stepId => {
+        const value = storedChoices[stepId];
+        if (typeof value === "string" && value) {
+          selectedChoices[stepId] = value;
+        }
+      });
+
+      let puzzleCompleted = completedStepIds.size === steps.length;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "cipher-challenge-wrapper";
+
+      if (cipherChallenge.title) {
+        const heading = document.createElement("h3");
+        heading.className = "cipher-challenge-title";
+        heading.textContent = cipherChallenge.title;
+        wrapper.append(heading);
+      }
+
+      const descriptionBlock = document.createElement("div");
+      descriptionBlock.className = "cipher-challenge-description";
+
+      if (prompt) {
+        const promptEl = document.createElement("p");
+        promptEl.textContent = prompt;
+        descriptionBlock.append(promptEl);
+      }
+
+      if (cipherChallenge.intro) {
+        const introEl = document.createElement("p");
+        introEl.textContent = cipherChallenge.intro;
+        descriptionBlock.append(introEl);
+      }
+
+      if (descriptionBlock.children.length) {
+        wrapper.append(descriptionBlock);
+      }
+
+      const progressEl = document.createElement("p");
+      progressEl.className = "cipher-challenge-progress";
+      wrapper.append(progressEl);
+
+      const stepsContainer = document.createElement("div");
+      stepsContainer.className = "cipher-challenge-steps";
+      wrapper.append(stepsContainer);
+
+      const completionMessage = document.createElement("p");
+      completionMessage.className = "cipher-challenge-complete-message";
+      wrapper.append(completionMessage);
+
+      container.append(wrapper);
+
+      const stepContexts = [];
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+
+        const payload = {
+          completedStepIds: Array.from(completedStepIds),
+          inputs: { ...inputs },
+          selectedChoices: { ...selectedChoices }
+        };
+
+        setPuzzleInteractiveState(normalizedIndex, { cipherChallenge: payload });
+      }
+
+      function setStepStatus(context, message, tone = "info") {
+        if (!context?.statusEl) {
+          return;
+        }
+        context.statusEl.textContent = message ?? "";
+        context.statusEl.className = "cipher-challenge-status";
+        if (tone === "success") {
+          context.statusEl.classList.add("is-success");
+        } else if (tone === "error") {
+          context.statusEl.classList.add("is-error");
+        }
+      }
+
+      function updateProgress() {
+        const solved = completedStepIds.size;
+        const total = steps.length;
+        progressEl.textContent = `Progress: ${solved} of ${total} steps solved.`;
+      }
+
+      function isStepUnlocked(stepIndex) {
+        if (completedStepIds.has(steps[stepIndex].id)) {
+          return true;
+        }
+        if (stepIndex === 0) {
+          return true;
+        }
+        for (let i = 0; i < stepIndex; i += 1) {
+          if (!completedStepIds.has(steps[i].id)) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function maybeComplete() {
+        if (puzzleCompleted || completedStepIds.size < steps.length) {
+          return;
+        }
+
+        puzzleCompleted = true;
+
+        if (cipherChallenge.completionMessage) {
+          completionMessage.textContent = cipherChallenge.completionMessage;
+          completionMessage.classList.add("is-visible");
+        }
+
+        if (typeof onSolved === "function") {
+          try {
+            const result = onSolved();
+            if (result && typeof result.catch === "function") {
+              result.catch(error => console.error("Cipher challenge completion handler failed", error));
+            }
+          } catch (error) {
+            console.error("Cipher challenge completion handler failed", error);
+          }
+        }
+      }
+
+      function refreshStepStates() {
+        stepContexts.forEach((context, index) => {
+          if (!context) {
+            return;
+          }
+
+          const step = steps[index];
+          const isComplete = completedStepIds.has(step.id);
+          const unlocked = isStepUnlocked(index);
+
+          context.element.classList.toggle("is-complete", isComplete);
+          context.element.classList.toggle("is-locked", !unlocked);
+
+          if (context.input) {
+            if (isComplete) {
+              context.input.value = step.solution ?? context.input.value;
+            }
+            context.input.disabled = isComplete || !unlocked;
+          }
+
+          if (context.submitButton) {
+            context.submitButton.disabled = isComplete || !unlocked;
+          }
+
+          if (context.choiceButtons) {
+            context.choiceButtons.forEach(button => {
+              button.disabled = isComplete || !unlocked;
+              const choiceId = button.dataset.choiceId;
+              button.classList.toggle("is-selected", selectedChoices[step.id] === choiceId);
+              button.classList.toggle("is-correct", isComplete && choiceId === step.correctChoiceId);
+            });
+          }
+
+          if (isComplete && !context.completedShown) {
+            setStepStatus(context, context.step.successMessage ?? "Correct.", "success");
+            context.completedShown = true;
+          }
+        });
+
+        updateProgress();
+
+        if (puzzleCompleted) {
+          stepsContainer.classList.add("is-complete");
+        }
+      }
+
+      steps.forEach((step, index) => {
+        const stepEl = document.createElement("section");
+        stepEl.className = "cipher-challenge-step";
+        stepEl.dataset.stepId = step.id;
+
+        const heading = document.createElement("header");
+        heading.className = "cipher-challenge-step-header";
+
+        const label = document.createElement("h4");
+        label.textContent = step.label;
+        heading.append(label);
+
+        if (step.prompt) {
+          const promptEl = document.createElement("p");
+          promptEl.className = "cipher-challenge-step-prompt";
+          promptEl.textContent = step.prompt;
+          heading.append(promptEl);
+        }
+
+        stepEl.append(heading);
+
+        const body = document.createElement("div");
+        body.className = "cipher-challenge-step-body";
+        stepEl.append(body);
+
+        const statusEl = document.createElement("p");
+        statusEl.className = "cipher-challenge-status";
+        body.append(statusEl);
+
+        const context = {
+          step,
+          element: stepEl,
+          statusEl,
+          completedShown: completedStepIds.has(step.id)
+        };
+
+        if (step.type === "input") {
+          const form = document.createElement("form");
+          form.className = "cipher-challenge-form";
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.autocomplete = "off";
+          input.spellcheck = false;
+          input.placeholder = step.placeholder || "Enter answer";
+          input.value = inputs[step.id] ?? (completedStepIds.has(step.id) ? step.solution : "");
+
+          const submit = document.createElement("button");
+          submit.type = "submit";
+          submit.textContent = "Check";
+
+          form.append(input, submit);
+          body.insertBefore(form, statusEl);
+
+          if (step.hint) {
+            const hint = document.createElement("p");
+            hint.className = "cipher-challenge-hint";
+            hint.textContent = step.hint;
+            body.insertBefore(hint, form);
+          }
+
+          form.addEventListener("submit", event => {
+            event.preventDefault();
+            if (puzzleCompleted || completedStepIds.has(step.id) || !isStepUnlocked(index)) {
+              return;
+            }
+
+            const guess = input.value.trim();
+            if (!guess) {
+              setStepStatus(context, "Enter an answer before submitting.", "error");
+              input.focus();
+              return;
+            }
+
+            if (normalizeAnswer(guess) !== normalizeAnswer(step.solution)) {
+              setStepStatus(context, "Not quite. Try again.", "error");
+              input.select();
+              return;
+            }
+
+            input.value = step.solution;
+            completedStepIds.add(step.id);
+            inputs[step.id] = step.solution;
+            setStepStatus(context, step.successMessage ?? "Correct.", "success");
+            persistState();
+            refreshStepStates();
+            maybeComplete();
+          });
+
+          context.form = form;
+          context.input = input;
+          context.submitButton = submit;
+        } else if (step.type === "choice") {
+          const choicesList = document.createElement("div");
+          choicesList.className = "cipher-challenge-choices";
+          const buttons = [];
+
+          step.choices.forEach(choice => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "cipher-challenge-choice";
+            button.dataset.choiceId = choice.id;
+            button.textContent = choice.label;
+
+            button.addEventListener("click", () => {
+              if (puzzleCompleted || completedStepIds.has(step.id) || !isStepUnlocked(index)) {
+                return;
+              }
+
+              selectedChoices[step.id] = choice.id;
+              persistState();
+
+              if (choice.id === step.correctChoiceId) {
+                completedStepIds.add(step.id);
+                setStepStatus(context, step.successMessage ?? "Correct.", "success");
+                refreshStepStates();
+                maybeComplete();
+              } else {
+                setStepStatus(context, "That's not the true statement.", "error");
+                refreshStepStates();
+              }
+            });
+
+            buttons.push(button);
+            choicesList.append(button);
+          });
+
+          body.insertBefore(choicesList, statusEl);
+          context.choiceButtons = buttons;
+        }
+
+        stepsContainer.append(stepEl);
+        stepContexts[index] = context;
+      });
+
+      refreshStepStates();
+      if (puzzleCompleted) {
+        completionMessage.textContent = cipherChallenge.completionMessage ?? "Cipher relay complete.";
+        completionMessage.classList.add("is-visible");
+      }
+    }
+
+    function renderSpotDifferencePuzzle(container, { puzzleIndex, spotDifference, prompt, onSolved }) {
+      if (!container || !spotDifference) {
+        return;
+      }
+
+      const scenes = Array.isArray(spotDifference.scenes)
+        ? spotDifference.scenes
+            .map((scene, index) => {
+              if (!scene || typeof scene !== "object") {
+                return null;
+              }
+              const id = String(scene.id ?? `scene-${index + 1}`).trim();
+              const label = String(scene.label ?? `Scene ${index + 1}`);
+              if (!id) {
+                return null;
+              }
+              return { id, label };
+            })
+            .filter(Boolean)
+        : [];
+
+      const normalizedScenes = scenes.length ? scenes : [
+        { id: "scene-a", label: "Scene A" },
+        { id: "scene-b", label: "Scene B" }
+      ];
+
+      const sceneIdSet = new Set(normalizedScenes.map(scene => scene.id));
+
+      const differences = Array.isArray(spotDifference.differences)
+        ? spotDifference.differences
+            .map((entry, index) => {
+              if (!entry || typeof entry !== "object") {
+                return null;
+              }
+              const id = String(entry.id ?? `diff-${index + 1}`).trim();
+              const label = String(entry.label ?? `Difference ${index + 1}`);
+              if (!id) {
+                return null;
+              }
+
+              const targets = Array.isArray(entry.targets)
+                ? entry.targets
+                    .map(target => {
+                      if (!target || typeof target !== "object") {
+                        return null;
+                      }
+                      const sceneId = String(target.scene ?? "").trim();
+                      if (!sceneIdSet.has(sceneId)) {
+                        return null;
+                      }
+                      const topPercent = Number(target.topPercent);
+                      const leftPercent = Number(target.leftPercent);
+                      const diameterPercent = Number(target.diameterPercent);
+
+                      if (!Number.isFinite(topPercent) || !Number.isFinite(leftPercent)) {
+                        return null;
+                      }
+
+                      return {
+                        sceneId,
+                        topPercent,
+                        leftPercent,
+                        diameterPercent: Number.isFinite(diameterPercent) ? diameterPercent : 16
+                      };
+                    })
+                    .filter(Boolean)
+                : [];
+
+              if (!targets.length) {
+                return null;
+              }
+
+              return { id, label, targets };
+            })
+            .filter(Boolean)
+        : [];
+
+      if (!differences.length) {
+        container.textContent = "Spot-the-difference scene failed to load.";
+        return;
+      }
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedSpotDifference = storedInteractiveState?.spotDifference ?? null;
+
+      const differenceIdSet = new Set(differences.map(diff => diff.id));
+
+      const storedFoundIds = Array.isArray(storedSpotDifference?.foundDifferenceIds)
+        ? storedSpotDifference.foundDifferenceIds
+            .map(id => String(id ?? "").trim())
+            .filter(id => differenceIdSet.has(id))
+        : [];
+
+      const foundDifferences = new Set(storedFoundIds);
+      let puzzleCompleted = foundDifferences.size === differences.length;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "spot-difference-wrapper";
+
+      if (prompt) {
+        const promptEl = document.createElement("p");
+        promptEl.className = "spot-difference-prompt";
+        promptEl.textContent = prompt;
+        wrapper.append(promptEl);
+      }
+
+      const scenesContainer = document.createElement("div");
+      scenesContainer.className = "spot-difference-scenes";
+      wrapper.append(scenesContainer);
+
+      const differencePanel = document.createElement("div");
+      differencePanel.className = "spot-difference-panel";
+
+      const listHeading = document.createElement("h4");
+      listHeading.textContent = "Differences";
+      differencePanel.append(listHeading);
+
+      const differenceList = document.createElement("ul");
+      differenceList.className = "spot-difference-list";
+      differencePanel.append(differenceList);
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "spot-difference-status";
+      differencePanel.append(statusEl);
+
+      wrapper.append(differencePanel);
+      container.append(wrapper);
+
+      const sceneElements = new Map();
+
+      normalizedScenes.forEach((scene, index) => {
+        const sceneWrapper = document.createElement("div");
+        sceneWrapper.className = "spot-difference-scene";
+        sceneWrapper.dataset.sceneId = scene.id;
+
+        const label = document.createElement("span");
+        label.className = "spot-difference-scene-label";
+        label.textContent = scene.label;
+        sceneWrapper.append(label);
+
+        const graphic = createSpotDifferenceSceneGraphic(index);
+        sceneWrapper.append(graphic);
+
+        scenesContainer.append(sceneWrapper);
+        sceneElements.set(scene.id, sceneWrapper);
+      });
+
+      differences.forEach((difference, index) => {
+        const listItem = document.createElement("li");
+        listItem.textContent = difference.label || `Difference ${index + 1}`;
+        if (foundDifferences.has(difference.id)) {
+          listItem.classList.add("is-found");
+        }
+        differenceList.append(listItem);
+
+        difference.targets.forEach(target => {
+          const sceneWrapper = sceneElements.get(target.sceneId);
+          if (!sceneWrapper) {
+            return;
+          }
+
+          const marker = document.createElement("button");
+          marker.type = "button";
+          marker.className = "spot-difference-target";
+          marker.dataset.differenceId = difference.id;
+          marker.setAttribute("aria-label", `Mark difference: ${difference.label}`);
+
+          const diameter = Math.max(6, target.diameterPercent || 16);
+          const half = diameter / 2;
+          const top = Math.max(0, target.topPercent - half);
+          const left = Math.max(0, target.leftPercent - half);
+
+          marker.style.top = `${top}%`;
+          marker.style.left = `${left}%`;
+          marker.style.width = `${diameter}%`;
+          marker.style.height = `${diameter}%`;
+
+          if (foundDifferences.has(difference.id)) {
+            marker.classList.add("is-found");
+            marker.disabled = true;
+          }
+
+          marker.addEventListener("click", () => {
+            if (puzzleCompleted || foundDifferences.has(difference.id)) {
+              return;
+            }
+
+            foundDifferences.add(difference.id);
+            marker.classList.add("is-found");
+            marker.disabled = true;
+            listItem.classList.add("is-found");
+
+            persistState();
+            updateStatus();
+            maybeComplete();
+          });
+
+          sceneWrapper.append(marker);
+        });
+
+      });
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        const payload = {
+          foundDifferenceIds: Array.from(foundDifferences)
+        };
+        setPuzzleInteractiveState(normalizedIndex, { spotDifference: payload });
+      }
+
+      function updateStatus() {
+        const total = differences.length;
+        const found = foundDifferences.size;
+        statusEl.textContent = `Found ${found} of ${total} differences.`;
+      }
+
+      function maybeComplete() {
+        if (puzzleCompleted || foundDifferences.size < differences.length) {
+          return;
+        }
+
+        puzzleCompleted = true;
+        wrapper.classList.add("is-complete");
+
+        if (typeof onSolved === "function") {
+          try {
+            const result = onSolved();
+            if (result && typeof result.catch === "function") {
+              result.catch(error => console.error("Spot the difference completion handler failed", error));
+            }
+          } catch (error) {
+            console.error("Spot the difference completion handler failed", error);
+          }
+        }
+      }
+
+      function createSpotDifferenceSceneGraphic(index) {
+        const variant = index === 0 ? "A" : "B";
+        const svg = document.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", "0 0 160 200");
+        svg.setAttribute("role", "presentation");
+        svg.classList.add("spot-difference-graphic");
+
+        const backdrop = document.createElementNS(SVG_NS, "rect");
+        backdrop.setAttribute("x", "0");
+        backdrop.setAttribute("y", "0");
+        backdrop.setAttribute("width", "160");
+        backdrop.setAttribute("height", "200");
+        backdrop.setAttribute("rx", "16");
+        backdrop.classList.add("spot-difference-backdrop");
+        svg.append(backdrop);
+
+        const towerBase = document.createElementNS(SVG_NS, "rect");
+        towerBase.setAttribute("x", "50");
+        towerBase.setAttribute("y", "40");
+        towerBase.setAttribute("width", "60");
+        towerBase.setAttribute("height", "120");
+        towerBase.setAttribute("rx", "12");
+        towerBase.classList.add("spot-difference-tower");
+        svg.append(towerBase);
+
+        const roof = document.createElementNS(SVG_NS, "polygon");
+        roof.setAttribute("points", "80 18, 46 40, 114 40");
+        roof.classList.add("spot-difference-roof");
+        svg.append(roof);
+
+        const flagPole = document.createElementNS(SVG_NS, "rect");
+        flagPole.setAttribute("x", "78");
+        flagPole.setAttribute("y", "5");
+        flagPole.setAttribute("width", "4");
+        flagPole.setAttribute("height", "20");
+        flagPole.classList.add("spot-difference-flagpole");
+        svg.append(flagPole);
+
+        const flagGroup = document.createElementNS(SVG_NS, "g");
+        flagGroup.setAttribute("transform", "translate(82,8)");
+        const flagShape = document.createElementNS(SVG_NS, "path");
+        flagShape.setAttribute("d", "M0 0 L26 6 L0 12 Z");
+        flagShape.classList.add("spot-difference-flag");
+        flagGroup.append(flagShape);
+
+        if (variant === "A") {
+          const stripeOne = document.createElementNS(SVG_NS, "rect");
+          stripeOne.setAttribute("x", "4");
+          stripeOne.setAttribute("y", "1.6");
+          stripeOne.setAttribute("width", "18");
+          stripeOne.setAttribute("height", "2.6");
+          stripeOne.classList.add("spot-difference-flag-stripe");
+
+          const stripeTwo = document.createElementNS(SVG_NS, "rect");
+          stripeTwo.setAttribute("x", "4");
+          stripeTwo.setAttribute("y", "6.6");
+          stripeTwo.setAttribute("width", "18");
+          stripeTwo.setAttribute("height", "2.6");
+          stripeTwo.classList.add("spot-difference-flag-stripe");
+
+          flagGroup.append(stripeOne, stripeTwo);
+        }
+
+        svg.append(flagGroup);
+
+        const windowFrame = document.createElementNS(SVG_NS, "rect");
+        windowFrame.setAttribute("x", "68");
+        windowFrame.setAttribute("y", "72");
+        windowFrame.setAttribute("width", "24");
+        windowFrame.setAttribute("height", "30");
+        windowFrame.setAttribute("rx", "6");
+        windowFrame.classList.add("spot-difference-window-frame");
+        svg.append(windowFrame);
+
+        if (variant === "A") {
+          const roundWindow = document.createElementNS(SVG_NS, "circle");
+          roundWindow.setAttribute("cx", "80");
+          roundWindow.setAttribute("cy", "87");
+          roundWindow.setAttribute("r", "9");
+          roundWindow.classList.add("spot-difference-window");
+          svg.append(roundWindow);
+        } else {
+          const squareWindow = document.createElementNS(SVG_NS, "rect");
+          squareWindow.setAttribute("x", "72");
+          squareWindow.setAttribute("y", "76");
+          squareWindow.setAttribute("width", "16");
+          squareWindow.setAttribute("height", "20");
+          squareWindow.classList.add("spot-difference-window");
+          svg.append(squareWindow);
+        }
+
+        const balcony = document.createElementNS(SVG_NS, "rect");
+        balcony.setAttribute("x", "54");
+        balcony.setAttribute("y", "112");
+        balcony.setAttribute("width", "52");
+        balcony.setAttribute("height", "10");
+        balcony.setAttribute("rx", "5");
+        balcony.classList.add("spot-difference-balcony");
+        svg.append(balcony);
+
+        const railGroup = document.createElementNS(SVG_NS, "g");
+        railGroup.classList.add("spot-difference-rails");
+        [0, 1, 2, 3].forEach(offset => {
+          if (variant === "A" && offset === 2) {
+            return;
+          }
+          const rail = document.createElementNS(SVG_NS, "rect");
+          rail.setAttribute("x", `${60 + offset * 10}`);
+          rail.setAttribute("y", "112");
+          rail.setAttribute("width", "4");
+          rail.setAttribute("height", "10");
+          railGroup.append(rail);
+        });
+        svg.append(railGroup);
+
+        const doorFrame = document.createElementNS(SVG_NS, "rect");
+        doorFrame.setAttribute("x", "68");
+        doorFrame.setAttribute("y", "138");
+        doorFrame.setAttribute("width", "24");
+        doorFrame.setAttribute("height", "32");
+        doorFrame.setAttribute("rx", "6");
+        doorFrame.classList.add("spot-difference-door-frame");
+        svg.append(doorFrame);
+
+        if (variant === "A") {
+          const doorCircle = document.createElementNS(SVG_NS, "circle");
+          doorCircle.setAttribute("cx", "80");
+          doorCircle.setAttribute("cy", "154");
+          doorCircle.setAttribute("r", "6");
+          doorCircle.classList.add("spot-difference-door-emblem");
+          svg.append(doorCircle);
+        } else {
+          const doorDiamond = document.createElementNS(SVG_NS, "polygon");
+          doorDiamond.setAttribute("points", "80 146, 88 154, 80 162, 72 154");
+          doorDiamond.classList.add("spot-difference-door-emblem");
+          svg.append(doorDiamond);
+        }
+
+        return svg;
+      }
+
+      updateStatus();
+      if (puzzleCompleted) {
+        wrapper.classList.add("is-complete");
+      }
+    }
+
+    function renderKeypadPathPuzzle(container, { puzzleIndex, keypadPath, prompt, onSolved }) {
+      if (!container || !keypadPath || !Array.isArray(keypadPath.correctPath)) {
+        return;
+      }
+
+      const path = keypadPath.correctPath
+        .map(value => Number(value))
+        .filter(value => Number.isInteger(value));
+
+      if (!path.length) {
+        container.textContent = "Keypad path data unavailable.";
+        return;
+      }
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedKeypadPath = storedInteractiveState?.keypadPath ?? null;
+
+      const storedPath = Array.isArray(storedKeypadPath?.currentPath)
+        ? storedKeypadPath.currentPath.map(value => Number(value)).filter(value => Number.isInteger(value))
+        : [];
+
+      let currentPath = storedPath.slice(0, path.length);
+      const storedComplete = Boolean(storedKeypadPath?.isComplete);
+      const matchesStored = currentPath.length === path.length && currentPath.every((value, index) => value === path[index]);
+      let puzzleCompleted = storedComplete && matchesStored;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "keypad-path-wrapper";
+
+      if (prompt) {
+        const promptEl = document.createElement("p");
+        promptEl.className = "keypad-path-prompt";
+        promptEl.textContent = prompt;
+        wrapper.append(promptEl);
+      }
+
+      const hintList = Array.isArray(keypadPath.hints) ? keypadPath.hints.filter(Boolean) : [];
+      if (hintList.length) {
+        const hintsBlock = document.createElement("ul");
+        hintsBlock.className = "keypad-path-hints";
+        hintList.forEach(hint => {
+          const item = document.createElement("li");
+          item.textContent = String(hint);
+          hintsBlock.append(item);
+        });
+        wrapper.append(hintsBlock);
+      }
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "keypad-path-status";
+      wrapper.append(statusEl);
+
+      const pathDisplay = document.createElement("p");
+      pathDisplay.className = "keypad-path-display";
+      wrapper.append(pathDisplay);
+
+      const keypad = document.createElement("div");
+      keypad.className = "keypad-path-grid";
+      wrapper.append(keypad);
+
+      const controls = document.createElement("div");
+      controls.className = "keypad-path-controls";
+      const resetButton = document.createElement("button");
+      resetButton.type = "button";
+      resetButton.textContent = "Reset";
+      controls.append(resetButton);
+      wrapper.append(controls);
+
+      container.append(wrapper);
+
+      const buttons = new Map();
+      for (let value = 1; value <= 9; value += 1) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "keypad-path-key";
+        button.dataset.value = String(value);
+        button.textContent = String(value);
+        keypad.append(button);
+        buttons.set(value, button);
+
+        button.addEventListener("click", () => {
+          if (puzzleCompleted) {
+            return;
+          }
+
+          const expected = path[currentPath.length];
+          const numericValue = value;
+
+          if (numericValue !== expected) {
+            indicateError();
+            currentPath = [];
+            persistState();
+            updateVisualPath();
+            setStatus("That key breaks the L shape. Start again.", "error");
+            return;
+          }
+
+          currentPath.push(numericValue);
+          persistState();
+          updateVisualPath();
+
+          if (currentPath.length === path.length) {
+            puzzleCompleted = true;
+            setStatus("Path locked in!", "success");
+            updateVisualPath();
+            if (typeof onSolved === "function") {
+              try {
+                const result = onSolved();
+                if (result && typeof result.catch === "function") {
+                  result.catch(error => console.error("Keypad path completion handler failed", error));
+                }
+              } catch (error) {
+                console.error("Keypad path completion handler failed", error);
+              }
+            }
+          } else {
+            setStatus("Good move. Keep tracing the L.", "success");
+          }
+        });
+      }
+
+      resetButton.addEventListener("click", () => {
+        if (puzzleCompleted) {
+          return;
+        }
+        currentPath = [];
+        persistState();
+        updateVisualPath();
+        setStatus("Path reset.");
+      });
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        const payload = {
+          currentPath: currentPath.slice(0, path.length),
+          isComplete: puzzleCompleted
+        };
+        setPuzzleInteractiveState(normalizedIndex, { keypadPath: payload });
+      }
+
+      function setStatus(message, tone = "info") {
+        statusEl.textContent = message ?? "";
+        statusEl.className = "keypad-path-status";
+        if (tone === "success") {
+          statusEl.classList.add("is-success");
+        } else if (tone === "error") {
+          statusEl.classList.add("is-error");
+        }
+      }
+
+      function updateVisualPath() {
+        const parts = currentPath.map(String);
+        pathDisplay.textContent = parts.length ? parts.join(" → ") : "No steps entered yet.";
+
+        buttons.forEach((button, value) => {
+          const isActive = currentPath.includes(value);
+          button.classList.toggle("is-active", isActive);
+          button.disabled = puzzleCompleted;
+        });
+
+        keypad.classList.toggle("is-complete", puzzleCompleted);
+      }
+
+      function indicateError() {
+        keypad.classList.add("is-error");
+        window.setTimeout(() => {
+          keypad.classList.remove("is-error");
+        }, 320);
+      }
+
+      updateVisualPath();
+      if (puzzleCompleted) {
+        setStatus("Path locked in!", "success");
+      } else {
+        setStatus("Trace the correct L-shaped path.");
+      }
+    }
+
+    function renderMemoryGamePuzzle(container, { puzzleIndex, memoryGame, prompt, onSolved }) {
+      if (!container || !memoryGame || !Array.isArray(memoryGame.pairs)) {
+        return;
+      }
+
+      const pairs = memoryGame.pairs
+        .map((pair, index) => {
+          if (!pair || typeof pair !== "object") {
+            return null;
+          }
+          const id = String(pair.id ?? `pair-${index + 1}`).trim();
+          const face = String(pair.face ?? "").trim();
+          if (!id || !face) {
+            return null;
+          }
+          return { id, face };
+        })
+        .filter(Boolean);
+
+      if (!pairs.length) {
+        container.textContent = "Memory deck failed to load.";
+        return;
+      }
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedMemoryGame = storedInteractiveState?.memoryGame ?? null;
+
+      const pairIdSet = new Set(pairs.map(pair => pair.id));
+
+      const expectedDeckSize = pairs.length * 2;
+      const storedDeck = Array.isArray(storedMemoryGame?.deck)
+        ? storedMemoryGame.deck
+            .map(card => {
+              if (!card || typeof card !== "object") {
+                return null;
+              }
+              const cardId = String(card.cardId ?? "").trim();
+              const pairId = String(card.pairId ?? "").trim();
+              const face = String(card.face ?? "").trim();
+              if (!cardId || !pairIdSet.has(pairId) || !face) {
+                return null;
+              }
+              return { cardId, pairId, face };
+            })
+            .filter(Boolean)
+        : [];
+
+      let deck;
+      if (storedDeck.length === expectedDeckSize) {
+        deck = storedDeck;
+      } else {
+        deck = [];
+        pairs.forEach(pair => {
+          deck.push({ cardId: `${pair.id}-a`, pairId: pair.id, face: pair.face });
+          deck.push({ cardId: `${pair.id}-b`, pairId: pair.id, face: pair.face });
+        });
+        shuffleArray(deck);
+      }
+
+      const storedMatchedPairs = Array.isArray(storedMemoryGame?.matchedPairIds)
+        ? storedMemoryGame.matchedPairIds
+            .map(id => String(id ?? "").trim())
+            .filter(id => pairIdSet.has(id))
+        : [];
+
+      const matchedPairIds = new Set(storedMatchedPairs);
+      let puzzleCompleted = matchedPairIds.size === pairs.length;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "memory-game-wrapper";
+
+      if (prompt) {
+        const promptEl = document.createElement("p");
+        promptEl.className = "memory-game-prompt";
+        promptEl.textContent = prompt;
+        wrapper.append(promptEl);
+      }
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "memory-game-status";
+      wrapper.append(statusEl);
+
+      const finalWord = String(memoryGame.finalWord ?? "").trim();
+      const finalWordDisplay = document.createElement("div");
+      finalWordDisplay.className = "memory-game-word";
+      const wordSpans = [];
+      if (finalWord) {
+        finalWord.split("").forEach(letter => {
+          const span = document.createElement("span");
+          span.textContent = letter.toUpperCase();
+          finalWordDisplay.append(span);
+          wordSpans.push(span);
+        });
+        wrapper.append(finalWordDisplay);
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "memory-game-grid";
+      wrapper.append(grid);
+      container.append(wrapper);
+
+      const cardContexts = new Map();
+      let interactionLocked = false;
+      let activeCards = [];
+
+      deck.forEach(card => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "memory-card";
+        button.dataset.cardId = card.cardId;
+        button.dataset.pairId = card.pairId;
+        button.setAttribute("aria-label", "Flip card");
+
+        const back = document.createElement("span");
+        back.className = "memory-card-back";
+        back.textContent = "?";
+
+        const face = document.createElement("span");
+        face.className = "memory-card-face";
+        face.textContent = card.face;
+
+        button.append(back, face);
+        grid.append(button);
+
+        if (matchedPairIds.has(card.pairId)) {
+          button.classList.add("is-matched");
+          button.disabled = true;
+        }
+
+        button.addEventListener("click", () => {
+          if (puzzleCompleted || interactionLocked || button.classList.contains("is-matched")) {
+            return;
+          }
+
+          if (activeCards.find(entry => entry.button === button)) {
+            return;
+          }
+
+          button.classList.add("is-flipped");
+          activeCards.push({ button, card });
+
+          if (activeCards.length === 2) {
+            interactionLocked = true;
+            window.setTimeout(() => {
+              evaluatePair();
+            }, 420);
+          }
+        });
+
+        cardContexts.set(card.cardId, { button, card });
+      });
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+
+        const payload = {
+          deck: deck.map(card => ({ cardId: card.cardId, pairId: card.pairId, face: card.face })),
+          matchedPairIds: Array.from(matchedPairIds)
+        };
+
+        setPuzzleInteractiveState(normalizedIndex, { memoryGame: payload });
+      }
+
+      function setStatus(message, tone = "info") {
+        statusEl.textContent = message ?? "";
+        statusEl.className = "memory-game-status";
+        if (tone === "success") {
+          statusEl.classList.add("is-success");
+        } else if (tone === "error") {
+          statusEl.classList.add("is-error");
+        }
+      }
+
+      function evaluatePair() {
+        if (activeCards.length !== 2) {
+          interactionLocked = false;
+          return;
+        }
+
+        const [first, second] = activeCards;
+        if (first.card.pairId === second.card.pairId) {
+          matchedPairIds.add(first.card.pairId);
+          first.button.classList.add("is-matched");
+          second.button.classList.add("is-matched");
+          first.button.disabled = true;
+          second.button.disabled = true;
+
+          revealWordLetter(first.card.pairId);
+          setStatus("Pair matched!", "success");
+
+          persistState();
+
+          if (matchedPairIds.size === pairs.length) {
+            puzzleCompleted = true;
+            grid.classList.add("is-complete");
+            setStatus("All pairs found.", "success");
+            if (typeof onSolved === "function") {
+              try {
+                const result = onSolved();
+                if (result && typeof result.catch === "function") {
+                  result.catch(error => console.error("Memory game completion handler failed", error));
+                }
+              } catch (error) {
+                console.error("Memory game completion handler failed", error);
+              }
+            }
+          }
+        } else {
+          setStatus("Not a match yet.", "error");
+          window.setTimeout(() => {
+            first.button.classList.remove("is-flipped");
+            second.button.classList.remove("is-flipped");
+          }, 340);
+        }
+
+        activeCards = [];
+        interactionLocked = false;
+      }
+
+      function revealWordLetter(pairId) {
+        if (!finalWord || !wordSpans.length) {
+          return;
+        }
+
+        const pairIndex = pairs.findIndex(pair => pair.id === pairId);
+        if (pairIndex === -1) {
+          return;
+        }
+
+        const targetSpan = wordSpans[pairIndex];
+        if (targetSpan) {
+          targetSpan.classList.add("is-revealed");
+        }
+      }
+
+      matchedPairIds.forEach(pairId => revealWordLetter(pairId));
+
+      if (puzzleCompleted) {
+        grid.classList.add("is-complete");
+        setStatus("All pairs found.", "success");
+      } else {
+        setStatus("Flip two cards to find matching pairs.");
+      }
+
+      persistState();
+    }
+
     function openGmOverrideOverlay(teamId) {
       if (!gmOverrideOverlay || !gmOverrideOptions) {
         return;
@@ -2789,11 +4141,45 @@ const TEAM_COUNT = 11;
           return;
         }
 
+        const entryState = {};
+
         if (value.wordSearch && typeof value.wordSearch === "object") {
           const sanitizedWordSearch = sanitizeStoredWordSearch(value.wordSearch);
           if (sanitizedWordSearch) {
-            result[index] = { wordSearch: sanitizedWordSearch };
+            entryState.wordSearch = sanitizedWordSearch;
           }
+        }
+
+        if (value.cipherChallenge && typeof value.cipherChallenge === "object") {
+          const sanitizedCipher = sanitizeStoredCipherChallenge(value.cipherChallenge);
+          if (sanitizedCipher) {
+            entryState.cipherChallenge = sanitizedCipher;
+          }
+        }
+
+        if (value.spotDifference && typeof value.spotDifference === "object") {
+          const sanitizedSpotDifference = sanitizeStoredSpotDifference(value.spotDifference);
+          if (sanitizedSpotDifference) {
+            entryState.spotDifference = sanitizedSpotDifference;
+          }
+        }
+
+        if (value.keypadPath && typeof value.keypadPath === "object") {
+          const sanitizedKeypadPath = sanitizeStoredKeypadPath(value.keypadPath);
+          if (sanitizedKeypadPath) {
+            entryState.keypadPath = sanitizedKeypadPath;
+          }
+        }
+
+        if (value.memoryGame && typeof value.memoryGame === "object") {
+          const sanitizedMemoryGame = sanitizeStoredMemoryGame(value.memoryGame);
+          if (sanitizedMemoryGame) {
+            entryState.memoryGame = sanitizedMemoryGame;
+          }
+        }
+
+        if (Object.keys(entryState).length > 0) {
+          result[index] = entryState;
         }
       });
 
@@ -2811,6 +4197,126 @@ const TEAM_COUNT = 11;
         : [];
 
       return { grid, foundKeys };
+    }
+
+    function sanitizeStoredCipherChallenge(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const completedStepIds = Array.isArray(candidate.completedStepIds)
+        ? Array.from(
+            new Set(
+              candidate.completedStepIds
+                .map(stepId => String(stepId ?? "").trim())
+                .filter(Boolean)
+            )
+          )
+        : [];
+
+      const inputsSource = candidate.inputs && typeof candidate.inputs === "object" ? candidate.inputs : {};
+      const inputs = {};
+      Object.entries(inputsSource).forEach(([key, value]) => {
+        const sanitizedKey = String(key ?? "").trim();
+        if (!sanitizedKey) {
+          return;
+        }
+        inputs[sanitizedKey] = String(value ?? "").trim().slice(0, 64);
+      });
+
+      const choicesSource =
+        candidate.selectedChoices && typeof candidate.selectedChoices === "object"
+          ? candidate.selectedChoices
+          : {};
+      const selectedChoices = {};
+      Object.entries(choicesSource).forEach(([key, value]) => {
+        const sanitizedKey = String(key ?? "").trim();
+        const sanitizedValue = String(value ?? "").trim();
+        if (!sanitizedKey || !sanitizedValue) {
+          return;
+        }
+        selectedChoices[sanitizedKey] = sanitizedValue;
+      });
+
+      return {
+        completedStepIds,
+        inputs,
+        selectedChoices
+      };
+    }
+
+    function sanitizeStoredSpotDifference(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const foundDifferenceIds = Array.isArray(candidate.foundDifferenceIds)
+        ? Array.from(
+            new Set(
+              candidate.foundDifferenceIds
+                .map(id => String(id ?? "").trim())
+                .filter(Boolean)
+            )
+          )
+        : [];
+
+      return { foundDifferenceIds };
+    }
+
+    function sanitizeStoredKeypadPath(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const currentPath = Array.isArray(candidate.currentPath)
+        ? candidate.currentPath
+            .map(value => Number(value))
+            .filter(value => Number.isInteger(value) && value >= 0 && value <= 99)
+            .slice(0, 32)
+        : [];
+
+      const isComplete = Boolean(candidate.isComplete);
+
+      return { currentPath, isComplete };
+    }
+
+    function sanitizeStoredMemoryGame(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const deckSource = Array.isArray(candidate.deck) ? candidate.deck : [];
+      const deck = deckSource
+        .map(entry => {
+          if (!entry || typeof entry !== "object") {
+            return null;
+          }
+          const cardId = String(entry.cardId ?? "").trim();
+          const pairId = String(entry.pairId ?? "").trim();
+          const face = String(entry.face ?? "").trim().slice(0, 32);
+          if (!cardId || !pairId || !face) {
+            return null;
+          }
+          return { cardId, pairId, face };
+        })
+        .filter(Boolean)
+        .slice(0, 64);
+
+      if (deck.length === 0) {
+        return null;
+      }
+
+      const matchedPairIds = Array.isArray(candidate.matchedPairIds)
+        ? Array.from(
+            new Set(
+              candidate.matchedPairIds
+                .map(id => String(id ?? "").trim())
+                .filter(Boolean)
+            )
+          )
+        : [];
+
+      return { deck, matchedPairIds };
     }
 
     function buildScanIntent() {
@@ -3192,7 +4698,35 @@ const TEAM_COUNT = 11;
         const usesInteractiveAnswer = puzzleUsesInteractiveAnswer(puzzle);
         puzzleTitle.textContent = puzzleName;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
-        if (puzzle?.wordSearch) {
+        if (puzzle?.cipherChallenge) {
+          renderCipherChallenge(puzzleBody, {
+            puzzleIndex: currentSolving,
+            cipherChallenge: puzzle.cipherChallenge,
+            prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.spotDifference) {
+          renderSpotDifferencePuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            spotDifference: puzzle.spotDifference,
+            prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.keypadPath) {
+          renderKeypadPathPuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            keypadPath: puzzle.keypadPath,
+            prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.memoryGame) {
+          renderMemoryGamePuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            memoryGame: puzzle.memoryGame,
+            prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.wordSearch) {
           const handleWordSearchSolved = () => {
             const solvingIndex = getCurrentSolvingIndex();
             if (solvingIndex !== currentSolving) {

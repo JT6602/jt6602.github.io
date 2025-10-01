@@ -1131,6 +1131,565 @@
       text-decoration: line-through;
     }
 
+    .cipher-challenge-wrapper {
+      display: grid;
+      gap: clamp(1rem, 2.6vw, 1.4rem);
+      padding: clamp(1.2rem, 3vw, 1.6rem);
+      border-radius: 20px;
+      border: 1px solid rgba(110, 230, 228, 0.35);
+      background: linear-gradient(160deg, rgba(6, 14, 26, 0.82), rgba(4, 12, 28, 0.78));
+      box-shadow: inset 0 0 28px -18px rgba(110, 230, 228, 0.32);
+    }
+
+    .cipher-challenge-title {
+      margin: 0;
+      font-size: clamp(1.1rem, 3vw, 1.35rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(110, 230, 228, 0.92);
+    }
+
+    .cipher-challenge-description p {
+      margin: 0 0 0.6rem;
+      color: rgba(224, 241, 255, 0.75);
+      font-size: clamp(0.9rem, 2.4vw, 1.05rem);
+    }
+
+    .cipher-challenge-progress {
+      margin: 0;
+      font-size: clamp(0.85rem, 2.3vw, 1rem);
+      color: rgba(224, 241, 255, 0.6);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .cipher-challenge-steps {
+      display: grid;
+      gap: clamp(0.9rem, 2.6vw, 1.1rem);
+    }
+
+    .cipher-challenge-step {
+      border-radius: 16px;
+      border: 1px solid rgba(110, 230, 228, 0.22);
+      padding: clamp(0.95rem, 2.4vw, 1.2rem);
+      background: rgba(6, 16, 32, 0.65);
+      display: grid;
+      gap: 0.65rem;
+      transition: border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .cipher-challenge-step.is-complete {
+      border-color: rgba(110, 230, 228, 0.65);
+      background: rgba(110, 230, 228, 0.14);
+    }
+
+    .cipher-challenge-step.is-locked {
+      opacity: 0.68;
+    }
+
+    .cipher-challenge-step-header h4 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1rem, 2.8vw, 1.2rem);
+      color: rgba(224, 241, 255, 0.88);
+    }
+
+    .cipher-challenge-step-prompt {
+      margin: 0;
+      color: rgba(224, 241, 255, 0.7);
+      font-size: clamp(0.92rem, 2.4vw, 1.05rem);
+    }
+
+    .cipher-challenge-hint {
+      margin: 0;
+      font-size: clamp(0.75rem, 2.1vw, 0.9rem);
+      color: rgba(110, 230, 228, 0.6);
+      letter-spacing: 0.06em;
+    }
+
+    .cipher-challenge-form {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .cipher-challenge-form input {
+      border-radius: 12px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      padding: 0.55rem 0.75rem;
+      background: rgba(4, 12, 24, 0.82);
+      color: rgba(224, 241, 255, 0.9);
+      font-size: 1rem;
+    }
+
+    .cipher-challenge-form input:disabled {
+      opacity: 0.75;
+    }
+
+    .cipher-challenge-form button,
+    .keypad-path-controls button {
+      border-radius: 12px;
+      border: 1px solid rgba(110, 230, 228, 0.4);
+      background: rgba(110, 230, 228, 0.12);
+      color: rgba(224, 241, 255, 0.88);
+      padding: 0.55rem 0.95rem;
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+
+    .cipher-challenge-form button:hover:not(:disabled),
+    .keypad-path-controls button:hover:not(:disabled) {
+      border-color: rgba(110, 230, 228, 0.7);
+      background: rgba(110, 230, 228, 0.2);
+    }
+
+    .cipher-challenge-form button:disabled,
+    .keypad-path-controls button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .cipher-challenge-choices {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    .cipher-challenge-choice {
+      border-radius: 12px;
+      border: 1px solid rgba(110, 230, 228, 0.26);
+      background: rgba(4, 12, 24, 0.76);
+      padding: 0.55rem 0.75rem;
+      color: rgba(224, 241, 255, 0.85);
+      font-size: clamp(0.88rem, 2.4vw, 1.02rem);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .cipher-challenge-choice:hover:not(:disabled) {
+      border-color: rgba(110, 230, 228, 0.6);
+    }
+
+    .cipher-challenge-choice.is-selected {
+      border-color: rgba(110, 230, 228, 0.65);
+      background: rgba(110, 230, 228, 0.12);
+    }
+
+    .cipher-challenge-choice.is-correct {
+      background: rgba(110, 230, 228, 0.22);
+      color: rgba(6, 18, 32, 0.9);
+    }
+
+    .cipher-challenge-choice:disabled {
+      cursor: default;
+      opacity: 0.75;
+    }
+
+    .cipher-challenge-status {
+      margin: 0;
+      font-size: clamp(0.82rem, 2.2vw, 0.95rem);
+      color: rgba(224, 241, 255, 0.6);
+    }
+
+    .cipher-challenge-status.is-success {
+      color: rgba(110, 230, 228, 0.88);
+    }
+
+    .cipher-challenge-status.is-error {
+      color: rgba(255, 140, 140, 0.85);
+    }
+
+    .cipher-challenge-complete-message {
+      margin: 0;
+      font-size: clamp(0.9rem, 2.5vw, 1.05rem);
+      color: rgba(110, 230, 228, 0.82);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      display: none;
+    }
+
+    .cipher-challenge-complete-message.is-visible {
+      display: block;
+    }
+
+    .spot-difference-wrapper {
+      display: grid;
+      gap: clamp(1rem, 3vw, 1.5rem);
+      padding: clamp(1.1rem, 3vw, 1.5rem);
+      border-radius: 20px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      background: linear-gradient(160deg, rgba(6, 14, 26, 0.8), rgba(4, 12, 28, 0.76));
+    }
+
+    .spot-difference-wrapper.is-complete {
+      box-shadow: 0 0 0 2px rgba(110, 230, 228, 0.4);
+    }
+
+    .spot-difference-prompt {
+      margin: 0;
+      color: rgba(224, 241, 255, 0.78);
+      font-size: clamp(0.95rem, 2.6vw, 1.1rem);
+    }
+
+    .spot-difference-scenes {
+      display: grid;
+      gap: clamp(0.9rem, 2.4vw, 1.2rem);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .spot-difference-scene {
+      position: relative;
+      border-radius: 18px;
+      border: 1px solid rgba(110, 230, 228, 0.25);
+      background: rgba(6, 16, 32, 0.65);
+      padding: clamp(0.8rem, 2.2vw, 1rem) clamp(0.8rem, 2vw, 1.1rem) clamp(1.6rem, 3vw, 1.9rem);
+      overflow: hidden;
+    }
+
+    .spot-difference-scene-label {
+      position: absolute;
+      left: clamp(0.8rem, 2.2vw, 1.3rem);
+      bottom: clamp(0.5rem, 2vw, 0.9rem);
+      font-size: clamp(0.8rem, 2vw, 0.95rem);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.6);
+    }
+
+    .spot-difference-graphic {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .spot-difference-backdrop {
+      fill: rgba(5, 14, 28, 0.92);
+    }
+
+    .spot-difference-tower {
+      fill: rgba(22, 52, 96, 0.86);
+      stroke: rgba(110, 230, 228, 0.25);
+      stroke-width: 1;
+    }
+
+    .spot-difference-roof {
+      fill: rgba(91, 192, 190, 0.35);
+    }
+
+    .spot-difference-flagpole {
+      fill: rgba(110, 230, 228, 0.45);
+    }
+
+    .spot-difference-flag {
+      fill: rgba(91, 192, 190, 0.55);
+    }
+
+    .spot-difference-flag-stripe {
+      fill: rgba(224, 241, 255, 0.75);
+    }
+
+    .spot-difference-window-frame,
+    .spot-difference-balcony,
+    .spot-difference-rails rect,
+    .spot-difference-door-frame {
+      fill: rgba(8, 20, 40, 0.86);
+      stroke: rgba(110, 230, 228, 0.28);
+      stroke-width: 1;
+    }
+
+    .spot-difference-window,
+    .spot-difference-door-emblem {
+      fill: rgba(110, 230, 228, 0.55);
+    }
+
+    .spot-difference-panel {
+      display: grid;
+      gap: 0.5rem;
+      padding: clamp(0.8rem, 2vw, 1rem);
+      border-radius: 16px;
+      border: 1px solid rgba(110, 230, 228, 0.2);
+      background: rgba(6, 16, 32, 0.62);
+    }
+
+    .spot-difference-panel h4 {
+      margin: 0;
+      font-size: clamp(0.9rem, 2.4vw, 1.05rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(110, 230, 228, 0.85);
+    }
+
+    .spot-difference-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      display: grid;
+      gap: 0.25rem;
+      color: rgba(224, 241, 255, 0.74);
+      font-size: clamp(0.85rem, 2.3vw, 1rem);
+    }
+
+    .spot-difference-list li.is-found {
+      color: rgba(110, 230, 228, 0.88);
+      text-decoration: line-through;
+    }
+
+    .spot-difference-status {
+      margin: 0;
+      font-size: clamp(0.82rem, 2.2vw, 0.95rem);
+      color: rgba(224, 241, 255, 0.62);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .spot-difference-target {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px dashed rgba(110, 230, 228, 0.4);
+      background: rgba(110, 230, 228, 0.22);
+      opacity: 0;
+      cursor: pointer;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .spot-difference-target:hover,
+    .spot-difference-target:focus-visible {
+      opacity: 0.55;
+      transform: scale(1.05);
+    }
+
+    .spot-difference-target.is-found {
+      opacity: 0.7;
+      background: rgba(110, 230, 228, 0.32);
+      border-style: solid;
+    }
+
+    .spot-difference-wrapper.is-complete .spot-difference-target {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .keypad-path-wrapper {
+      display: grid;
+      gap: clamp(1rem, 2.6vw, 1.4rem);
+      padding: clamp(1.1rem, 2.8vw, 1.5rem);
+      border-radius: 20px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      background: linear-gradient(160deg, rgba(6, 14, 26, 0.82), rgba(4, 12, 28, 0.78));
+    }
+
+    .keypad-path-prompt {
+      margin: 0;
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      color: rgba(224, 241, 255, 0.78);
+    }
+
+    .keypad-path-hints {
+      margin: 0;
+      padding-left: 1.15rem;
+      color: rgba(224, 241, 255, 0.6);
+      font-size: clamp(0.82rem, 2.2vw, 0.95rem);
+      display: grid;
+      gap: 0.2rem;
+    }
+
+    .keypad-path-status {
+      margin: 0;
+      font-size: clamp(0.85rem, 2.2vw, 0.98rem);
+      color: rgba(224, 241, 255, 0.64);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .keypad-path-status.is-success {
+      color: rgba(110, 230, 228, 0.88);
+    }
+
+    .keypad-path-status.is-error {
+      color: rgba(255, 140, 140, 0.85);
+    }
+
+    .keypad-path-display {
+      margin: 0;
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      letter-spacing: 0.08em;
+      color: rgba(224, 241, 255, 0.8);
+    }
+
+    .keypad-path-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(clamp(60px, 18vw, 82px), 1fr));
+      gap: clamp(0.4rem, 1.5vw, 0.65rem);
+      justify-items: center;
+    }
+
+    .keypad-path-grid.is-error {
+      animation: keypadShake 0.3s ease;
+    }
+
+    @keyframes keypadShake {
+      0% {
+        transform: translateX(0);
+      }
+      25% {
+        transform: translateX(-6px);
+      }
+      50% {
+        transform: translateX(6px);
+      }
+      75% {
+        transform: translateX(-4px);
+      }
+      100% {
+        transform: translateX(0);
+      }
+    }
+
+    .keypad-path-key {
+      width: clamp(60px, 18vw, 82px);
+      height: clamp(60px, 18vw, 82px);
+      border-radius: 16px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      background: rgba(6, 16, 32, 0.72);
+      color: rgba(224, 241, 255, 0.88);
+      font-size: clamp(1.1rem, 3.5vw, 1.6rem);
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 16px 35px -28px rgba(110, 230, 228, 0.8);
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .keypad-path-key:hover:not(:disabled) {
+      border-color: rgba(110, 230, 228, 0.55);
+      transform: translateY(-2px);
+    }
+
+    .keypad-path-key.is-active {
+      border-color: rgba(110, 230, 228, 0.78);
+      background: rgba(110, 230, 228, 0.18);
+      color: rgba(6, 18, 32, 0.88);
+    }
+
+    .keypad-path-grid.is-complete .keypad-path-key {
+      opacity: 0.75;
+      cursor: default;
+    }
+
+    .keypad-path-controls {
+      display: flex;
+      gap: 0.6rem;
+      justify-content: flex-end;
+    }
+
+    .memory-game-wrapper {
+      display: grid;
+      gap: clamp(1rem, 2.8vw, 1.4rem);
+      padding: clamp(1.1rem, 2.8vw, 1.5rem);
+      border-radius: 20px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      background: linear-gradient(160deg, rgba(6, 14, 26, 0.82), rgba(4, 12, 28, 0.78));
+    }
+
+    .memory-game-prompt {
+      margin: 0;
+      font-size: clamp(0.95rem, 2.5vw, 1.1rem);
+      color: rgba(224, 241, 255, 0.78);
+    }
+
+    .memory-game-status {
+      margin: 0;
+      font-size: clamp(0.85rem, 2.2vw, 0.98rem);
+      color: rgba(224, 241, 255, 0.64);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .memory-game-status.is-success {
+      color: rgba(110, 230, 228, 0.88);
+    }
+
+    .memory-game-status.is-error {
+      color: rgba(255, 140, 140, 0.85);
+    }
+
+    .memory-game-word {
+      display: flex;
+      gap: clamp(0.3rem, 1.2vw, 0.55rem);
+      justify-content: center;
+      font-size: clamp(1.1rem, 3.4vw, 1.5rem);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.38);
+    }
+
+    .memory-game-word span.is-revealed {
+      color: rgba(110, 230, 228, 0.92);
+      text-shadow: 0 0 18px rgba(110, 230, 228, 0.45);
+    }
+
+    .memory-game-grid {
+      display: grid;
+      gap: clamp(0.55rem, 1.8vw, 0.85rem);
+      grid-template-columns: repeat(auto-fit, minmax(clamp(72px, 18vw, 100px), 1fr));
+      justify-items: center;
+    }
+
+    .memory-card {
+      position: relative;
+      width: clamp(72px, 18vw, 100px);
+      height: clamp(96px, 24vw, 132px);
+      border-radius: 16px;
+      border: 1px solid rgba(110, 230, 228, 0.32);
+      background: rgba(6, 16, 32, 0.72);
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.42s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: 0 18px 45px -34px rgba(110, 230, 228, 0.78);
+    }
+
+    .memory-card:hover:not(.is-matched) {
+      border-color: rgba(110, 230, 228, 0.55);
+    }
+
+    .memory-card.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .memory-card.is-matched {
+      border-color: rgba(110, 230, 228, 0.7);
+      background: rgba(110, 230, 228, 0.18);
+      cursor: default;
+      box-shadow: 0 0 0 1px rgba(110, 230, 228, 0.35);
+    }
+
+    .memory-card-back,
+    .memory-card-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 600;
+      backface-visibility: hidden;
+    }
+
+    .memory-card-back {
+      background: rgba(4, 12, 24, 0.86);
+      color: rgba(110, 230, 228, 0.88);
+    }
+
+    .memory-card-face {
+      background: rgba(110, 230, 228, 0.16);
+      color: rgba(6, 18, 32, 0.9);
+      transform: rotateY(180deg);
+    }
+
+    .memory-game-grid.is-complete .memory-card {
+      opacity: 0.78;
+    }
+
     .answer-overlay-card {
       width: min(420px, 86vw);
       border-radius: 24px;
