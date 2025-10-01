@@ -30,6 +30,7 @@
       <div class="action-buttons">
         <button type="button" class="action-button" id="exportProgress">Copy Progress Code</button>
         <button type="button" class="action-button" id="importProgress">Import Progress</button>
+        <button type="button" class="action-button" id="gmOverrideButton">GM Override</button>
         <button type="button" class="action-button" id="viewTowerMap">View Tower Map</button>
         <button type="button" class="reset-button" id="resetAll">Reset Progress</button>
       </div>
@@ -84,10 +85,6 @@
           <div class="progress-label-extra" id="progressDescriptor"></div>
         </h3>
         <div class="progress-card" id="progressCard"></div>
-        <div class="tower-map" id="towerMap" aria-label="Tower map">
-          <div class="tower-map-title">Tower Map</div>
-          <div class="tower-map-levels" id="towerLevels"></div>
-        </div>
       </aside>
     </section>
   </main>
@@ -157,8 +154,41 @@
     <div class="map-overlay-inner">
       <h2 id="towerMapOverlayTitle">Tower Map</h2>
       <div class="map-overlay-body">
-        <div class="tower-map map-overlay-content" id="towerMapOverlayContent" aria-label="Tower map overview"></div>
+        <div class="tower-map map-overlay-content" id="towerMapOverlayContent" aria-label="Tower map overview">
+          <div class="tower-map-levels" id="towerLevels"></div>
+        </div>
       </div>
+    </div>
+  </div>
+
+  <div class="gm-override-overlay" id="gmOverrideOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="gmOverrideTitle">
+    <button type="button" class="gm-override-close" id="gmOverrideClose" aria-label="Close GM override"></button>
+    <div class="gm-override-dialog">
+      <header class="gm-override-header">
+        <h2 id="gmOverrideTitle">GM Override</h2>
+        <p id="gmOverrideSubtitle"></p>
+      </header>
+      <form id="gmOverrideForm" class="gm-override-form">
+        <fieldset>
+          <legend>Select Game State</legend>
+          <div class="gm-override-options" id="gmOverrideOptions"></div>
+        </fieldset>
+        <div class="gm-override-actions">
+          <button type="submit" class="primary-action" id="gmOverrideApply">Apply Selection</button>
+          <button type="button" class="secondary-link" id="gmOverrideCancel">Cancel</button>
+        </div>
+      </form>
+      <div class="gm-override-feedback" id="gmOverrideFeedback" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="floor-transition" id="floorTransition" hidden aria-hidden="true">
+    <div class="floor-transition-inner">
+      <div class="floor-transition-track" aria-hidden="true">
+        <div class="floor-transition-current" id="floorTransitionCurrent"></div>
+        <div class="floor-transition-next" id="floorTransitionNext"></div>
+      </div>
+      <div class="floor-transition-label" id="floorTransitionLabel"></div>
     </div>
   </div>
 

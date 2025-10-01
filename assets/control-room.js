@@ -79,6 +79,7 @@ const TEAM_COUNT = 11;
     const GM_PASSWORD = "GoTowerHats";
     const GM_PASSWORD_TOKEN_KEY = "towerHuntGmToken";
     const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
+    const COOKIE_SECRET = "tower-hunt-shield-9317";
 
     const puzzles = [
       { floor: "Basement", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.BASEMENT },
@@ -108,6 +109,7 @@ const TEAM_COUNT = 11;
     const resetButton = document.getElementById("resetAll");
     const exportButton = document.getElementById("exportProgress");
     const importButton = document.getElementById("importProgress");
+    const gmOverrideButton = document.getElementById("gmOverrideButton");
     const statusMessage = document.getElementById("statusMessage");
 
     const puzzleTitle = document.getElementById("puzzleTitle");
@@ -125,9 +127,19 @@ const TEAM_COUNT = 11;
     const progressDescriptor = document.getElementById("progressDescriptor");
     const towerLevels = document.getElementById("towerLevels");
     const towerMapOverlay = document.getElementById("towerMapOverlay");
-    const towerMapOverlayContent = document.getElementById("towerMapOverlayContent");
     const towerMapOverlayClose = document.getElementById("towerMapOverlayClose");
     const viewTowerMapButton = document.getElementById("viewTowerMap");
+    const gmOverrideOverlay = document.getElementById("gmOverrideOverlay");
+    const gmOverrideForm = document.getElementById("gmOverrideForm");
+    const gmOverrideOptions = document.getElementById("gmOverrideOptions");
+    const gmOverrideSubtitle = document.getElementById("gmOverrideSubtitle");
+    const gmOverrideFeedback = document.getElementById("gmOverrideFeedback");
+    const gmOverrideClose = document.getElementById("gmOverrideClose");
+    const gmOverrideCancel = document.getElementById("gmOverrideCancel");
+    const floorTransition = document.getElementById("floorTransition");
+    const floorTransitionCurrent = document.getElementById("floorTransitionCurrent");
+    const floorTransitionNext = document.getElementById("floorTransitionNext");
+    const floorTransitionLabel = document.getElementById("floorTransitionLabel");
     const rootMain = document.querySelector("main");
     const gmSheet = document.getElementById("gmSheet");
     const gmStartList = document.getElementById("gmStartList");
@@ -181,11 +193,18 @@ const TEAM_COUNT = 11;
     let gmOverlayEscapeBound = false;
     let gmOverlayCloseBound = false;
     let mapOverlayEscapeBound = false;
+    let gmOverrideEscapeBound = false;
     let gmLastActivatedCell = null;
     let puzzleLockTimeoutId = null;
     let pendingPuzzleUnlockIndex = null;
     let puzzleLockCurrentState = "hidden";
     let gmAccessGranted = false;
+    const gmOverrideSession = {
+      teamId: null,
+      sourceCode: null
+    };
+    let obfuscationSecretBytes = null;
+    let floorTransitionTimeoutId = null;
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -198,13 +217,23 @@ const TEAM_COUNT = 11;
     const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
     let prefersReducedMotion = Boolean(prefersReducedMotionQuery.matches);
 
+    if (prefersReducedMotion) {
+      hideFloorTransition();
+    }
+
     if (typeof prefersReducedMotionQuery.addEventListener === "function") {
       prefersReducedMotionQuery.addEventListener("change", event => {
         prefersReducedMotion = event.matches;
+        if (prefersReducedMotion) {
+          hideFloorTransition();
+        }
       });
     } else if (typeof prefersReducedMotionQuery.addListener === "function") {
       prefersReducedMotionQuery.addListener(event => {
         prefersReducedMotion = event.matches;
+        if (prefersReducedMotion) {
+          hideFloorTransition();
+        }
       });
     }
 
@@ -635,10 +664,10 @@ const TEAM_COUNT = 11;
     }
 
     function openTowerMapOverlay() {
-      if (!towerMapOverlay || !towerMapOverlayContent) {
+      if (!towerMapOverlay || !towerLevels) {
         return;
       }
-      renderTowerMapOverlay();
+      renderTowerMap();
       towerMapOverlay.classList.add("is-visible");
       towerMapOverlay.removeAttribute("hidden");
       document.body.classList.add("is-map-overlay-open");
@@ -670,11 +699,298 @@ const TEAM_COUNT = 11;
       }
     }
 
-    function renderTowerMapOverlay() {
-      if (!towerMapOverlayContent) {
+    function openGmOverrideOverlay(teamId) {
+      if (!gmOverrideOverlay || !gmOverrideOptions) {
         return;
       }
-      towerMapOverlayContent.innerHTML = towerLevels?.innerHTML ?? "";
+
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      gmOverrideSession.teamId = sanitizedTeam;
+
+      const teamName = TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`;
+      if (gmOverrideSubtitle) {
+        gmOverrideSubtitle.textContent = `${teamName} • Override Controls`;
+      }
+
+      renderGmOverrideOptions(sanitizedTeam);
+
+      if (gmOverrideFeedback) {
+        gmOverrideFeedback.textContent = "Select the state that matches where this team should resume.";
+      }
+
+      gmOverrideOverlay.classList.add("is-visible");
+      gmOverrideOverlay.removeAttribute("hidden");
+      gmOverrideOverlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("is-gm-override-open");
+
+      const defaultRadio = gmOverrideOptions.querySelector('input[type="radio"]:checked') ??
+        gmOverrideOptions.querySelector('input[type="radio"]');
+      if (defaultRadio) {
+        defaultRadio.focus({ preventScroll: true });
+      }
+
+      if (!gmOverrideEscapeBound) {
+        window.addEventListener("keydown", handleGmOverrideKeydown, { passive: true });
+        gmOverrideEscapeBound = true;
+      }
+    }
+
+    function closeGmOverrideOverlay() {
+      if (!gmOverrideOverlay) {
+        return;
+      }
+
+      gmOverrideOverlay.classList.remove("is-visible");
+      gmOverrideOverlay.setAttribute("hidden", "true");
+      gmOverrideOverlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("is-gm-override-open");
+
+      if (gmOverrideEscapeBound) {
+        window.removeEventListener("keydown", handleGmOverrideKeydown);
+        gmOverrideEscapeBound = false;
+      }
+
+      gmOverrideForm?.reset();
+
+      if (gmOverrideFeedback) {
+        gmOverrideFeedback.textContent = "";
+      }
+
+      resetGmOverrideSession();
+      gmOverrideButton?.focus({ preventScroll: true });
+    }
+
+    function handleGmOverrideKeydown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeGmOverrideOverlay();
+      }
+    }
+
+    function renderGmOverrideOptions(teamId) {
+      if (!gmOverrideOptions) {
+        return;
+      }
+
+      gmOverrideOptions.innerHTML = "";
+      const optionGroup = document.createDocumentFragment();
+
+      const order = getTeamOrder(teamId);
+      if (!order.length) {
+        const empty = document.createElement("div");
+        empty.textContent = "No missions configured for this team.";
+        empty.className = "gm-override-feedback";
+        optionGroup.append(empty);
+        gmOverrideOptions.append(optionGroup);
+        return;
+      }
+
+      const selection = deriveGmDefaultSelection(teamId);
+
+      const resetOption = createGmOverrideOption({
+        id: `gm-override-${teamId}-reset`,
+        value: "reset",
+        label: "Reset to Start",
+        description: "Clears all progress and reveals the first destination.",
+        mode: "reset"
+      });
+      optionGroup.append(resetOption);
+
+      order.forEach((puzzleIndex, position) => {
+        const floorName = puzzles[puzzleIndex]?.floor ?? `Mission ${puzzleIndex + 1}`;
+        const travelOption = createGmOverrideOption({
+          id: `gm-override-${teamId}-travel-${puzzleIndex}`,
+          value: `travel-${puzzleIndex}`,
+          label: `Travel to ${floorName}`,
+          description: position === order.length - 1
+            ? "Send the team to the final mission location."
+            : "Mark previous missions as complete and direct the team to travel here.",
+          mode: "travel",
+          puzzleIndex
+        });
+
+        const solveOption = createGmOverrideOption({
+          id: `gm-override-${teamId}-solve-${puzzleIndex}`,
+          value: `solve-${puzzleIndex}`,
+          label: `Solve ${floorName}`,
+          description: "Unlock this puzzle so the team can work on it immediately.",
+          mode: "solve",
+          puzzleIndex
+        });
+
+        optionGroup.append(travelOption, solveOption);
+      });
+
+      const completeOption = createGmOverrideOption({
+        id: `gm-override-${teamId}-complete`,
+        value: "complete",
+        label: "Mark Tower Complete",
+        description: "Set every mission as solved for this team.",
+        mode: "complete"
+      });
+      optionGroup.append(completeOption);
+
+      gmOverrideOptions.append(optionGroup);
+
+      const radios = gmOverrideOptions.querySelectorAll('input[type="radio"]');
+      radios.forEach(radio => {
+        if (radio.value === selection) {
+          radio.checked = true;
+        }
+      });
+
+      if (!gmOverrideOptions.querySelector('input[type="radio"]:checked') && radios.length > 0) {
+        radios[0].checked = true;
+      }
+    }
+
+    function createGmOverrideOption({ id, value, label, description, mode, puzzleIndex }) {
+      const option = document.createElement("label");
+      option.className = "gm-override-option";
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "gmOverrideState";
+      input.value = value;
+      input.id = id;
+      input.required = true;
+      if (mode) {
+        input.dataset.mode = mode;
+      }
+      if (Number.isInteger(puzzleIndex)) {
+        input.dataset.puzzleIndex = String(puzzleIndex);
+      }
+
+      const title = document.createElement("strong");
+      title.textContent = label;
+
+      const detail = document.createElement("span");
+      detail.textContent = description;
+
+      option.append(input, title, detail);
+      return option;
+    }
+
+    function deriveGmDefaultSelection(teamId) {
+      if (!Number.isInteger(state.teamId) || state.teamId !== teamId || !state.hasStarted) {
+        return "reset";
+      }
+
+      if (state.completions.every(Boolean)) {
+        return "complete";
+      }
+
+      const order = getTeamOrder(teamId);
+      const pending = order.find(index => !state.completions[index]);
+
+      if (typeof pending !== "number") {
+        return "complete";
+      }
+
+      return (state.unlocked[pending] ? "solve-" : "travel-") + pending;
+    }
+
+    function handleGmOverrideSubmit(event) {
+      event.preventDefault();
+      if (!gmOverrideOptions) {
+        return;
+      }
+
+      const selected = gmOverrideOptions.querySelector('input[name="gmOverrideState"]:checked');
+      if (!selected) {
+        if (gmOverrideFeedback) {
+          gmOverrideFeedback.textContent = "Pick a state before applying it.";
+        }
+        return;
+      }
+
+      const teamId = gmOverrideSession.teamId;
+      if (!Number.isInteger(teamId)) {
+        if (gmOverrideFeedback) {
+          gmOverrideFeedback.textContent = "Scan a GM override code to choose a team first.";
+        }
+        return;
+      }
+
+      const mode = selected.dataset.mode ?? "";
+      const indexValue = selected.dataset.puzzleIndex;
+      const puzzleIndex = typeof indexValue === "string" ? Number.parseInt(indexValue, 10) : null;
+
+      const applied = applyGmOverrideState({ teamId, mode, puzzleIndex });
+      if (!applied) {
+        if (gmOverrideFeedback) {
+          gmOverrideFeedback.textContent = "Unable to apply that state. Try a different option.";
+        }
+        return;
+      }
+
+      closeGmOverrideOverlay();
+    }
+
+    function applyGmOverrideState({ teamId, mode, puzzleIndex }) {
+      if (!mode) {
+        return false;
+      }
+
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      const order = getTeamOrder(sanitizedTeam);
+      if (!order.length) {
+        return false;
+      }
+
+      const working = defaultState(sanitizedTeam);
+      working.hasStarted = true;
+
+      const describe = { message: "", tone: "success" };
+
+      if (mode === "reset") {
+        const first = order[0];
+        if (typeof first === "number") {
+          working.revealed[first] = true;
+        }
+        describe.message = `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} reset. First mission revealed.`;
+      } else if (mode === "complete") {
+        working.revealed.fill(true);
+        working.unlocked.fill(true);
+        working.completions.fill(true);
+        describe.message = `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} marked as tower complete.`;
+      } else if ((mode === "travel" || mode === "solve") && Number.isInteger(puzzleIndex)) {
+        const position = order.indexOf(puzzleIndex);
+        if (position === -1) {
+          return false;
+        }
+
+        for (let step = 0; step < position; step += 1) {
+          const clearedIndex = order[step];
+          working.revealed[clearedIndex] = true;
+          working.unlocked[clearedIndex] = true;
+          working.completions[clearedIndex] = true;
+        }
+
+        working.revealed[puzzleIndex] = true;
+        working.unlocked[puzzleIndex] = mode === "solve";
+        working.completions[puzzleIndex] = false;
+
+        const destination = puzzles[puzzleIndex]?.floor ?? `Mission ${puzzleIndex + 1}`;
+        describe.message = mode === "solve"
+          ? `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} now solving ${destination}.`
+          : `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} traveling to ${destination}.`;
+      } else {
+        return false;
+      }
+
+      state = sanitizeState(working);
+      pendingPuzzleUnlockIndex = null;
+      saveState();
+      render();
+
+      showStatus(describe.message.trim(), describe.tone);
+      return true;
+    }
+
+    function resetGmOverrideSession() {
+      gmOverrideSession.teamId = null;
+      gmOverrideSession.sourceCode = null;
     }
 
     function openGmQrOverlay({ code, label, subtitle, category }) {
@@ -813,15 +1129,21 @@ const TEAM_COUNT = 11;
     function attachEventListeners() {
       resetButton?.addEventListener("click", () => {
         if (!confirm("Reset all progress on this device?")) return;
-        state = defaultState(state.teamId);
+        state = defaultState(null);
         pendingPuzzleUnlockIndex = null;
-        saveState();
+        clearStateCookie();
+        hideFloorTransition();
         render();
         showStatus("Progress reset.", "success");
       });
 
       exportButton?.addEventListener("click", exportProgress);
       importButton?.addEventListener("click", importProgress);
+      gmOverrideButton?.addEventListener("click", () => {
+        if (!gmOverrideButton.disabled) {
+          openScanner({ mode: "gmOverride" });
+        }
+      });
 
       scanButton?.addEventListener("click", () => {
         const intent = buildScanIntent();
@@ -857,6 +1179,24 @@ const TEAM_COUNT = 11;
           stopScannerStream();
         }
       });
+
+      gmOverrideClose?.addEventListener("click", event => {
+        event.preventDefault();
+        closeGmOverrideOverlay();
+      });
+
+      gmOverrideCancel?.addEventListener("click", event => {
+        event.preventDefault();
+        closeGmOverrideOverlay();
+      });
+
+      gmOverrideOverlay?.addEventListener("click", event => {
+        if (event.target === gmOverrideOverlay) {
+          closeGmOverrideOverlay();
+        }
+      });
+
+      gmOverrideForm?.addEventListener("submit", handleGmOverrideSubmit);
     }
 
     function loadState() {
@@ -864,21 +1204,28 @@ const TEAM_COUNT = 11;
       if (!cookieValue) {
         return defaultState(null);
       }
-      try {
-        const decoded = decodeCookieValue(cookieValue);
-        const parsed = JSON.parse(decoded);
-        return sanitizeState(parsed);
-      } catch (err) {
-        console.warn("Failed to parse cookie, resetting progress", err);
-        return defaultState(null);
+
+      const decoded = decodeStatePayload(cookieValue);
+      if (decoded) {
+        return sanitizeState(decoded);
       }
+
+      console.warn("Failed to parse cookie, resetting progress");
+      return defaultState(null);
     }
 
     function saveState() {
       state = sanitizeState(state);
-      const payload = JSON.stringify(state);
+      const payload = encodeStatePayload(state);
+      if (!payload) {
+        return;
+      }
       const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
-      document.cookie = `${COOKIE_NAME}=${encodeURIComponent(payload)}; max-age=${maxAge}; path=/; SameSite=Lax`;
+      document.cookie = `${COOKIE_NAME}=${payload}; max-age=${maxAge}; path=/; SameSite=Lax`;
+    }
+
+    function clearStateCookie() {
+      document.cookie = `${COOKIE_NAME}=; max-age=0; path=/; SameSite=Lax`;
     }
 
     function getCookie(name) {
@@ -891,12 +1238,159 @@ const TEAM_COUNT = 11;
         ?.replace(/^"|"$/g, "");
     }
 
-    function decodeCookieValue(value) {
+    function encodeStatePayload(currentState) {
       try {
-        return decodeURIComponent(value);
-      } catch (err) {
-        return value;
+        const sanitized = sanitizeState(currentState);
+        const json = JSON.stringify(sanitized);
+        const signature = simpleSignature(json + COOKIE_SECRET);
+        const combined = `${signature}:${json}`;
+        const reversed = combined.split("").reverse().join("");
+        const reversedBytes = encodeUtf8(reversed);
+        const obfuscated = xorBytes(reversedBytes);
+        return bytesToBase64Url(obfuscated);
+      } catch (error) {
+        console.error("Failed to encode state", error);
+        return null;
       }
+    }
+
+    function decodeStatePayload(value) {
+      if (!value) {
+        return null;
+      }
+
+      const candidates = new Set([value]);
+      try {
+        candidates.add(decodeURIComponent(value));
+      } catch (err) {
+        // ignore malformed percent-encoding
+      }
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+
+        const obfuscated = tryDecodeObfuscated(candidate);
+        if (obfuscated) {
+          return obfuscated;
+        }
+
+        try {
+          return JSON.parse(candidate);
+        } catch (err) {
+          // continue legacy parsing
+        }
+
+        try {
+          const legacy = atob(candidate);
+          return JSON.parse(legacy);
+        } catch (err) {
+          // continue
+        }
+      }
+
+      return null;
+    }
+
+    function tryDecodeObfuscated(candidate) {
+      try {
+        const bytes = base64UrlToBytes(candidate);
+        if (!bytes || !bytes.length) {
+          return null;
+        }
+        const deobfuscated = xorBytes(bytes);
+        const reversed = decodeUtf8(deobfuscated);
+        const combined = reversed.split("").reverse().join("");
+        const separatorIndex = combined.indexOf(":");
+        if (separatorIndex === -1) {
+          return null;
+        }
+        const signature = combined.slice(0, separatorIndex);
+        const json = combined.slice(separatorIndex + 1);
+        if (!signature || !json) {
+          return null;
+        }
+        const expected = simpleSignature(json + COOKIE_SECRET);
+        if (signature !== expected) {
+          return null;
+        }
+        return JSON.parse(json);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function bytesToBase64Url(bytes) {
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 1) {
+        binary += String.fromCharCode(bytes[index]);
+      }
+      return toBase64Url(binary);
+    }
+
+    function base64UrlToBytes(value) {
+      const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+      const padLength = (4 - (normalized.length % 4)) % 4;
+      const padded = normalized + "=".repeat(padLength);
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      return bytes;
+    }
+
+    function toBase64Url(binary) {
+      return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function encodeUtf8(value) {
+      if (typeof TextEncoder === "function") {
+        return new TextEncoder().encode(value);
+      }
+      const bytes = new Uint8Array(value.length);
+      for (let index = 0; index < value.length; index += 1) {
+        bytes[index] = value.charCodeAt(index) & 0xff;
+      }
+      return bytes;
+    }
+
+    function decodeUtf8(bytes) {
+      if (typeof TextDecoder === "function") {
+        return new TextDecoder().decode(bytes);
+      }
+      let result = "";
+      for (let index = 0; index < bytes.length; index += 1) {
+        result += String.fromCharCode(bytes[index]);
+      }
+      return result;
+    }
+
+    function xorBytes(bytes) {
+      const secretBytes = getSecretBytes();
+      if (!secretBytes.length) {
+        return bytes.slice();
+      }
+      const result = new Uint8Array(bytes.length);
+      for (let index = 0; index < bytes.length; index += 1) {
+        result[index] = bytes[index] ^ secretBytes[index % secretBytes.length];
+      }
+      return result;
+    }
+
+    function getSecretBytes() {
+      if (!obfuscationSecretBytes) {
+        obfuscationSecretBytes = encodeUtf8(COOKIE_SECRET);
+      }
+      return obfuscationSecretBytes;
+    }
+
+    function simpleSignature(input) {
+      let hash = 0;
+      for (let index = 0; index < input.length; index += 1) {
+        hash = (hash << 5) - hash + input.charCodeAt(index);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(36);
     }
 
     function sanitizeState(candidate) {
@@ -964,11 +1458,12 @@ const TEAM_COUNT = 11;
       return Math.min(Math.max(n, min), max);
     }
 
-    function getTeamOrder() {
-      if (!Number.isInteger(state.teamId)) {
+    function getTeamOrder(teamIdOverride = state.teamId) {
+      if (!Number.isInteger(teamIdOverride)) {
         return [];
       }
-      return TEAM_ORDERS[state.teamId]?.slice() ?? TEAM_ORDERS[0].slice();
+      const sanitized = clampNumber(teamIdOverride, 0, TEAM_COUNT - 1);
+      return TEAM_ORDERS[sanitized]?.slice() ?? [];
     }
 
     function solvedCount() {
@@ -1230,8 +1725,6 @@ const TEAM_COUNT = 11;
           towerLevels.append(ground);
         }
       }
-
-      renderTowerMapOverlay();
     }
 
     function createTowerLockIcon() {
@@ -1502,6 +1995,103 @@ const TEAM_COUNT = 11;
       }, baseDuration + 1400);
     }
 
+    function triggerFloorTransition({ fromIndex = null, toIndex = null } = {}) {
+      if (!floorTransition || prefersReducedMotion) {
+        return;
+      }
+
+      if (!Number.isInteger(toIndex)) {
+        hideFloorTransition();
+        return;
+      }
+
+      const direction = determineFloorDirection(fromIndex, toIndex);
+      const currentLabel = resolveFloorLabel(fromIndex);
+      const nextLabel = resolveFloorLabel(toIndex);
+      const callout = buildFloorCallout(toIndex);
+
+      if (floorTransitionTimeoutId) {
+        clearTimeout(floorTransitionTimeoutId);
+        floorTransitionTimeoutId = null;
+      }
+
+      floorTransition.dataset.direction = direction;
+      if (floorTransitionCurrent) {
+        floorTransitionCurrent.textContent = currentLabel;
+      }
+      if (floorTransitionNext) {
+        floorTransitionNext.textContent = nextLabel;
+      }
+
+      if (floorTransitionLabel) {
+        if (toIndex === 0) {
+          floorTransitionLabel.textContent = "GET TO THE BASEMENT FOR THE FINAL PUZZLE!!";
+        } else {
+          floorTransitionLabel.textContent = `GO TO FLOOR: ${callout}`;
+        }
+      }
+
+      floorTransition.classList.add("is-active");
+      floorTransition.removeAttribute("hidden");
+      floorTransition.setAttribute("aria-hidden", "false");
+
+      floorTransitionTimeoutId = window.setTimeout(() => {
+        hideFloorTransition();
+      }, 3200);
+    }
+
+    function hideFloorTransition() {
+      if (!floorTransition) {
+        return;
+      }
+      if (floorTransitionTimeoutId) {
+        clearTimeout(floorTransitionTimeoutId);
+        floorTransitionTimeoutId = null;
+      }
+      floorTransition.classList.remove("is-active");
+      floorTransition.setAttribute("hidden", "true");
+      floorTransition.setAttribute("aria-hidden", "true");
+    }
+
+    function resolveFloorLabel(index) {
+      if (!Number.isInteger(index)) {
+        return "CONTROL ROOM";
+      }
+      if (index === 0) {
+        return "BASEMENT";
+      }
+      const label = puzzles[index]?.floor ?? `Floor ${index}`;
+      return label.toUpperCase();
+    }
+
+    function buildFloorCallout(index) {
+      if (!Number.isInteger(index)) {
+        return "CONTROL ROOM";
+      }
+      if (index === 0) {
+        return "BASEMENT";
+      }
+      const label = puzzles[index]?.floor ?? `Floor ${index}`;
+      const match = label.match(/floor\s*(\d+)/i);
+      if (match) {
+        return match[1];
+      }
+      return label.toUpperCase();
+    }
+
+    function determineFloorDirection(fromIndex, toIndex) {
+      if (!Number.isInteger(toIndex)) {
+        return "up";
+      }
+      if (!Number.isInteger(fromIndex)) {
+        return toIndex === 0 ? "down" : "up";
+      }
+      if (toIndex === fromIndex) {
+        return "up";
+      }
+      return toIndex > fromIndex ? "up" : "down";
+    }
+
     function setPuzzleFeedback(message, tone) {
       if (!puzzleFeedback) return;
       puzzleFeedback.className = "answer-feedback";
@@ -1570,6 +2160,9 @@ const TEAM_COUNT = 11;
           break;
         case "complete":
           message = "The hunt is complete, but you can still scan a GM override if needed.";
+          break;
+        case "gmOverride":
+          message = "GM Override active. Scan the team's override badge to manage progress.";
           break;
         default:
           break;
@@ -1766,12 +2359,26 @@ const TEAM_COUNT = 11;
       scanSession.validationTimer = null;
       let handled = false;
 
+      const intentMode = scanSession.intent?.mode ?? null;
+
       if (Object.prototype.hasOwnProperty.call(GM_TEAM_CODES, normalizedValue)) {
-        handled = handleTeamOverride(GM_TEAM_CODES[normalizedValue], rawValue);
+        if (intentMode === "gmOverride") {
+          handled = handleGmOverrideCode(GM_TEAM_CODES[normalizedValue], rawValue);
+        } else {
+          updateScanStatus("Switch to GM Override to use this code.", "error");
+        }
       } else if (Object.prototype.hasOwnProperty.call(START_CODES, normalizedValue)) {
-        handled = handleStartCode(START_CODES[normalizedValue], rawValue);
+        if (intentMode === "gmOverride") {
+          updateScanStatus("Leave GM Override mode before scanning start badges.", "error");
+        } else {
+          handled = handleStartCode(START_CODES[normalizedValue], rawValue);
+        }
       } else if (Object.prototype.hasOwnProperty.call(PUZZLE_CODE_LOOKUP, normalizedValue)) {
-        handled = handleLocationScan(PUZZLE_CODE_LOOKUP[normalizedValue]);
+        if (intentMode === "gmOverride") {
+          updateScanStatus("GM Override mode only accepts override badges.", "error");
+        } else {
+          handled = handleLocationScan(PUZZLE_CODE_LOOKUP[normalizedValue]);
+        }
       } else {
         updateScanStatus("Code not recognized for this hunt. Check with the game master.", "error");
       }
@@ -1822,18 +2429,32 @@ const TEAM_COUNT = 11;
         return false;
       }
 
-      const result = assignTeamRun(teamId, { sourceLabel: "Start", rawValue });
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      const existingTeam = Number.isInteger(state.teamId) ? state.teamId : null;
+      if (existingTeam !== null && existingTeam !== sanitizedTeam) {
+        const lockedName = TEAM_NAMES[existingTeam] ?? `Team ${existingTeam + 1}`;
+        updateScanStatus(`This device is bound to ${lockedName}. Use GM Override to change teams.`, "error");
+        return false;
+      }
+
+      const result = assignTeamRun(sanitizedTeam, { sourceLabel: "Start", rawValue });
       return Boolean(result);
     }
 
-    function handleTeamOverride(teamId, rawValue) {
+    function handleGmOverrideCode(teamId, rawValue) {
       if (!Number.isInteger(teamId)) {
         updateScanStatus("Override code not recognized.", "error");
         return false;
       }
 
-      const result = assignTeamRun(teamId, { sourceLabel: "GM override", rawValue });
-      return Boolean(result);
+      const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      gmOverrideSession.teamId = sanitizedTeam;
+      gmOverrideSession.sourceCode = rawValue;
+
+      const teamName = TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`;
+      closeScanner(`Override badge accepted for ${teamName}.`, "success");
+      openGmOverrideOverlay(sanitizedTeam);
+      return true;
     }
 
     function handleLocationScan(puzzleIndex) {
@@ -1897,11 +2518,17 @@ const TEAM_COUNT = 11;
       return true;
     }
 
-    function assignTeamRun(teamId, { sourceLabel = "Team" } = {}) {
+    function assignTeamRun(teamId, { sourceLabel = "Team", force = false } = {}) {
       const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
       const existingTeam = Number.isInteger(state.teamId) ? state.teamId : null;
       const hadProgress = state.hasStarted && hasRecordedProgress();
       const sameTeamWithoutProgress = state.hasStarted && existingTeam === sanitizedTeam && !hadProgress;
+
+      if (!force && existingTeam !== null && existingTeam !== sanitizedTeam) {
+        const lockedName = TEAM_NAMES[existingTeam] ?? `Team ${existingTeam + 1}`;
+        updateScanStatus(`This device is bound to ${lockedName}. Use GM Override to change teams.`, "error");
+        return false;
+      }
 
       if (sameTeamWithoutProgress) {
         updateScanStatus(`Already assigned to ${TEAM_NAMES[sanitizedTeam]}.`, "success");
@@ -1917,6 +2544,9 @@ const TEAM_COUNT = 11;
 
       const nextIndex = getNextDestinationIndex();
       const firstFloor = nextIndex !== null ? puzzles[nextIndex].floor : null;
+      if (nextIndex !== null) {
+        triggerFloorTransition({ fromIndex: null, toIndex: nextIndex });
+      }
       const progressNote = hadProgress ? " Previous progress cleared." : "";
       const teamName = TEAM_NAMES[sanitizedTeam];
       const statusMessage = `${teamName} mission queue ready.${firstFloor ? ` Head to ${firstFloor}.` : ""}${progressNote}`.trim();
@@ -1975,6 +2605,10 @@ const TEAM_COUNT = 11;
       const nextIndex = revealNextDestination();
       saveState();
       render();
+
+      if (nextIndex !== null) {
+        triggerFloorTransition({ fromIndex: solvingIndex, toIndex: nextIndex });
+      }
 
       const parts = [`${puzzle.floor} solved!`];
       if (nextIndex !== null) {
@@ -2075,12 +2709,15 @@ const TEAM_COUNT = 11;
     }
 
     function createShareCode(currentState) {
-      const sanitized = sanitizeState(currentState);
-      return btoa(JSON.stringify(sanitized));
+      return encodeStatePayload(currentState);
     }
 
     function exportProgress() {
       const shareCode = createShareCode(state);
+      if (!shareCode) {
+        showStatus("Unable to generate a progress code right now.", "error");
+        return;
+      }
       if (navigator.clipboard?.writeText) {
         navigator.clipboard
           .writeText(shareCode)
@@ -2104,29 +2741,9 @@ const TEAM_COUNT = 11;
       const cookieMatch = trimmed.match(cookiePattern);
       const encoded = cookieMatch ? cookieMatch[1] : trimmed;
 
-      const candidates = new Set([encoded]);
-      const decoded = decodeCookieValue(encoded);
-      candidates.add(decoded);
-
-      try {
-        candidates.add(atob(encoded));
-      } catch (err) {
-        // ignore
-      }
-
-      try {
-        candidates.add(atob(decoded));
-      } catch (err) {
-        // ignore
-      }
-
-      for (const candidate of candidates) {
-        if (!candidate || typeof candidate !== "string") continue;
-        try {
-          return JSON.parse(candidate);
-        } catch (err) {
-          // continue
-        }
+      const decoded = decodeStatePayload(encoded);
+      if (decoded) {
+        return decoded;
       }
 
       throw new Error("Unable to parse progress input");
