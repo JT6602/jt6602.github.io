@@ -88,7 +88,22 @@ const TEAM_COUNT = 11;
       { floor: "Floor 3", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_3 },
       { floor: "Floor 4", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_4 },
       { floor: "Floor 5", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_5 },
-      { floor: "Floor 6", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_6 },
+      {
+        floor: "Floor 6",
+        prompt: "Locate the hidden words in this grid: tower, fun, test",
+        answer: "tower",
+        wordSearch: {
+          grid: [
+            "T O W E R",
+            "U X X X F",
+            "N X T X U",
+            "T E S T X",
+            "F U N X X"
+          ],
+          words: ["tower", "fun", "test"]
+        },
+        qr: QR_CODES.FLOOR_6
+      },
       { floor: "Floor 7", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_7 },
       { floor: "Floor 8", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_8 },
       { floor: "Floor 9", prompt: "The answer is: 'tower'", answer: "tower", qr: QR_CODES.FLOOR_9 },
@@ -1008,6 +1023,59 @@ const TEAM_COUNT = 11;
 
         answerOverlayTimers.push(loadingTimer);
       });
+    }
+
+
+    function renderWordSearchPuzzle(container, { wordSearch, prompt }) {
+      if (!container || !wordSearch || !Array.isArray(wordSearch.grid)) {
+        return;
+      }
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "word-search-wrapper";
+
+      if (prompt) {
+        const intro = document.createElement("p");
+        intro.className = "word-search-prompt";
+        intro.textContent = prompt;
+        wrapper.append(intro);
+      }
+
+      const grid = document.createElement("div");
+      grid.className = "word-search-grid";
+      wordSearch.grid.forEach(row => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "word-search-row";
+        const letters = Array.isArray(row) ? row : String(row).trim().split(/\s+/);
+        letters.forEach(letter => {
+          const cell = document.createElement("span");
+          cell.className = "word-search-cell";
+          cell.textContent = String(letter ?? "").slice(0, 1).toUpperCase();
+          rowEl.append(cell);
+        });
+        grid.append(rowEl);
+      });
+      wrapper.append(grid);
+
+      if (Array.isArray(wordSearch.words) && wordSearch.words.length) {
+        const wordList = document.createElement("div");
+        wordList.className = "word-search-word-list";
+        const heading = document.createElement("h4");
+        heading.textContent = "Words to find";
+        wordList.append(heading);
+        const list = document.createElement("ul");
+        wordSearch.words.forEach(word => {
+          const item = document.createElement("li");
+          item.textContent = String(word ?? "").toUpperCase();
+          list.append(item);
+        });
+        wordList.append(list);
+        wrapper.append(wordList);
+      }
+
+      container.append(wrapper);
     }
 
     function openGmOverrideOverlay(teamId) {
@@ -2254,7 +2322,11 @@ const TEAM_COUNT = 11;
         const puzzleName = puzzle?.floor ?? fallbackPuzzleLabel;
         puzzleTitle.textContent = puzzleName;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
-        puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
+        if (puzzle?.wordSearch) {
+          renderWordSearchPuzzle(puzzleBody, { wordSearch: puzzle.wordSearch, prompt: puzzle.prompt });
+        } else {
+          puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
+        }
         setPuzzleFeedback("Enter the correct answer to unlock the next destination.");
         scanButton.disabled = false;
         scanButton.textContent = "Scan QR Code";
