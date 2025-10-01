@@ -93,6 +93,52 @@ describe('repo dashboard worker', () => {
     expect(body).toMatchObject({ teams: {}, totalTeams: 11 });
   });
 
+  it('accepts alternate progress endpoints for device sync', async () => {
+    const variants = [
+      { path: '/api/game/sync', teamId: 7, reason: 'sync-fallback' },
+      { path: '/api/game/report', teamId: 8, reason: 'report-fallback' }
+    ];
+
+    for (const variant of variants) {
+      const payload = {
+        teamId: variant.teamId,
+        teamName: `Team ${variant.teamId}`,
+        hasStarted: true,
+        hasWon: false,
+        completions: Array.from({ length: 12 }, (_, index) => index < 3),
+        unlocked: Array.from({ length: 12 }, (_, index) => index < 4),
+        currentPuzzleIndex: 3,
+        nextPuzzleIndex: 4,
+        nextPuzzleLabel: 'Floor 5',
+        puzzleCount: 12,
+        timestamp: '2024-03-02T12:00:00Z',
+        reason: variant.reason
+      };
+
+      const request = new IncomingRequest(`https://example.com${variant.path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(request, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('access-control-allow-origin')).toBe('*');
+
+      const stateCtx = createExecutionContext();
+      const stateResponse = await worker.fetch(makeRequest('/api/game/state'), env, stateCtx);
+      await waitOnExecutionContext(stateCtx);
+      const body = await stateResponse.json();
+      const entry = body.teams?.[String(variant.teamId)];
+      expect(entry).toBeTruthy();
+      expect(entry.teamId).toBe(variant.teamId);
+      expect(entry.nextPuzzleIndex).toBe(4);
+    }
+  });
+
   it('accepts team progress updates and exposes them via the game state endpoint', async () => {
     const progressPayload = {
       teamId: 3,

@@ -417,10 +417,13 @@ const TEAM_COUNT = 11;
     });
 
     const DASHBOARD_SYNC_DEBOUNCE_MS = 600;
-    let dashboardConfig = createDashboardConfig(resolveDashboardBase());
+    const DEFAULT_PROGRESS_PATHS = ["progress", "sync", "report"];
+    const DEFAULT_STATE_PATH = "state";
+    let dashboardOverrides = resolveDashboardOverrides();
+    let dashboardConfig = createDashboardConfig(resolveDashboardBase(), dashboardOverrides);
     let dashboardSyncTimer = null;
     let dashboardPendingReason = "state-change";
-    let dashboardLastPayload = null;
+    let dashboardLastSignature = null;
     let dashboardOverridePayload = null;
 
     function ensurePuzzleStateContainer() {
@@ -3849,9 +3852,7 @@ const TEAM_COUNT = 11;
       }
 
       const overridePayload = dashboardOverridePayload;
-      dashboardOverridePayload = null;
-
-      const payload = overridePayload ?? buildDashboardPayload(reason);
+      let payload = overridePayload ?? buildDashboardPayload(reason);
       if (!payload) {
         return false;
       }
@@ -3859,26 +3860,60 @@ const TEAM_COUNT = 11;
         payload.reason = reason;
       }
 
-      const serialized = JSON.stringify(payload);
-      if (serialized === dashboardLastPayload) {
-        return true;
+      const endpoints = Array.isArray(dashboardConfig.progressEndpoints)
+        ? dashboardConfig.progressEndpoints
+        : [];
+      if (!endpoints.length) {
+        return false;
       }
 
-      const endpoint = dashboardConfig.progressEndpoint;
+      let serialized = null;
+      const total = endpoints.length;
+      const startIndex = Math.min(dashboardConfig.activeProgressIndex ?? 0, total - 1);
 
-      if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-        try {
-          const beaconBlob = new Blob([serialized], { type: "application/json" });
-          const sent = navigator.sendBeacon(endpoint, beaconBlob);
-          if (sent) {
-            dashboardLastPayload = serialized;
-            return true;
+      for (let offset = 0; offset < total; offset += 1) {
+        const index = (startIndex + offset) % total;
+        const endpoint = endpoints[index];
+        if (!serialized) {
+          serialized = JSON.stringify(payload);
+        }
+        const signature = `${endpoint}::${serialized}`;
+        if (signature === dashboardLastSignature) {
+          dashboardOverridePayload = null;
+          return true;
+        }
+
+        let synced = false;
+
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          try {
+            const beaconBlob = new Blob([serialized], { type: "application/json" });
+            synced = navigator.sendBeacon(endpoint, beaconBlob);
+          } catch (err) {
+            console.warn("Beacon dashboard sync failed", endpoint, err);
           }
-        } catch (err) {
-          console.warn("Beacon dashboard sync failed", err);
+        }
+
+        if (!synced) {
+          synced = await attemptFetchSync(endpoint, serialized);
+        }
+
+        if (synced) {
+          dashboardConfig.activeProgressIndex = index;
+          dashboardLastSignature = signature;
+          dashboardOverridePayload = null;
+          return true;
         }
       }
 
+      dashboardOverridePayload = overridePayload ?? payload;
+      if (endpoints.length > 1) {
+        dashboardConfig.activeProgressIndex = (startIndex + 1) % endpoints.length;
+      }
+      return false;
+    }
+
+    async function attemptFetchSync(endpoint, body) {
       try {
         let controller = null;
         let timeoutId = null;
@@ -3888,7 +3923,7 @@ const TEAM_COUNT = 11;
             try {
               controller.abort();
             } catch (err) {
-              // ignore
+              // ignore abort errors
             }
           }, 5000);
         }
@@ -3896,9 +3931,11 @@ const TEAM_COUNT = 11;
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: serialized,
+          body,
           mode: "cors",
           credentials: "omit",
+          cache: "no-store",
+          keepalive: true,
           signal: controller?.signal
         });
 
@@ -3907,15 +3944,13 @@ const TEAM_COUNT = 11;
         }
 
         if (response.ok) {
-          dashboardLastPayload = serialized;
           return true;
         }
 
-        console.warn("Dashboard sync responded with", response.status);
+        console.warn("Dashboard sync responded with", response.status, endpoint);
       } catch (err) {
-        console.warn("Dashboard sync network error", err);
+        console.warn("Dashboard sync network error", endpoint, err);
       }
-
       return false;
     }
 
@@ -3984,7 +4019,7 @@ const TEAM_COUNT = 11;
       const snapshotPayload = buildDashboardPayloadFromState(stateSnapshot, reason);
       dashboardOverridePayload = snapshotPayload ?? null;
       if (snapshotPayload) {
-        dashboardLastPayload = null;
+        dashboardLastSignature = null;
         scheduleDashboardSync(reason);
       }
     }
@@ -4058,26 +4093,183 @@ const TEAM_COUNT = 11;
       return trimmed.replace(/\/+$/, "");
     }
 
-    function createDashboardConfig(base) {
-      const sanitized = sanitizeEndpointBase(base);
-      if (!sanitized) {
+    function sanitizePathSegment(value) {
+      if (!value || typeof value !== "string") {
         return null;
       }
+      const trimmed = value.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+      return trimmed ? trimmed : null;
+    }
+
+    function extractSegments(source) {
+      if (typeof source !== "string") {
+        return [];
+      }
+      return source
+        .split(/[,;\s]+/)
+        .map(segment => segment.trim())
+        .filter(Boolean);
+    }
+
+    function sanitizeProgressPaths(paths) {
+      const result = [];
+      if (!Array.isArray(paths)) {
+        return result;
+      }
+      for (const raw of paths) {
+        if (typeof raw !== "string") {
+          continue;
+        }
+        const trimmed = raw.trim();
+        if (!trimmed) {
+          continue;
+        }
+        if (/^https?:\/\//i.test(trimmed)) {
+          const endpoint = sanitizeEndpointBase(trimmed);
+          if (endpoint) {
+            result.push(endpoint);
+          }
+        } else {
+          const segment = sanitizePathSegment(trimmed);
+          if (segment) {
+            result.push(segment);
+          }
+        }
+      }
+      return Array.from(new Set(result));
+    }
+
+    function normalizeOverrides(overrides) {
+      const normalized = { progressPaths: [], statePath: null };
+      if (!overrides || typeof overrides !== "object") {
+        return normalized;
+      }
+      const rawProgress = Array.isArray(overrides.progressPaths)
+        ? overrides.progressPaths
+        : typeof overrides.progressPath === "string"
+        ? [overrides.progressPath]
+        : [];
+      const sanitizedProgress = sanitizeProgressPaths(rawProgress);
+      if (sanitizedProgress.length) {
+        normalized.progressPaths = sanitizedProgress;
+      }
+      if (typeof overrides.statePath === "string") {
+        const trimmedState = overrides.statePath.trim();
+        if (trimmedState) {
+          if (/^https?:\/\//i.test(trimmedState)) {
+            const endpoint = sanitizeEndpointBase(trimmedState);
+            if (endpoint) {
+              normalized.statePath = endpoint;
+            }
+          } else {
+            const segment = sanitizePathSegment(trimmedState);
+            if (segment) {
+              normalized.statePath = segment;
+            }
+          }
+        }
+      }
+      return normalized;
+    }
+
+    function resolveEndpoint(base, candidate) {
+      if (!candidate) {
+        return null;
+      }
+      if (/^https?:\/\//i.test(candidate)) {
+        return sanitizeEndpointBase(candidate);
+      }
+      const sanitizedBase = sanitizeEndpointBase(base);
+      if (!sanitizedBase) {
+        return null;
+      }
+      const segment = sanitizePathSegment(candidate);
+      if (!segment) {
+        return null;
+      }
+      return `${sanitizedBase}/${segment}`.replace(/\/+$/, "");
+    }
+
+    function createDashboardConfig(base, overridesInput = {}) {
+      const sanitizedBase = sanitizeEndpointBase(base);
+      if (!sanitizedBase) {
+        return null;
+      }
+      const overrides = normalizeOverrides(overridesInput);
+      const progressCandidates = [...overrides.progressPaths, ...DEFAULT_PROGRESS_PATHS];
+      const progressEndpoints = [];
+      for (const candidate of progressCandidates) {
+        const endpoint = resolveEndpoint(sanitizedBase, candidate);
+        if (endpoint && !progressEndpoints.includes(endpoint)) {
+          progressEndpoints.push(endpoint);
+        }
+      }
+      if (!progressEndpoints.length) {
+        const fallback = resolveEndpoint(sanitizedBase, DEFAULT_PROGRESS_PATHS[0]);
+        if (fallback) {
+          progressEndpoints.push(fallback);
+        }
+      }
+      const stateCandidate = overrides.statePath ?? DEFAULT_STATE_PATH;
+      const stateEndpoint = resolveEndpoint(sanitizedBase, stateCandidate) ?? resolveEndpoint(sanitizedBase, DEFAULT_STATE_PATH);
       return {
-        base: sanitized,
-        progressEndpoint: `${sanitized}/progress`,
-        stateEndpoint: `${sanitized}/state`
+        base: sanitizedBase,
+        progressEndpoints,
+        stateEndpoint,
+        activeProgressIndex: 0
       };
     }
 
-    function updateDashboardConfig(newBase) {
-      dashboardConfig = createDashboardConfig(newBase ?? resolveDashboardBase());
+    function updateDashboardConfig(newBase, overrideInput) {
+      if (!dashboardOverrides) {
+        dashboardOverrides = { progressPaths: [], statePath: null };
+      }
+      if (overrideInput && typeof overrideInput === "object") {
+        const normalizedInput = normalizeOverrides(overrideInput);
+        dashboardOverrides = {
+          progressPaths: normalizedInput.progressPaths.length ? normalizedInput.progressPaths : dashboardOverrides.progressPaths,
+          statePath: normalizedInput.statePath ?? dashboardOverrides.statePath
+        };
+      } else {
+        dashboardOverrides = resolveDashboardOverrides();
+      }
+      const baseCandidate = sanitizeEndpointBase(newBase) ?? dashboardConfig?.base ?? resolveDashboardBase();
+      dashboardConfig = createDashboardConfig(baseCandidate, dashboardOverrides);
       if (!dashboardConfig) {
         return null;
       }
-      dashboardLastPayload = null;
+      dashboardLastSignature = null;
       scheduleDashboardSync("config-update");
       return dashboardConfig;
+    }
+
+    function resolveDashboardOverrides() {
+      if (typeof window === "undefined") {
+        return { progressPaths: [], statePath: null };
+      }
+      const progressPaths = [
+        ...extractSegments(document.querySelector('meta[name="tower-dashboard-progress"]')?.content),
+        ...extractSegments(document.body?.dataset?.dashboardProgress)
+      ];
+      const overrides = {};
+      if (progressPaths.length) {
+        overrides.progressPaths = progressPaths;
+      }
+      const stateMeta = document.querySelector('meta[name="tower-dashboard-state"]');
+      const stateAttr = document.body?.dataset?.dashboardState;
+      const stateCandidate = typeof stateMeta?.content === "string" && stateMeta.content.trim()
+        ? stateMeta.content.trim()
+        : typeof stateAttr === "string" && stateAttr.trim()
+        ? stateAttr.trim()
+        : "";
+      if (stateCandidate) {
+        overrides.statePath = stateCandidate;
+      }
+      const normalized = normalizeOverrides(overrides);
+      return {
+        progressPaths: normalized.progressPaths,
+        statePath: normalized.statePath
+      };
     }
 
     function setupDashboardDebugApi() {
@@ -4094,7 +4286,20 @@ const TEAM_COUNT = 11;
           }
         },
         getDashboardConfig: () => (dashboardConfig ? { ...dashboardConfig } : null),
-        setDashboardEndpoint: value => updateDashboardConfig(value),
+        setDashboardEndpoint: value => {
+          if (!value) {
+            return updateDashboardConfig();
+          }
+          if (typeof value === "string") {
+            return updateDashboardConfig(value);
+          }
+          if (typeof value === "object") {
+            return updateDashboardConfig(value.base ?? null, value);
+          }
+          return dashboardConfig;
+        },
+        setDashboardOverrides: overrides => updateDashboardConfig(null, overrides),
+        getProgressEndpoints: () => (dashboardConfig?.progressEndpoints ?? []).slice(),
         getPayloadPreview: reason => buildDashboardPayload(reason ?? "preview"),
         syncNow: reason => sendDashboardSync(reason ?? "manual"),
         scheduleSync: reason => scheduleDashboardSync(reason ?? "manual"),

@@ -17,6 +17,7 @@ export interface Env {
 const OWNER = "JT6602";
 const REPO = "jt6602.github.io";
 const API = "https://api.github.com";
+const GAME_PROGRESS_PATHS = new Set(["/api/game/progress", "/api/game/sync", "/api/game/report"]);
 const TEAM_COUNT = 11;
 const PUZZLE_COUNT = 12;
 const SCOREBOARD_CACHE_KEY = new Request("https://dashboard.internal/game-state");
@@ -569,7 +570,7 @@ export default {
       return methodNotAllowed(["GET", "OPTIONS"]);
     }
 
-    if (p === "/api/game/progress") {
+    if (GAME_PROGRESS_PATHS.has(p)) {
       if (request.method === "OPTIONS") {
         return corsPreflight();
       }
