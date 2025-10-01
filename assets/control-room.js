@@ -157,7 +157,7 @@ const TEAM_COUNT = 11;
       },
       {
         floor: "Floor 3",
-        prompt: "Decode Mfuud with a Caesar shift of -1.",
+        prompt: "Decode mfwfm with a Caesar shift of -1.",
         answerType: ANSWER_TYPES.TEXT,
         answer: "level",
         qr: QR_CODES.FLOOR_3
