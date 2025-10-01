@@ -93,28 +93,7 @@ const TEAM_COUNT = 11;
         prompt: "Locate the hidden words in this grid: tower, fun, test",
         answer: "tower",
         wordSearch: {
-          grid: [
-            "T O W E R X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "T X X X X X X X X X X X X X X X X X X T",
-            "F U N X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X",
-            "X X X X X X X X X X X X X X X X X X X X"
-          ],
+          size: 10,
           words: ["tower", "fun", "test"]
         },
         qr: QR_CODES.FLOOR_6
@@ -1141,7 +1120,7 @@ const TEAM_COUNT = 11;
       return { grid, placements };
     }
 
-    function renderWordSearchPuzzle(container, { wordSearch, prompt }) {
+    function renderWordSearchPuzzle(container, { wordSearch, prompt, onSolved }) {
       if (!container || !wordSearch) {
         return;
       }
@@ -1228,6 +1207,7 @@ const TEAM_COUNT = 11;
       let wordList;
       const wordListItems = new Map();
       const foundPlacements = new Set();
+      let puzzleCompleted = false;
 
       if (words.length) {
         wordList = document.createElement("div");
@@ -1394,6 +1374,35 @@ const TEAM_COUNT = 11;
         if (listItem) {
           listItem.classList.add("is-found");
         }
+
+        maybeComplete();
+      }
+
+      function maybeComplete() {
+        if (puzzleCompleted) {
+          return;
+        }
+
+        if (foundPlacements.size < placements.length) {
+          return;
+        }
+
+        puzzleCompleted = true;
+        clearSelectionState();
+        grid.classList.add("is-complete");
+
+        if (typeof onSolved === "function") {
+          try {
+            const result = onSolved();
+            if (result && typeof result.catch === "function") {
+              result.catch(error => {
+                console.error("Word search completion handler failed", error);
+              });
+            }
+          } catch (error) {
+            console.error("Word search completion handler failed", error);
+          }
+        }
       }
 
       function completeSelection() {
@@ -1411,6 +1420,10 @@ const TEAM_COUNT = 11;
       }
 
       function handlePointerDown(event) {
+        if (puzzleCompleted) {
+          return;
+        }
+
         const cell = event.target.closest(".word-search-cell");
         if (!cell || !grid.contains(cell)) {
           return;
@@ -1426,6 +1439,10 @@ const TEAM_COUNT = 11;
       }
 
       function handlePointerMove(event) {
+        if (puzzleCompleted) {
+          return;
+        }
+
         if (selectionState.pointerId !== event.pointerId) {
           return;
         }
@@ -1440,6 +1457,10 @@ const TEAM_COUNT = 11;
       }
 
       function handlePointerUp(event) {
+        if (puzzleCompleted) {
+          return;
+        }
+
         if (selectionState.pointerId !== event.pointerId) {
           return;
         }
@@ -1457,6 +1478,10 @@ const TEAM_COUNT = 11;
       }
 
       function handlePointerCancel(event) {
+        if (puzzleCompleted) {
+          return;
+        }
+
         if (selectionState.pointerId !== event.pointerId) {
           return;
         }
@@ -2728,7 +2753,42 @@ const TEAM_COUNT = 11;
         puzzleTitle.textContent = puzzleName;
         puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Puzzle ${stepNumber} of ${PUZZLE_COUNT}`;
         if (puzzle?.wordSearch) {
-          renderWordSearchPuzzle(puzzleBody, { wordSearch: puzzle.wordSearch, prompt: puzzle.prompt });
+          const handleWordSearchSolved = () => {
+            const solvingIndex = getCurrentSolvingIndex();
+            if (solvingIndex !== currentSolving) {
+              return null;
+            }
+
+            if (!answerInput || answerInput.disabled) {
+              return null;
+            }
+
+            const expectedAnswer = puzzle.answer ?? "";
+            if (!expectedAnswer) {
+              return null;
+            }
+
+            answerInput.value = expectedAnswer;
+
+            try {
+              const submission = submitPuzzleAnswer();
+              if (submission && typeof submission.catch === "function") {
+                submission.catch(error => {
+                  console.error("Auto submission failed", error);
+                });
+              }
+              return submission;
+            } catch (error) {
+              console.error("Auto submission failed", error);
+              return null;
+            }
+          };
+
+          renderWordSearchPuzzle(puzzleBody, {
+            wordSearch: puzzle.wordSearch,
+            prompt: puzzle.prompt,
+            onSolved: handleWordSearchSolved
+          });
         } else {
           puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
         }

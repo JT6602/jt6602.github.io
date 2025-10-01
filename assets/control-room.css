@@ -1049,6 +1049,10 @@
       user-select: none;
     }
 
+    .word-search-grid.is-complete {
+      pointer-events: none;
+    }
+
     .word-search-row {
       display: grid;
       grid-auto-flow: column;
