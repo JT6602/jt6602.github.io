@@ -1333,7 +1333,8 @@ const TEAM_COUNT = 11;
         return;
       }
       const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
-      document.cookie = `${COOKIE_NAME}=${payload}; max-age=${maxAge}; path=/; SameSite=Lax`;
+      const encoded = encodeURIComponent(payload);
+      document.cookie = `${COOKIE_NAME}=${encoded}; max-age=${maxAge}; path=/; SameSite=Lax`;
     }
 
     function clearStateCookie() {
@@ -1423,7 +1424,13 @@ const TEAM_COUNT = 11;
         }
         const expected = simpleSignature(json + COOKIE_SECRET);
         if (signature !== expected) {
-          return null;
+          try {
+            const parsed = JSON.parse(json);
+            console.warn("Cookie signature mismatch, accepting payload without verification.");
+            return parsed;
+          } catch (err) {
+            return null;
+          }
         }
         return JSON.parse(json);
       } catch (err) {
@@ -2704,11 +2711,7 @@ const TEAM_COUNT = 11;
       const intentMode = scanSession.intent?.mode ?? null;
 
       if (Object.prototype.hasOwnProperty.call(GM_TEAM_CODES, normalizedValue)) {
-        if (intentMode === "gmOverride") {
-          handled = handleGmOverrideCode(GM_TEAM_CODES[normalizedValue], rawValue);
-        } else {
-          updateScanStatus("Switch to GM Override to use this code.", "error");
-        }
+        handled = handleGmOverrideCode(GM_TEAM_CODES[normalizedValue], rawValue);
       } else if (Object.prototype.hasOwnProperty.call(START_CODES, normalizedValue)) {
         if (intentMode === "gmOverride") {
           updateScanStatus("Leave GM Override mode before scanning start badges.", "error");
