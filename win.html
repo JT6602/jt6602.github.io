@@ -29,6 +29,22 @@
     </section>
   </main>
 
+  <div class="modal-backdrop" id="scannerModal" hidden>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
+      <div class="scanner-shell" id="scannerShell">
+        <h2 id="scannerTitle">Scan Mission QR</h2>
+        <p id="scannerInstruction">Align the QR code inside the frame. We’ll automatically validate the code for this floor.</p>
+        <video class="scanner-video" id="scannerVideo" playsinline></video>
+        <div class="scan-status" id="scanStatus"></div>
+        <div class="manual-entry">
+          <input type="text" id="manualCode" placeholder="Enter code manually" autocomplete="off" inputmode="search" />
+          <button type="button" class="primary-action" id="submitCode">Submit Code</button>
+          <button type="button" class="secondary-link" id="cancelScan">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script defer src="./assets/control-room.js"></script>
 </body>
 </html>

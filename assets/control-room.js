@@ -333,25 +333,10 @@ const TEAM_COUNT = 11;
       if (window.location.pathname && window.location.pathname.toLowerCase().includes("/win")) {
         return;
       }
-
-      let alreadyPrompted = null;
       try {
-        alreadyPrompted = window.sessionStorage?.getItem("towerWinPrompted") ?? null;
+        window.location.replace("/win.html");
       } catch (err) {
-        alreadyPrompted = null;
-      }
-      if (alreadyPrompted === "yes") {
-        return;
-      }
-
-      const goToWin = window.confirm("Tower complete! Visit the celebration screen now?");
-      try {
-        window.sessionStorage?.setItem("towerWinPrompted", "yes");
-      } catch (err) {
-        // ignore storage failures
-      }
-      if (goToWin) {
-        window.location.assign("/win.html");
+        // ignore navigation errors
       }
     }
 
@@ -402,7 +387,9 @@ const TEAM_COUNT = 11;
 
       const continueNote = document.getElementById("winNote");
       if (continueNote) {
-        continueNote.textContent = "Reconnect with your game master to claim your victory prize.";
+        continueNote.textContent = state.hasWon
+          ? "Await a GM override scan to release this device."
+          : "Reconnect with your game master to claim your victory prize.";
       }
 
       const confettiButton = document.getElementById("winConfettiButton");
@@ -415,10 +402,20 @@ const TEAM_COUNT = 11;
       window.setTimeout(sprayConfetti, 320);
       window.setTimeout(() => triggerConfetti({ theme: "finale", pieces: 180, spread: 16 }), 1100);
 
-      const replayButton = document.getElementById("winReplayButton");
-      replayButton?.addEventListener("click", () => {
-        window.location.replace("/");
-      });
+      const replayOriginal = document.getElementById("winReplayButton");
+      if (replayOriginal) {
+        const replayButton = replayOriginal.cloneNode(true);
+        replayOriginal.replaceWith(replayButton);
+        if (state.hasWon) {
+          replayButton.textContent = "Scan GM Override";
+          replayButton.addEventListener("click", () => openScanner({ mode: "gmOverride" }));
+        } else {
+          replayButton.textContent = "Return to Control Room";
+          replayButton.addEventListener("click", () => {
+            window.location.replace("/");
+          });
+        }
+      }
     }
 
     function enforceGmPassword() {
@@ -1296,9 +1293,20 @@ const TEAM_COUNT = 11;
       state = sanitizeState(working);
       pendingPuzzleUnlockIndex = null;
       saveState();
-      render();
+      if (!isWinView) {
+        render();
+      }
 
       showStatus(describe.message.trim(), describe.tone);
+      if (!state.hasWon) {
+        try {
+          if (window.location.pathname?.toLowerCase().includes('/win')) {
+            window.location.replace('/');
+          }
+        } catch (err) {
+          // ignore navigation errors
+        }
+      }
       return true;
     }
 
@@ -3253,6 +3261,13 @@ const TEAM_COUNT = 11;
       showStatus(summary, "success");
       if (nextIndex === null) {
         triggerConfetti({ theme: "finale", pieces: 180, spread: 16 });
+        window.setTimeout(() => {
+          try {
+            window.location.replace("/win.html");
+          } catch (err) {
+            // ignore navigation errors
+          }
+        }, 200);
       } else {
         triggerConfetti({ theme: "solve", pieces: 130, spread: 10 });
       }
