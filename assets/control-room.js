@@ -1399,7 +1399,11 @@ const TEAM_COUNT = 11;
         return defaultState(null);
       }
 
-      const decoded = decodeStatePayload(cookieValue);
+      const normalized = safeDecodeURIComponent(cookieValue);
+      let decoded = decodeStatePayload(normalized);
+      if (!decoded && normalized !== cookieValue) {
+        decoded = decodeStatePayload(cookieValue);
+      }
       if (decoded) {
         return sanitizeState(decoded);
       }
@@ -1433,6 +1437,17 @@ const TEAM_COUNT = 11;
         ?.replace(/^"|"$/g, "");
     }
 
+    function safeDecodeURIComponent(value) {
+      if (typeof value !== "string") {
+        return value;
+      }
+      try {
+        return decodeURIComponent(value);
+      } catch (err) {
+        return value;
+      }
+    }
+
     function encodeStatePayload(currentState) {
       try {
         const sanitized = sanitizeState(currentState);
@@ -1455,10 +1470,9 @@ const TEAM_COUNT = 11;
       }
 
       const candidates = new Set([value]);
-      try {
-        candidates.add(decodeURIComponent(value));
-      } catch (err) {
-        // ignore malformed percent-encoding
+      const decodedVariant = safeDecodeURIComponent(value);
+      if (decodedVariant !== value) {
+        candidates.add(decodedVariant);
       }
 
       for (const candidate of candidates) {
@@ -2895,6 +2909,7 @@ const TEAM_COUNT = 11;
       }
 
       const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
+      scanSession.intent = { mode: "gmOverride" };
       gmOverrideSession.teamId = sanitizedTeam;
       gmOverrideSession.sourceCode = rawValue;
 
@@ -3213,7 +3228,8 @@ const TEAM_COUNT = 11;
       const cookieMatch = trimmed.match(cookiePattern);
       const encoded = cookieMatch ? cookieMatch[1] : trimmed;
 
-      const decoded = decodeStatePayload(encoded);
+      const decodedCandidate = safeDecodeURIComponent(encoded);
+      const decoded = decodeStatePayload(decodedCandidate) ?? decodeStatePayload(encoded);
       if (decoded) {
         return decoded;
       }
