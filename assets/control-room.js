@@ -94,11 +94,26 @@ const TEAM_COUNT = 11;
         answer: "tower",
         wordSearch: {
           grid: [
-            "T O W E R",
-            "U X X X F",
-            "N X T X U",
-            "T E S T X",
-            "F U N X X"
+            "T O W E R X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "T X X X X X X X X X X X X X X X X X X T",
+            "F U N X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X",
+            "X X X X X X X X X X X X X X X X X X X X"
           ],
           words: ["tower", "fun", "test"]
         },
