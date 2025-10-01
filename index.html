@@ -197,6 +197,22 @@
     </div>
   </div>
 
+  <div class="start-overlay" id="startGameOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="startGameTitle">
+    <div class="start-overlay-card">
+      <header class="start-overlay-header">
+        <p class="start-overlay-team" id="startGameTeam"></p>
+        <h2 id="startGameTitle">Tower Run Ready</h2>
+      </header>
+      <div class="start-overlay-body">
+        <p id="startGameSummary"></p>
+        <p class="start-overlay-note" id="startGameNote"></p>
+      </div>
+      <div class="start-overlay-actions">
+        <button type="button" class="primary-action" id="startGameBegin">Begin Tower Run</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="scannerModal" hidden>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="scannerTitle">
       <div class="scanner-shell" id="scannerShell">

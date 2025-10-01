@@ -141,6 +141,11 @@ const TEAM_COUNT = 11;
     const floorTransitionNext = document.getElementById("floorTransitionNext");
     const floorTransitionLabel = document.getElementById("floorTransitionLabel");
     const floorTransitionMap = document.getElementById("floorTransitionMap");
+    const startGameOverlay = document.getElementById("startGameOverlay");
+    const startGameTeamLabel = document.getElementById("startGameTeam");
+    const startGameSummary = document.getElementById("startGameSummary");
+    const startGameNote = document.getElementById("startGameNote");
+    const startGameBegin = document.getElementById("startGameBegin");
     const FLOOR_TRANSITION_STAGE_CLASSES = [
       "is-stage-hold",
       "is-stage-zoom-in",
@@ -225,6 +230,8 @@ const TEAM_COUNT = 11;
     let obfuscationSecretBytes = null;
     let floorTransitionTimeoutId = null;
     const floorTransitionStageTimers = [];
+    let startOverlayEscapeBound = false;
+    let pendingTeamStart = null;
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -285,6 +292,8 @@ const TEAM_COUNT = 11;
         closeTowerMapOverlay();
       }
     });
+
+    startGameBegin?.addEventListener("click", beginPendingTeamStart);
 
     initialize();
 
@@ -717,6 +726,89 @@ const TEAM_COUNT = 11;
         event.preventDefault();
         closeTowerMapOverlay();
       }
+    }
+
+    function openStartOverlay({ teamName, firstFloor, hadProgress }) {
+      if (!startGameOverlay) {
+        beginPendingTeamStart();
+        return;
+      }
+
+      startGameOverlay.classList.add("is-visible");
+      startGameOverlay.removeAttribute("hidden");
+      startGameOverlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("is-start-overlay-open");
+
+      if (startGameTeamLabel) {
+        startGameTeamLabel.textContent = teamName ?? "";
+      }
+
+      if (startGameSummary) {
+        if (firstFloor) {
+          const basementPrefix = firstFloor.toLowerCase().includes("basement")
+            ? `Launch from the basement control room and stay on ${firstFloor}.`
+            : `Launch from the basement control room, then head to ${firstFloor}.`;
+          startGameSummary.textContent = basementPrefix;
+        } else {
+          startGameSummary.textContent = "Launch from the basement control room and await instructions.";
+        }
+      }
+
+      if (startGameNote) {
+        startGameNote.textContent = hadProgress
+          ? "Previous progress on this device was cleared for a fresh run."
+          : "Coordinate with your team and press begin when you're ready.";
+      }
+
+      if (startGameBegin) {
+        startGameBegin.focus({ preventScroll: true });
+      }
+
+      if (!startOverlayEscapeBound) {
+        window.addEventListener("keydown", handleStartOverlayKeydown);
+        startOverlayEscapeBound = true;
+      }
+    }
+
+    function closeStartOverlay() {
+      if (!startGameOverlay) {
+        return;
+      }
+
+      startGameOverlay.classList.remove("is-visible");
+      startGameOverlay.setAttribute("hidden", "true");
+      startGameOverlay.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("is-start-overlay-open");
+
+      if (startOverlayEscapeBound) {
+        window.removeEventListener("keydown", handleStartOverlayKeydown);
+        startOverlayEscapeBound = false;
+      }
+    }
+
+    function handleStartOverlayKeydown(event) {
+      if ((event.key === "Enter" || event.key === " ") && pendingTeamStart) {
+        event.preventDefault();
+        beginPendingTeamStart();
+      }
+    }
+
+    function beginPendingTeamStart() {
+      if (!pendingTeamStart) {
+        closeStartOverlay();
+        return;
+      }
+
+      const details = pendingTeamStart;
+      pendingTeamStart = null;
+      closeStartOverlay();
+
+      finalizeTeamAssignment({
+        statusMessage: details.statusMessage,
+        nextIndex: details.nextIndex,
+        hadProgress: details.hadProgress,
+        fromIndex: details.fromIndex
+      });
     }
 
     function openGmOverrideOverlay(teamId) {
@@ -2020,7 +2112,10 @@ const TEAM_COUNT = 11;
         return;
       }
 
-      if (!Number.isInteger(toIndex)) {
+      const sanitizedToIndex = Number.isInteger(toIndex) ? clampNumber(toIndex, 0, PUZZLE_COUNT - 1) : null;
+      const sanitizedFromIndex = Number.isInteger(fromIndex) ? clampNumber(fromIndex, 0, PUZZLE_COUNT - 1) : null;
+
+      if (!Number.isInteger(sanitizedToIndex)) {
         hideFloorTransition();
         return;
       }
@@ -2031,13 +2126,12 @@ const TEAM_COUNT = 11;
         floorTransitionTimeoutId = null;
       }
 
-      const direction = determineFloorDirection(fromIndex, toIndex);
-      const currentLabel = resolveFloorLabel(fromIndex);
-      const nextLabel = resolveFloorLabel(toIndex);
-      const callout = buildFloorCallout(toIndex);
+      const direction = determineFloorDirection(sanitizedFromIndex, sanitizedToIndex);
+      const currentLabel = resolveFloorLabel(sanitizedFromIndex);
+      const nextLabel = resolveFloorLabel(sanitizedToIndex);
+      const callout = buildFloorCallout(sanitizedToIndex);
 
-      const mapDetails = renderFloorTransitionMapContent({ fromIndex, toIndex }) ?? {};
-      const mapRoot = mapDetails.mapRoot ?? null;
+      const mapDetails = renderFloorTransitionMapContent({ fromIndex: sanitizedFromIndex, toIndex: sanitizedToIndex }) ?? {};
       const currentLevel = mapDetails.currentEl ?? null;
       const targetLevel = mapDetails.targetEl ?? null;
 
@@ -2050,7 +2144,7 @@ const TEAM_COUNT = 11;
       }
 
       if (floorTransitionLabel) {
-        floorTransitionLabel.textContent = toIndex === 0
+        floorTransitionLabel.textContent = sanitizedToIndex === 0
           ? "GET TO THE BASEMENT FOR THE FINAL PUZZLE!!"
           : `GO TO FLOOR: ${callout}`;
       }
@@ -2058,26 +2152,38 @@ const TEAM_COUNT = 11;
       floorTransition.classList.add("is-active");
       floorTransition.removeAttribute("hidden");
       floorTransition.setAttribute("aria-hidden", "false");
-      setFloorTransitionStage("is-stage-hold");
-
-      if (floorTransitionMap) {
-        floorTransitionMap.style.setProperty("--floor-shift", "0px");
-      }
+      setFloorTransitionStage(null);
 
       requestAnimationFrame(() => {
         if (!floorTransition || !floorTransition.classList.contains("is-active")) {
           return;
         }
 
-        const shift = calculateFloorTransitionShift({
-          mapRoot,
-          currentEl: currentLevel,
-          targetEl: targetLevel
+        const containerRect = floorTransitionMap?.getBoundingClientRect() ?? null;
+        const currentShiftRaw = calculateFloorCenterShift({
+          containerRect,
+          element: currentLevel
+        });
+        const targetShiftRaw = calculateFloorCenterShift({
+          containerRect,
+          element: targetLevel
         });
 
+        const resolvedCurrentShift = Number.isFinite(currentShiftRaw)
+          ? currentShiftRaw
+          : Number.isFinite(targetShiftRaw)
+          ? targetShiftRaw
+          : 0;
+        const resolvedTargetShift = Number.isFinite(targetShiftRaw)
+          ? targetShiftRaw
+          : resolvedCurrentShift;
+
+        const currentPx = `${resolvedCurrentShift.toFixed(2)}px`;
+        const targetPx = `${resolvedTargetShift.toFixed(2)}px`;
+
         if (floorTransitionMap) {
-          const value = Number.isFinite(shift) ? `${shift}px` : "0px";
-          floorTransitionMap.style.setProperty("--floor-shift", value);
+          floorTransitionMap.style.setProperty("--floor-shift-current", currentPx);
+          floorTransitionMap.style.setProperty("--floor-shift-target", targetPx);
         }
 
         if (!floorTransition || !floorTransition.classList.contains("is-active")) {
@@ -2125,6 +2231,8 @@ const TEAM_COUNT = 11;
 
       if (floorTransitionMap) {
         floorTransitionMap.style.removeProperty("--floor-shift");
+        floorTransitionMap.style.removeProperty("--floor-shift-current");
+        floorTransitionMap.style.removeProperty("--floor-shift-target");
         floorTransitionMap.replaceChildren();
       }
     }
@@ -2188,6 +2296,9 @@ const TEAM_COUNT = 11;
         return null;
       }
 
+      const sanitizedFrom = Number.isInteger(fromIndex) ? clampNumber(fromIndex, 0, PUZZLE_COUNT - 1) : null;
+      const sanitizedTo = Number.isInteger(toIndex) ? clampNumber(toIndex, 0, PUZZLE_COUNT - 1) : null;
+
       floorTransitionMap.replaceChildren();
 
       let sourceElement = null;
@@ -2212,10 +2323,12 @@ const TEAM_COUNT = 11;
         level.classList.remove("is-just-unlocked", "is-current-floor", "is-target-floor");
       });
 
-      let currentEl = Number.isInteger(fromIndex)
-        ? levelsRoot.querySelector(`[data-floor-index="${fromIndex}"]`)
+      let currentEl = Number.isInteger(sanitizedFrom)
+        ? levelsRoot.querySelector(`[data-floor-index="${sanitizedFrom}"]`)
         : null;
-      const targetEl = levelsRoot.querySelector(`[data-floor-index="${toIndex}"]`) ?? null;
+      const targetEl = Number.isInteger(sanitizedTo)
+        ? levelsRoot.querySelector(`[data-floor-index="${sanitizedTo}"]`)
+        : null;
 
       if (currentEl) {
         currentEl.classList.add("is-current-floor");
@@ -2233,7 +2346,6 @@ const TEAM_COUNT = 11;
       floorTransitionMap.append(mapWrapper);
 
       return {
-        mapRoot: levelsRoot,
         currentEl,
         targetEl
       };
@@ -2276,20 +2388,15 @@ const TEAM_COUNT = 11;
       return levels;
     }
 
-    function calculateFloorTransitionShift({ mapRoot, currentEl, targetEl }) {
-      if (!mapRoot || !targetEl) {
-        return 0;
+    function calculateFloorCenterShift({ containerRect, element }) {
+      if (!containerRect || !element) {
+        return NaN;
       }
 
-      const referenceEl = currentEl ?? targetEl;
-      const targetRect = targetEl.getBoundingClientRect();
-      const referenceRect = referenceEl.getBoundingClientRect();
-
-      if (!targetRect || !referenceRect) {
-        return 0;
-      }
-
-      return referenceRect.top - targetRect.top;
+      const elementRect = element.getBoundingClientRect();
+      const elementCenter = elementRect.top + elementRect.height / 2;
+      const containerCenter = containerRect.top + containerRect.height / 2;
+      return containerCenter - elementCenter;
     }
 
     function determineFloorDirection(fromIndex, toIndex) {
@@ -2779,17 +2886,41 @@ const TEAM_COUNT = 11;
 
       const nextIndex = getNextDestinationIndex();
       const firstFloor = nextIndex !== null ? puzzles[nextIndex].floor : null;
-      if (nextIndex !== null) {
-        triggerFloorTransition({ fromIndex: null, toIndex: nextIndex });
-      }
       const progressNote = hadProgress ? " Previous progress cleared." : "";
       const teamName = TEAM_NAMES[sanitizedTeam];
       const statusMessage = `${teamName} mission queue ready.${firstFloor ? ` Head to ${firstFloor}.` : ""}${progressNote}`.trim();
 
       closeScanner(`${sourceLabel} code accepted for ${teamName}.`, "success");
+
+      if (sourceLabel === "Start" && startGameOverlay) {
+        pendingTeamStart = {
+          teamName,
+          statusMessage,
+          nextIndex,
+          hadProgress,
+          fromIndex: 0,
+          firstFloor
+        };
+        openStartOverlay({ teamName, firstFloor, hadProgress });
+      } else {
+        pendingTeamStart = null;
+        finalizeTeamAssignment({
+          statusMessage,
+          nextIndex,
+          hadProgress,
+          fromIndex: null
+        });
+      }
+
+      return true;
+    }
+
+    function finalizeTeamAssignment({ statusMessage, nextIndex, hadProgress, fromIndex }) {
+      if (Number.isInteger(nextIndex)) {
+        triggerFloorTransition({ fromIndex, toIndex: nextIndex });
+      }
       showStatus(statusMessage, "success");
       triggerConfetti({ theme: "start", pieces: hadProgress ? 140 : 110, spread: 10 });
-      return true;
     }
 
     function hasRecordedProgress() {

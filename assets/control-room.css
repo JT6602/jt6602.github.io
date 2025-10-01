@@ -924,45 +924,128 @@
     }
 
     .floor-transition.is-stage-hold .floor-transition-map {
-      --floor-offset: 0px;
-      transform: translateY(var(--floor-offset)) scale(0.88);
+      transform: translateY(var(--floor-shift-current, 0px)) scale(0.88);
       transition-duration: 0.25s;
       transition-timing-function: ease;
     }
 
     .floor-transition.is-stage-zoom-in .floor-transition-map {
-      --floor-offset: 0px;
-      transform: translateY(var(--floor-offset)) scale(1.06);
+      transform: translateY(var(--floor-shift-current, 0px)) scale(1.08);
       transition-duration: 0.25s;
       transition-timing-function: ease-in-out;
     }
 
     .floor-transition.is-stage-travel .floor-transition-map {
-      --floor-offset: var(--floor-shift, 0px);
-      transform: translateY(var(--floor-offset)) scale(1.06);
+      transform: translateY(var(--floor-shift-target, 0px)) scale(1.08);
       transition-duration: 1.5s;
       transition-timing-function: cubic-bezier(0.65, 0.05, 0.36, 1);
     }
 
     .floor-transition.is-stage-mid .floor-transition-map {
-      --floor-offset: var(--floor-shift, 0px);
-      transform: translateY(var(--floor-offset)) scale(1.06);
+      transform: translateY(var(--floor-shift-target, 0px)) scale(1.08);
       transition-duration: 0.25s;
       transition-timing-function: ease-out;
     }
 
     .floor-transition.is-stage-zoom-out .floor-transition-map {
-      --floor-offset: var(--floor-shift, 0px);
-      transform: translateY(var(--floor-offset)) scale(0.95);
+      transform: translateY(var(--floor-shift-target, 0px)) scale(0.95);
       transition-duration: 0.25s;
       transition-timing-function: ease-in-out;
     }
 
     .floor-transition.is-stage-final .floor-transition-map {
-      --floor-offset: var(--floor-shift, 0px);
-      transform: translateY(var(--floor-offset)) scale(0.95);
+      transform: translateY(var(--floor-shift-target, 0px)) scale(0.95);
       transition-duration: 0.25s;
       transition-timing-function: ease-out;
+    }
+
+    .start-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(1.75rem, 6vw, 3.2rem);
+      background: rgba(2, 8, 18, 0.92);
+      backdrop-filter: blur(18px);
+      z-index: 2600;
+    }
+
+    .start-overlay.is-visible {
+      display: flex;
+    }
+
+    body.is-start-overlay-open {
+      overflow: hidden;
+    }
+
+    .start-overlay-card {
+      width: min(520px, 92vw);
+      display: grid;
+      gap: clamp(1rem, 3vw, 1.6rem);
+      padding: clamp(2rem, 5vw, 2.8rem);
+      border-radius: 28px;
+      border: 1px solid rgba(110, 230, 228, 0.45);
+      background: linear-gradient(172deg, rgba(4, 12, 24, 0.96), rgba(8, 20, 38, 0.92));
+      box-shadow: 0 48px 120px -64px rgba(0, 0, 0, 0.9);
+      color: rgba(224, 241, 255, 0.95);
+      text-align: center;
+    }
+
+    .start-overlay-header {
+      display: grid;
+      gap: 0.3rem;
+    }
+
+    .start-overlay-team {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(110, 230, 228, 0.88);
+    }
+
+    .start-overlay-header h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .start-overlay-body {
+      display: grid;
+      gap: 0.75rem;
+      color: rgba(224, 241, 255, 0.78);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .start-overlay-note {
+      margin: 0;
+      font-size: 0.9rem;
+      color: rgba(110, 230, 228, 0.8);
+    }
+
+    .start-overlay-actions {
+      display: flex;
+      justify-content: center;
+    }
+
+    .start-overlay-actions .primary-action {
+      min-width: 220px;
+      padding: 0.85rem 1.4rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-size: 0.98rem;
+      background: linear-gradient(135deg, rgba(110, 230, 228, 0.25), rgba(110, 230, 228, 0.65));
+      border: 1px solid rgba(110, 230, 228, 0.55);
+      color: rgba(10, 24, 38, 0.92);
+      box-shadow: 0 16px 36px -24px rgba(110, 230, 228, 0.9);
+    }
+
+    .start-overlay-actions .primary-action:hover,
+    .start-overlay-actions .primary-action:focus-visible {
+      box-shadow: 0 18px 40px -22px rgba(110, 230, 228, 0.95);
     }
 
 
