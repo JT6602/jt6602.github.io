@@ -164,20 +164,20 @@ const TEAM_COUNT = 11;
       },
       {
         floor: "Floor 4",
-        prompt: "Find the words ring, path, and lamp hidden in the grid to progress.",
+        prompt: "Find the words panel, lever, cable, gauge, and wires hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
         wordSearch: {
           size: 8,
-          words: ["ring", "path", "lamp"],
+          words: ["panel", "lever", "cable", "gauge", "wires"],
           grid: [
-            "R I N G C H A S",
-            "T Q W E R F D G",
-            "L A M P B N V C",
-            "U I O P L K J H",
-            "Y T R E W Q Z X",
-            "P A T H M N B V",
-            "C X Z L K J H G",
-            "F D S A P O I U"
+            "P A N E L S X L",
+            "G Q T H M A N E",
+            "A R I O P L D V",
+            "U C A B L E T E",
+            "G S Y R K F H R",
+            "E L C N O P T A",
+            "B U W I R E S G",
+            "J M Q D Z H V C"
           ]
         },
         qr: QR_CODES.FLOOR_4
@@ -194,22 +194,22 @@ const TEAM_COUNT = 11;
       },
       {
         floor: "Floor 6",
-        prompt: "Locate the words tower, fun, and test hidden in the grid to progress.",
+        prompt: "Locate the words console, monitor, switch, circuit, relay, sensor, and module hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
         wordSearch: {
           size: 10,
-          words: ["tower", "fun", "test"],
+          words: ["console", "monitor", "switch", "circuit", "relay", "sensor", "module"],
           grid: [
-            "T O W E R Q L M N O",
-            "A B C D E F G H I J",
-            "K L T E S T U V W X",
-            "P Q R S T U V W X Y",
-            "F U N A B C D E F G",
-            "H I J K L M N O P Q",
-            "R S T U V W X Y Z A",
-            "B C D E F G H I J K",
-            "L M N O P Q R S T U",
-            "V W X Y Z A B C D E"
+            "C O N S O L E P M T",
+            "A H Q Z V R B L O M",
+            "D S W I T C H A N O",
+            "F U L Q X S P H I D",
+            "T E C I R C U I T U",
+            "K R E L A Y G B O L",
+            "J N P C F H Q E R E",
+            "L T A S E N S O R W",
+            "P V D G L T M C A H",
+            "Q X J B K D V R Y S"
           ]
         },
         qr: QR_CODES.FLOOR_6
