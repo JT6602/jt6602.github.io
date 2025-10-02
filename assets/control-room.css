@@ -444,6 +444,8 @@
       border: 1px solid rgba(91, 192, 190, 0.35);
       background: linear-gradient(155deg, rgba(6, 18, 38, 0.9), rgba(4, 14, 32, 0.92));
       box-shadow: 0 40px 80px -45px rgba(0, 0, 0, 0.85);
+      max-height: min(92vh, 760px);
+      overflow-y: auto;
     }
 
     .gm-qr-overlay-info {
@@ -560,6 +562,7 @@
 
     .map-overlay-inner {
       width: min(1220px, 100%);
+      max-height: min(92vh, 920px);
       height: min(92vh, 920px);
       display: grid;
       gap: clamp(1.25rem, 3vw, 2.2rem);
@@ -568,6 +571,7 @@
       border: 1px solid rgba(91, 192, 190, 0.35);
       background: linear-gradient(155deg, rgba(6, 18, 38, 0.92), rgba(4, 14, 32, 0.94));
       box-shadow: 0 40px 80px -45px rgba(0, 0, 0, 0.85);
+      overflow: hidden;
     }
 
     .map-overlay-body {
@@ -1044,9 +1048,10 @@
 
     .word-search-grid {
       display: grid;
-      gap: clamp(0.35rem, 1vw, 0.55rem);
+      gap: clamp(0.25rem, 1.2vw, 0.45rem);
       touch-action: none;
       user-select: none;
+      justify-items: center;
     }
 
     .word-search-grid.is-complete {
@@ -1066,20 +1071,21 @@
     .word-search-row {
       display: grid;
       grid-auto-flow: column;
-      gap: clamp(0.35rem, 1vw, 0.55rem);
+      gap: clamp(0.25rem, 1.2vw, 0.45rem);
       user-select: none;
+      justify-content: center;
     }
 
     .word-search-cell {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: clamp(36px, 8vw, 46px);
-      height: clamp(36px, 8vw, 46px);
+      width: clamp(24px, 6.5vw, 40px);
+      height: clamp(24px, 6.5vw, 40px);
       border-radius: 12px;
       border: 1px solid rgba(110, 230, 228, 0.4);
       background: rgba(8, 18, 32, 0.65);
-      font-size: clamp(1rem, 3vw, 1.4rem);
+      font-size: clamp(0.9rem, 4vw, 1.2rem);
       letter-spacing: 0.04em;
       color: rgba(224, 241, 255, 0.92);
       text-transform: uppercase;
@@ -3690,6 +3696,8 @@
       .control-bar {
         padding: 1.25rem clamp(1rem, 6vw, 1.75rem);
         gap: 1.25rem;
+        flex-direction: column;
+        align-items: stretch;
       }
 
       .progress-panel {
@@ -3699,6 +3707,18 @@
       }
 
       .progress-wrapper {
+        width: 100%;
+      }
+
+      .action-buttons {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.6rem;
+      }
+
+      .action-button,
+      .reset-button {
         width: 100%;
       }
 
@@ -3717,6 +3737,7 @@
       .progress-track {
         padding: clamp(1rem, 5vw, 1.6rem);
         max-height: none;
+        width: 100%;
       }
 
       .progress-list {
@@ -3731,6 +3752,61 @@
         min-width: 220px;
         grid-template-columns: 1fr;
         gap: 0.5rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding: 2rem clamp(1.2rem, 6vw, 1.4rem) 1.6rem;
+      }
+
+      header p {
+        font-size: 0.92rem;
+      }
+
+      .puzzle-view {
+        padding: clamp(1rem, 6vw, 1.4rem);
+      }
+
+      .puzzle-body {
+        padding: clamp(0.85rem, 4vw, 1rem);
+      }
+
+      .word-search-wrapper {
+        padding: clamp(0.9rem, 4vw, 1.2rem);
+      }
+
+      .word-search-word-list ul {
+        padding-left: 0.9rem;
+      }
+
+      .gm-qr-overlay-inner,
+      .map-overlay-inner,
+      .modal-dialog {
+        width: calc(100% - clamp(1.5rem, 8vw, 2.5rem));
+      }
+
+      .gm-qr-overlay-inner,
+      .map-overlay-inner {
+        padding: clamp(1.2rem, 5vw, 1.8rem);
+      }
+
+      .map-overlay-body {
+        padding-right: 0;
+      }
+
+      .gm-qr-overlay-close,
+      .map-overlay-close {
+        top: clamp(0.75rem, 4vw, 1.2rem);
+        right: clamp(0.75rem, 4vw, 1.2rem);
+      }
+
+      .manual-entry {
+        gap: 0.6rem;
+      }
+
+      .manual-entry input {
+        min-width: 0;
       }
     }
 
@@ -3756,5 +3832,13 @@
       .secondary-link {
         width: 100%;
         text-align: center;
+      }
+
+      .puzzle-view {
+        min-height: auto;
+      }
+
+      .progress-track {
+        padding: clamp(0.9rem, 5vw, 1.2rem);
       }
     }
