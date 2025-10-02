@@ -297,10 +297,16 @@ const TEAM_COUNT = 11;
     const progressList = document.getElementById("progressList");
     const progressPanel = document.getElementById("progressPanel");
     const progressDescriptor = document.getElementById("progressDescriptor");
+    const teamTimerLabel = document.getElementById("teamTimer");
     const towerLevels = document.getElementById("towerLevels");
     const towerMapOverlay = document.getElementById("towerMapOverlay");
     const towerMapOverlayClose = document.getElementById("towerMapOverlayClose");
     const viewTowerMapButton = document.getElementById("viewTowerMap");
+    const showOtherProgressButton = document.getElementById("showOtherProgress");
+    const teamProgressOverlay = document.getElementById("teamProgressOverlay");
+    const teamProgressOverlayClose = document.getElementById("teamProgressOverlayClose");
+    const teamProgressContent = document.getElementById("teamProgressContent");
+    const teamProgressStatus = document.getElementById("teamProgressStatus");
     const gmOverrideOverlay = document.getElementById("gmOverrideOverlay");
     const gmOverrideForm = document.getElementById("gmOverrideForm");
     const gmOverrideOptions = document.getElementById("gmOverrideOptions");
@@ -379,7 +385,8 @@ const TEAM_COUNT = 11;
       unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
       revealed: Array.from({ length: PUZZLE_COUNT }, () => false),
       hasWon: false,
-      puzzleState: {}
+      puzzleState: {},
+      startTimestamp: null
     });
 
     const DASHBOARD_SYNC_DEBOUNCE_MS = 600;
@@ -481,6 +488,11 @@ const TEAM_COUNT = 11;
     let startLaunchAnimationHandler = null;
     let answerOverlayTimers = [];
     let scannerListenersBound = false;
+    let teamTimerIntervalId = null;
+    let teamTimerStartDate = null;
+    let teamTimerIsoString = null;
+    let teamProgressOverlayEscapeBound = false;
+    let teamProgressAbortController = null;
     const gmAuthState = {
       overlay: null,
       form: null,
@@ -552,14 +564,15 @@ const TEAM_COUNT = 11;
         return;
       }
       if (isGmSheet) {
-        enforceGmPassword();
-        return;
-      }
-      detectPlatform();
-      attachEventListeners();
-      render();
-      maybePromptForWin();
-      scheduleDashboardSync("init");
+      enforceGmPassword();
+      return;
+    }
+    detectPlatform();
+    attachEventListeners();
+    configureTeamProgressButton();
+    render();
+    maybePromptForWin();
+    scheduleDashboardSync("init");
     }
 
     function maybePromptForWin() {
@@ -1074,6 +1087,301 @@ const TEAM_COUNT = 11;
       if (event.key === "Escape") {
         event.preventDefault();
         closeTowerMapOverlay();
+      }
+    }
+
+    function openTeamProgressOverlay() {
+      if (!teamProgressOverlay) {
+        return;
+      }
+
+      if (!dashboardConfig?.stateEndpoint) {
+        setTeamProgressStatus("Dashboard connection not configured.", "error");
+      } else {
+        setTeamProgressStatus("Loading team progress…", "info");
+        loadTeamProgressSnapshot();
+      }
+
+      teamProgressOverlay.classList.add("is-visible");
+      teamProgressOverlay.removeAttribute("hidden");
+      document.body.classList.add("is-team-progress-open");
+      teamProgressOverlayClose?.focus({ preventScroll: true });
+
+      if (!teamProgressOverlayEscapeBound) {
+        window.addEventListener("keydown", handleTeamProgressOverlayKeydown, { passive: true });
+        teamProgressOverlayEscapeBound = true;
+      }
+    }
+
+    function closeTeamProgressOverlay() {
+      if (!teamProgressOverlay) {
+        return;
+      }
+
+      if (teamProgressAbortController) {
+        try {
+          teamProgressAbortController.abort();
+        } catch (err) {
+          // ignore abort errors
+        }
+        teamProgressAbortController = null;
+      }
+
+      teamProgressOverlay.classList.remove("is-visible");
+      teamProgressOverlay.setAttribute("hidden", "true");
+      document.body.classList.remove("is-team-progress-open");
+      showOtherProgressButton?.focus({ preventScroll: true });
+
+      if (teamProgressOverlayEscapeBound) {
+        window.removeEventListener("keydown", handleTeamProgressOverlayKeydown);
+        teamProgressOverlayEscapeBound = false;
+      }
+    }
+
+    function handleTeamProgressOverlayKeydown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeTeamProgressOverlay();
+      }
+    }
+
+    async function loadTeamProgressSnapshot() {
+      if (!dashboardConfig?.stateEndpoint || !teamProgressContent) {
+        return;
+      }
+
+      teamProgressContent.innerHTML = "";
+
+      if (teamProgressAbortController) {
+        try {
+          teamProgressAbortController.abort();
+        } catch (err) {
+          // ignore
+        }
+      }
+
+      try {
+        teamProgressAbortController = typeof AbortController === "function" ? new AbortController() : null;
+        const response = await fetch(dashboardConfig.stateEndpoint, {
+          method: "GET",
+          mode: "cors",
+          credentials: "omit",
+          cache: "no-store",
+          signal: teamProgressAbortController?.signal
+        });
+
+        if (!response.ok) {
+          throw new Error(`Team progress request failed with ${response.status}`);
+        }
+
+        const payload = await response.json();
+        renderTeamProgressOverlay(payload);
+      } catch (err) {
+        if (err && typeof err === "object" && err.name === "AbortError") {
+          return;
+        }
+        console.warn("Failed to load team progress", err);
+        setTeamProgressStatus("Unable to load team progress. Try again soon.", "error");
+      } finally {
+        teamProgressAbortController = null;
+      }
+    }
+
+    function renderTeamProgressOverlay(scoreboard) {
+      if (!teamProgressContent) {
+        return;
+      }
+
+      teamProgressContent.innerHTML = "";
+
+      const teams = scoreboard && typeof scoreboard === "object" && scoreboard.teams
+        ? Object.values(scoreboard.teams)
+        : [];
+
+      if (!Array.isArray(teams) || !teams.length) {
+        setTeamProgressStatus("No teams have reported progress yet.", "neutral");
+        return;
+      }
+
+      const puzzleCount = Number.isFinite(scoreboard.puzzleCount) ? scoreboard.puzzleCount : PUZZLE_COUNT;
+      const myTeamId = Number.isInteger(state.teamId) ? state.teamId : null;
+
+      const otherTeams = teams
+        .map(entry => normalizeTeamProgressEntry(entry, puzzleCount))
+        .filter(Boolean)
+        .filter(entry => entry.hasStarted && entry.teamId !== myTeamId);
+
+      const visibleTeams = otherTeams.length
+        ? otherTeams
+        : teams
+            .map(entry => normalizeTeamProgressEntry(entry, puzzleCount))
+            .filter(Boolean)
+            .filter(entry => entry.hasStarted);
+
+      if (!visibleTeams.length) {
+        setTeamProgressStatus("No active teams to display yet.", "neutral");
+        return;
+      }
+
+      visibleTeams.sort((a, b) => {
+        const solvedDiff = b.solved - a.solved;
+        if (solvedDiff !== 0) return solvedDiff;
+        const winDiff = Number(b.hasWon) - Number(a.hasWon);
+        if (winDiff !== 0) return winDiff;
+        const runtimeDiff = (a.runtimeSeconds ?? Infinity) - (b.runtimeSeconds ?? Infinity);
+        if (Number.isFinite(runtimeDiff) && runtimeDiff !== 0) return runtimeDiff;
+        const updatedDiff = (Date.parse(b.updatedAt ?? "") || 0) - (Date.parse(a.updatedAt ?? "") || 0);
+        if (updatedDiff !== 0) return updatedDiff;
+        return a.teamId - b.teamId;
+      });
+
+      const fragment = document.createDocumentFragment();
+
+      visibleTeams.forEach(team => {
+        const card = document.createElement("article");
+        card.className = "team-progress-card";
+
+        const heading = document.createElement("header");
+        heading.className = "team-progress-card__header";
+
+        const title = document.createElement("h3");
+        title.textContent = team.teamName;
+        heading.append(title);
+
+        const meta = document.createElement("div");
+        meta.className = "team-progress-card__meta";
+        const progressLabel = `${team.solved} / ${team.puzzleCount} solved`;
+        const runtimeLabel = Number.isFinite(team.runtimeSeconds)
+          ? `Runtime ${formatElapsedDuration(team.runtimeSeconds * 1000)}`
+          : null;
+        const statusLabel = team.hasWon ? "Tower complete" : team.currentLabel;
+        const metaParts = [progressLabel];
+        if (runtimeLabel) metaParts.push(runtimeLabel);
+        if (statusLabel) metaParts.push(statusLabel);
+        meta.textContent = metaParts.join(" · ");
+        heading.append(meta);
+
+        const body = document.createElement("div");
+        body.className = "team-progress-card__body";
+
+        const progressRail = document.createElement("div");
+        progressRail.className = "team-progress-rail";
+        const progressBar = document.createElement("div");
+        progressBar.className = "team-progress-bar";
+        progressBar.style.width = `${team.progressPercent}%`;
+        progressRail.append(progressBar);
+
+        const status = document.createElement("div");
+        status.className = "team-progress-status-line";
+        status.textContent = team.statusMessage;
+
+        body.append(progressRail, status);
+
+        if (team.updatedAtLabel) {
+          const footer = document.createElement("footer");
+          footer.className = "team-progress-card__footer";
+          footer.textContent = `Updated ${team.updatedAtLabel}`;
+          body.append(footer);
+        }
+
+        card.append(heading, body);
+        fragment.append(card);
+      });
+
+      teamProgressContent.append(fragment);
+
+      const updatedAtLabel = formatAbsoluteTimestamp(scoreboard.updatedAt);
+      setTeamProgressStatus(updatedAtLabel ? `Last sync ${updatedAtLabel}` : "Team progress snapshot", "success");
+    }
+
+    function normalizeTeamProgressEntry(entry, puzzleCount) {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const teamId = Number.isFinite(entry.teamId) ? entry.teamId : null;
+      if (teamId === null) {
+        return null;
+      }
+
+      const teamName = typeof entry.teamName === "string" && entry.teamName.trim()
+        ? entry.teamName.trim()
+        : `Team ${teamId + 1}`;
+
+      const solved = Number.isFinite(entry.solved) ? entry.solved : 0;
+      const sanitizedPuzzleCount = Number.isFinite(entry.puzzleCount) ? entry.puzzleCount : puzzleCount;
+      const progressPercent = sanitizedPuzzleCount > 0
+        ? Math.round(Math.min(100, Math.max(0, (solved / sanitizedPuzzleCount) * 100)))
+        : 0;
+      const hasStarted = Boolean(entry.hasStarted);
+      const hasWon = Boolean(entry.hasWon) || solved >= sanitizedPuzzleCount;
+      const currentIndex = Number.isInteger(entry.currentPuzzleIndex) ? entry.currentPuzzleIndex : null;
+      const nextIndex = Number.isInteger(entry.nextPuzzleIndex) ? entry.nextPuzzleIndex : null;
+      const runtimeSeconds = Number.isFinite(entry.runtimeSeconds) ? Math.max(0, Math.floor(entry.runtimeSeconds)) : null;
+      const updatedAt = typeof entry.updatedAt === "string" ? entry.updatedAt : null;
+      const lastEvent = typeof entry.lastEvent === "string" && entry.lastEvent.trim() ? entry.lastEvent.trim() : "";
+
+      const currentLabel = currentIndex !== null ? puzzles[currentIndex]?.floor ?? `Mission ${currentIndex + 1}` : "Exploring";
+      const nextLabel = nextIndex !== null ? puzzles[nextIndex]?.floor ?? `Mission ${nextIndex + 1}` : null;
+
+      let statusMessage = hasWon
+        ? "Tower cleared"
+        : currentIndex !== null
+        ? `Solving ${currentLabel}`
+        : nextLabel
+        ? `Traveling to ${nextLabel}`
+        : "Launching the tower run";
+
+      if (hasWon) {
+        statusMessage = "Tower complete";
+      }
+
+      if (lastEvent) {
+        statusMessage = `${statusMessage} · ${lastEvent}`;
+      }
+
+      const updatedAtLabel = updatedAt ? formatAbsoluteTimestamp(updatedAt) : "";
+
+      return {
+        teamId,
+        teamName,
+        solved,
+        puzzleCount: sanitizedPuzzleCount,
+        progressPercent,
+        hasStarted,
+        hasWon,
+        currentLabel,
+        statusMessage,
+        runtimeSeconds,
+        updatedAt,
+        updatedAtLabel
+      };
+    }
+
+    function setTeamProgressStatus(message, tone = "neutral") {
+      if (!teamProgressStatus) {
+        return;
+      }
+      const safeMessage = typeof message === "string" ? message : "";
+      teamProgressStatus.textContent = safeMessage;
+      teamProgressStatus.className = "team-progress-status";
+      if (tone) {
+        teamProgressStatus.classList.add(`is-${tone}`);
+      }
+    }
+
+    function formatAbsoluteTimestamp(value) {
+      if (!value || typeof value !== "string") {
+        return "";
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return "";
+      }
+      try {
+        return date.toLocaleString();
+      } catch (err) {
+        return date.toISOString();
       }
     }
 
@@ -3829,6 +4137,7 @@ const TEAM_COUNT = 11;
 
       const working = defaultState(sanitizedTeam);
       working.hasStarted = true;
+      working.startTimestamp = new Date().toISOString();
 
       const describe = { message: "", tone: "success" };
 
@@ -4056,6 +4365,12 @@ const TEAM_COUNT = 11;
         }
       });
 
+      showOtherProgressButton?.addEventListener("click", () => {
+        if (!showOtherProgressButton.disabled) {
+          openTeamProgressOverlay();
+        }
+      });
+
       ensureScannerListeners();
 
       gmOverrideClose?.addEventListener("click", event => {
@@ -4075,6 +4390,17 @@ const TEAM_COUNT = 11;
       });
 
       gmOverrideForm?.addEventListener("submit", handleGmOverrideSubmit);
+
+      teamProgressOverlayClose?.addEventListener("click", event => {
+        event.preventDefault();
+        closeTeamProgressOverlay();
+      });
+
+      teamProgressOverlay?.addEventListener("click", event => {
+        if (event.target === teamProgressOverlay) {
+          closeTeamProgressOverlay();
+        }
+      });
     }
     function ensureScannerListeners() {
       if (scannerListenersBound) {
@@ -4350,6 +4676,8 @@ const TEAM_COUNT = 11;
         CurrentPuzzleIndex: Number.isInteger(payload.currentPuzzleIndex) ? payload.currentPuzzleIndex : "",
         NextPuzzleIndex: Number.isInteger(payload.nextPuzzleIndex) ? payload.nextPuzzleIndex : "",
         NextPuzzleLabel: payload.nextPuzzleLabel ?? "",
+        StartedAt: payload.startedAt ?? "",
+        RuntimeSeconds: Number.isFinite(payload.runtimeSeconds) ? payload.runtimeSeconds : "",
         Reason: payload.reason ?? "",
         Timestamp: payload.timestamp ?? new Date().toISOString(),
         Completions: encodeBooleanSeries(payload.completions),
@@ -4423,6 +4751,9 @@ const TEAM_COUNT = 11;
         ? puzzles[nextIndex]?.floor ?? `Mission ${(nextIndex ?? 0) + 1}`
         : null;
 
+      const startedAt = sanitizeStartTimestamp(targetState.startTimestamp);
+      const runtimeSeconds = startedAt ? Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000)) : null;
+
       const payload = {
         teamId,
         teamName,
@@ -4437,7 +4768,9 @@ const TEAM_COUNT = 11;
         nextPuzzleLabel,
         timestamp: new Date().toISOString(),
         reason,
-        progressPercent: puzzleCount > 0 ? Math.round((solved / puzzleCount) * 100) : 0
+        progressPercent: puzzleCount > 0 ? Math.round((solved / puzzleCount) * 100) : 0,
+        startedAt,
+        runtimeSeconds
       };
 
       return payload;
@@ -4519,6 +4852,34 @@ const TEAM_COUNT = 11;
         return null;
       }
       return trimmed.replace(/\/+$/, "");
+    }
+
+    function sanitizeStartTimestamp(value) {
+      if (!value) {
+        return null;
+      }
+
+      let candidate = null;
+
+      if (value instanceof Date) {
+        candidate = value;
+      } else if (typeof value === "string") {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          candidate = parsed;
+        }
+      } else if (typeof value === "number") {
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+          candidate = parsed;
+        }
+      }
+
+      if (!candidate || Number.isNaN(candidate.getTime())) {
+        return null;
+      }
+
+      return candidate.toISOString();
     }
 
     function sanitizePathSegment(value) {
@@ -4676,6 +5037,7 @@ const TEAM_COUNT = 11;
       }
       const baseCandidate = sanitizeEndpointBase(newBase) ?? dashboardConfig?.base ?? resolveDashboardBase();
       dashboardConfig = createDashboardConfig(baseCandidate, dashboardOverrides);
+      configureTeamProgressButton();
       if (!dashboardConfig) {
         return null;
       }
@@ -4711,6 +5073,21 @@ const TEAM_COUNT = 11;
         progressPaths: normalized.progressPaths,
         statePath: normalized.statePath
       };
+    }
+
+    function configureTeamProgressButton() {
+      if (!showOtherProgressButton) {
+        return;
+      }
+      const hasEndpoint = Boolean(dashboardConfig?.stateEndpoint);
+      showOtherProgressButton.disabled = !hasEndpoint;
+      if (hasEndpoint) {
+        showOtherProgressButton.removeAttribute("aria-disabled");
+        showOtherProgressButton.removeAttribute("title");
+      } else {
+        showOtherProgressButton.setAttribute("aria-disabled", "true");
+        showOtherProgressButton.title = "Connect to the dashboard to view other teams.";
+      }
     }
 
     function setupDashboardDebugApi() {
@@ -5017,6 +5394,7 @@ const TEAM_COUNT = 11;
       }
 
       const sanitizedPuzzleState = sanitizePuzzleState(candidate.puzzleState, sanitizedCompletions);
+      const startTimestamp = sanitizeStartTimestamp(candidate.startTimestamp ?? candidate.startedAt ?? null);
 
       return {
         teamId,
@@ -5025,7 +5403,8 @@ const TEAM_COUNT = 11;
         unlocked: sanitizedUnlocked,
         revealed: sanitizedRevealed,
         hasWon,
-        puzzleState: sanitizedPuzzleState
+        puzzleState: sanitizedPuzzleState,
+        startTimestamp
       };
     }
 
@@ -5351,6 +5730,109 @@ const TEAM_COUNT = 11;
       } else {
         progressLabel.textContent = "Awaiting start";
       }
+
+      updateTeamTimer();
+    }
+
+    function updateTeamTimer() {
+      if (!teamTimerLabel) {
+        return;
+      }
+
+      if (!state.hasStarted) {
+        teamTimerLabel.textContent = "Run time: –";
+        stopTeamTimerTick();
+        return;
+      }
+
+      const startIso = sanitizeStartTimestamp(state.startTimestamp);
+      if (!startIso) {
+        teamTimerLabel.textContent = "Run time: –";
+        stopTeamTimerTick();
+        return;
+      }
+
+      const startDate = new Date(startIso);
+      if (Number.isNaN(startDate.getTime())) {
+        teamTimerLabel.textContent = "Run time: –";
+        stopTeamTimerTick();
+        return;
+      }
+
+      ensureTeamTimerTick(startDate, startIso);
+      const elapsed = Date.now() - startDate.getTime();
+      teamTimerLabel.textContent = `Run time: ${formatElapsedDuration(elapsed)}`;
+    }
+
+    function ensureTeamTimerTick(startDate, startIso) {
+      if (teamTimerIntervalId !== null) {
+        if (teamTimerIsoString === startIso) {
+          return;
+        }
+        stopTeamTimerTick();
+      }
+
+      teamTimerStartDate = startDate;
+      teamTimerIsoString = startIso;
+
+      teamTimerIntervalId = window.setInterval(() => {
+        if (!teamTimerLabel) {
+          stopTeamTimerTick();
+          return;
+        }
+
+        if (!state.hasStarted) {
+          stopTeamTimerTick();
+          teamTimerLabel.textContent = "Run time: –";
+          return;
+        }
+
+        const currentStartIso = sanitizeStartTimestamp(state.startTimestamp);
+        if (!currentStartIso) {
+          stopTeamTimerTick();
+          teamTimerLabel.textContent = "Run time: –";
+          return;
+        }
+
+        if (currentStartIso !== teamTimerIsoString) {
+          stopTeamTimerTick();
+          updateTeamTimer();
+          return;
+        }
+
+        const elapsed = Date.now() - teamTimerStartDate.getTime();
+        teamTimerLabel.textContent = `Run time: ${formatElapsedDuration(elapsed)}`;
+      }, 1000);
+    }
+
+    function stopTeamTimerTick() {
+      if (teamTimerIntervalId !== null) {
+        window.clearInterval(teamTimerIntervalId);
+        teamTimerIntervalId = null;
+      }
+      teamTimerStartDate = null;
+      teamTimerIsoString = null;
+    }
+
+    function formatElapsedDuration(milliseconds) {
+      if (!Number.isFinite(milliseconds) || milliseconds < 0) {
+        return "0:00";
+      }
+
+      const totalSeconds = Math.floor(milliseconds / 1000);
+      const seconds = totalSeconds % 60;
+      const minutes = Math.floor(totalSeconds / 60) % 60;
+      const hours = Math.floor(totalSeconds / 3600);
+
+      const parts = [];
+      if (hours > 0) {
+        parts.push(String(hours));
+        parts.push(String(minutes).padStart(2, "0"));
+      } else {
+        parts.push(String(minutes));
+      }
+      parts.push(String(seconds).padStart(2, "0"));
+      return parts.join(":");
     }
 
     function renderProgressList() {
@@ -6707,6 +7189,7 @@ const TEAM_COUNT = 11;
 
       state = defaultState(sanitizedTeam);
       state.hasStarted = true;
+      state.startTimestamp = new Date().toISOString();
       revealNextDestination();
       pendingPuzzleUnlockIndex = null;
       saveState();

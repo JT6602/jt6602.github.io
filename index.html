@@ -34,12 +34,14 @@
           </div>
           <progress id="progressBar" class="progress-bar" value="0" max="11"></progress>
         </div>
+        <div class="run-timer" id="teamTimer" aria-live="polite">Run time: –</div>
       </div>
       <div class="action-buttons">
         <button type="button" class="action-button" id="exportProgress">Copy Progress Code</button>
         <button type="button" class="action-button" id="importProgress">Import Progress</button>
         <button type="button" class="action-button" id="gmOverrideButton">GM Override</button>
         <button type="button" class="action-button" id="viewTowerMap">View Tower Map</button>
+        <button type="button" class="action-button" id="showOtherProgress">Show Other Team Progress</button>
         <button type="button" class="reset-button" id="resetAll">Reset Progress</button>
       </div>
       <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
@@ -165,6 +167,19 @@
         <div class="tower-map map-overlay-content" id="towerMapOverlayContent" aria-label="Tower map overview">
           <div class="tower-map-levels" id="towerLevels"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="team-progress-overlay" id="teamProgressOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="teamProgressOverlayTitle">
+    <button type="button" class="team-progress-close" id="teamProgressOverlayClose" aria-label="Close team progress"></button>
+    <div class="team-progress-dialog">
+      <header class="team-progress-header">
+        <h2 id="teamProgressOverlayTitle">Other Teams</h2>
+        <p class="team-progress-status" id="teamProgressStatus"></p>
+      </header>
+      <div class="team-progress-body">
+        <div class="team-progress-content" id="teamProgressContent" role="region" aria-live="polite"></div>
       </div>
     </div>
   </div>
