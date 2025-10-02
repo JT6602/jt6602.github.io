@@ -4,6 +4,7 @@
   const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
   const DATA_ENDPOINT = "https://script.google.com/macros/s/AKfycbyz17Xpv8QY4ul-Abc7e40eME7Xzbw503R-sWliOsrYy4CKZmVULoW-S3he2OLPAantsw/exec?sheet=UserData&token=1232435jvghfcgxdfgfcyguyuh1de2fr39u89y78gtghbijoqidwe2f089hyqdwefrjpihugy879";
   const CLEAR_STORAGE_KEY = "towerDashboardClearedAfter";
+  const AUTO_REFRESH_INTERVAL_MS = 10000;
   const PUZZLE_LABELS = [
     "Basement",
     "Floor 1",
@@ -35,6 +36,8 @@
   };
 
   let latestEntries = [];
+  let refreshTimerId = null;
+  let autoRefreshEnabled = false;
 
   function init() {
     if (!shell) {
@@ -62,6 +65,8 @@
 
   function grantAccess() {
     shell.hidden = false;
+    clearAutoRefreshTimer();
+    autoRefreshEnabled = true;
     loadData({ showLoading: true });
   }
 
@@ -273,6 +278,8 @@
       setStatus("Loading user data…");
     }
 
+    clearAutoRefreshTimer();
+
     try {
       const response = await fetch(DATA_ENDPOINT, {
         headers: {
@@ -289,10 +296,35 @@
       latestEntries = normalizeDashboardEntries(payload);
       renderTable(latestEntries);
       setStatus(`Last updated ${new Date().toLocaleTimeString()}`);
+      scheduleAutoRefresh();
     } catch (err) {
       console.error("Dashboard data fetch failed", err);
       setStatus("Unable to load user data. Try refreshing.", { error: true });
+      scheduleAutoRefresh();
     }
+  }
+
+  function scheduleAutoRefresh() {
+    if (!autoRefreshEnabled) {
+      clearAutoRefreshTimer();
+      return;
+    }
+    clearAutoRefreshTimer();
+    refreshTimerId = window.setTimeout(() => {
+      loadData({ showLoading: false });
+    }, AUTO_REFRESH_INTERVAL_MS);
+  }
+
+  function clearAutoRefreshTimer() {
+    if (refreshTimerId !== null) {
+      window.clearTimeout(refreshTimerId);
+      refreshTimerId = null;
+    }
+  }
+
+  function stopAutoRefresh() {
+    autoRefreshEnabled = false;
+    clearAutoRefreshTimer();
   }
 
   function renderTable(entries) {
@@ -769,6 +801,7 @@
   }
 
   function handleSignOut() {
+    stopAutoRefresh();
     setSessionGmToken(null);
     setStoredGmToken(null);
     shell.hidden = true;

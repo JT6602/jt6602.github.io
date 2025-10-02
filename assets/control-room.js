@@ -197,8 +197,8 @@ const TEAM_COUNT = 11;
         prompt: "Locate the words console, monitor, switch, circuit, relay, sensor, and module hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
         wordSearch: {
-          size: 10,
-          words: ["console", "monitor", "switch", "circuit", "relay", "sensor", "module"],
+          size: 8,
+          words: ["console", "monitor", "switch", "circuit", "relay", "sensor"],
           grid: [
             "C O N S O L E P M T",
             "A H Q Z V R B L O M",
