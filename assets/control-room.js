@@ -184,47 +184,11 @@ const TEAM_COUNT = 11;
       },
       {
         floor: "Floor 5",
-        prompt: "Compare the two images and identify every difference to progress.",
+        prompt:
+          "You see a 3×3 grid of switches (ON/OFF). Toggling a switch flips itself and its orthogonal neighbors. Goal: turn all switches OFF. Start in a random mixed state.",
         answerType: ANSWER_TYPES.PUZZLE,
-        spotDifference: {
-          scenes: [
-            { id: "scene-a", label: "Scene A" },
-            { id: "scene-b", label: "Scene B" }
-          ],
-          differences: [
-            {
-              id: "flag-stripes",
-              label: "Beacon flag stripes",
-              targets: [
-                { scene: "scene-a", topPercent: 6, leftPercent: 64, diameterPercent: 14 },
-                { scene: "scene-b", topPercent: 6, leftPercent: 64, diameterPercent: 14 }
-              ]
-            },
-            {
-              id: "window-shape",
-              label: "Middle window shape",
-              targets: [
-                { scene: "scene-a", topPercent: 36, leftPercent: 46, diameterPercent: 18 },
-                { scene: "scene-b", topPercent: 36, leftPercent: 46, diameterPercent: 18 }
-              ]
-            },
-            {
-              id: "balcony-rail",
-              label: "Balcony rails",
-              targets: [
-                { scene: "scene-a", topPercent: 52, leftPercent: 24, diameterPercent: 20 },
-                { scene: "scene-b", topPercent: 52, leftPercent: 24, diameterPercent: 20 }
-              ]
-            },
-            {
-              id: "door-emblem",
-              label: "Door emblem",
-              targets: [
-                { scene: "scene-a", topPercent: 72, leftPercent: 49, diameterPercent: 18 },
-                { scene: "scene-b", topPercent: 72, leftPercent: 49, diameterPercent: 18 }
-              ]
-            }
-          ]
+        switchPuzzle: {
+          gridSize: 3
         },
         qr: QR_CODES.FLOOR_5
       },
@@ -2830,6 +2794,262 @@ const TEAM_COUNT = 11;
       }
     }
 
+    function renderSwitchPuzzle(container, { puzzleIndex, switchPuzzle, prompt, onSolved }) {
+      if (!container || !switchPuzzle) {
+        return;
+      }
+
+      const rawGridSize = Number(switchPuzzle.gridSize);
+      const fallbackSize = Number.isFinite(rawGridSize) ? Math.round(rawGridSize) : 3;
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedSwitchPuzzle = storedInteractiveState?.switchPuzzle ?? null;
+
+      const storedGridSize = Number(storedSwitchPuzzle?.gridSize);
+      const gridSize = Number.isFinite(storedGridSize)
+        ? clampNumber(Math.round(storedGridSize), 2, 6)
+        : clampNumber(Math.max(2, fallbackSize), 2, 6);
+
+      let moveCount = Number.isFinite(storedSwitchPuzzle?.moveCount)
+        ? clampNumber(Math.round(storedSwitchPuzzle.moveCount), 0, 9999)
+        : 0;
+
+      const restoredGrid = restoreSwitchGrid(storedSwitchPuzzle?.switches, gridSize);
+      const hadStoredState = restoredGrid !== null;
+      let gridState = hadStoredState ? restoredGrid : createRandomSwitchGrid(gridSize);
+
+      if (!hadStoredState) {
+        moveCount = 0;
+      }
+
+      let puzzleCompleted = false;
+      let hasNotifiedSolve = false;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "switch-puzzle-wrapper";
+
+      if (prompt) {
+        const promptEl = document.createElement("p");
+        promptEl.className = "switch-puzzle-prompt";
+        promptEl.textContent = prompt;
+        wrapper.append(promptEl);
+      }
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "switch-puzzle-status";
+      wrapper.append(statusEl);
+
+      const gridEl = document.createElement("div");
+      gridEl.className = "switch-puzzle-grid";
+      gridEl.style.setProperty("--switch-grid-size", String(gridSize));
+      wrapper.append(gridEl);
+
+      container.append(wrapper);
+
+      const cellButtons = Array.from({ length: gridSize }, () => []);
+
+      for (let row = 0; row < gridSize; row += 1) {
+        for (let col = 0; col < gridSize; col += 1) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "switch-puzzle-cell";
+          button.dataset.row = String(row);
+          button.dataset.col = String(col);
+          button.addEventListener("click", () => {
+            if (puzzleCompleted) {
+              return;
+            }
+            handleInteraction(row, col);
+          });
+          gridEl.append(button);
+          cellButtons[row][col] = button;
+        }
+      }
+
+      updateAllCells();
+
+      if (!hadStoredState) {
+        persistState();
+      }
+
+      updateStatus();
+      checkForCompletion();
+
+      function handleInteraction(row, col) {
+        toggleAt(row, col);
+        toggleAt(row - 1, col);
+        toggleAt(row + 1, col);
+        toggleAt(row, col - 1);
+        toggleAt(row, col + 1);
+
+        moveCount = clampNumber(moveCount + 1, 0, 9999);
+        persistState();
+        updateStatus();
+        checkForCompletion();
+      }
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+
+        const payload = {
+          gridSize,
+          moveCount,
+          switches: gridState.map(row => row.map(cell => (cell ? 1 : 0)))
+        };
+
+        setPuzzleInteractiveState(normalizedIndex, { switchPuzzle: payload });
+      }
+
+      function updateStatus() {
+        const active = countActiveSwitches();
+        statusEl.className = "switch-puzzle-status";
+        if (active === 0) {
+          const moveWord = moveCount === 1 ? "move" : "moves";
+          statusEl.classList.add("is-complete");
+          statusEl.textContent = `All switches OFF in ${moveCount} ${moveWord}.`;
+        } else {
+          statusEl.textContent = `Move count: ${moveCount} | Switches ON: ${active}`;
+        }
+      }
+
+      function checkForCompletion() {
+        if (puzzleCompleted) {
+          return;
+        }
+
+        if (countActiveSwitches() === 0) {
+          finalizeCompletion();
+        }
+      }
+
+      function finalizeCompletion() {
+        if (puzzleCompleted) {
+          return;
+        }
+
+        puzzleCompleted = true;
+        wrapper.classList.add("is-complete");
+        gridEl.classList.add("is-complete");
+        statusEl.classList.add("is-complete");
+        disableAllCells();
+        updateStatus();
+
+        if (!hasNotifiedSolve && typeof onSolved === "function") {
+          hasNotifiedSolve = true;
+          try {
+            const result = onSolved();
+            if (result && typeof result.catch === "function") {
+              result.catch(error => console.error("Switch puzzle completion handler failed", error));
+            }
+          } catch (error) {
+            console.error("Switch puzzle completion handler failed", error);
+          }
+        }
+      }
+
+      function disableAllCells() {
+        cellButtons.forEach(rowButtons => {
+          rowButtons.forEach(button => {
+            if (button) {
+              button.disabled = true;
+            }
+          });
+        });
+      }
+
+      function toggleAt(row, col) {
+        if (row < 0 || row >= gridSize || col < 0 || col >= gridSize) {
+          return;
+        }
+
+        gridState[row][col] = !gridState[row][col];
+        updateCell(row, col);
+      }
+
+      function updateCell(row, col) {
+        const button = cellButtons[row]?.[col];
+        if (!button) {
+          return;
+        }
+
+        const isOn = Boolean(gridState[row][col]);
+        button.classList.toggle("is-on", isOn);
+        button.classList.toggle("is-off", !isOn);
+        button.textContent = isOn ? "ON" : "OFF";
+        button.setAttribute("aria-pressed", isOn ? "true" : "false");
+        button.setAttribute("aria-label", `Switch row ${row + 1}, column ${col + 1}: ${isOn ? "On" : "Off"}`);
+      }
+
+      function updateAllCells() {
+        for (let row = 0; row < gridSize; row += 1) {
+          for (let col = 0; col < gridSize; col += 1) {
+            updateCell(row, col);
+          }
+        }
+      }
+
+      function countActiveSwitches() {
+        let total = 0;
+        for (let row = 0; row < gridSize; row += 1) {
+          for (let col = 0; col < gridSize; col += 1) {
+            if (gridState[row][col]) {
+              total += 1;
+            }
+          }
+        }
+        return total;
+      }
+
+      function createRandomSwitchGrid(size) {
+        const grid = [];
+        let activeCount = 0;
+        for (let row = 0; row < size; row += 1) {
+          const rowData = [];
+          for (let col = 0; col < size; col += 1) {
+            const isOn = Math.random() < 0.5;
+            rowData.push(isOn);
+            if (isOn) {
+              activeCount += 1;
+            }
+          }
+          grid.push(rowData);
+        }
+
+        if (activeCount === 0) {
+          const randomIndex = Math.floor(Math.random() * size * size);
+          const randomRow = Math.floor(randomIndex / size);
+          const randomCol = randomIndex % size;
+          grid[randomRow][randomCol] = true;
+        }
+
+        return grid;
+      }
+
+      function restoreSwitchGrid(source, size) {
+        if (!Array.isArray(source) || source.length === 0) {
+          return null;
+        }
+
+        const grid = [];
+        for (let row = 0; row < size; row += 1) {
+          const rowSource = Array.isArray(source[row]) ? source[row] : [];
+          const rowData = [];
+          for (let col = 0; col < size; col += 1) {
+            const rawValue = rowSource[col];
+            const isOn = rawValue === 1 || rawValue === true || rawValue === "1" || rawValue === "true";
+            rowData.push(Boolean(isOn));
+          }
+          grid.push(rowData);
+        }
+
+        return grid;
+      }
+    }
+
     function renderKeypadPathPuzzle(container, { puzzleIndex, keypadPath, prompt, onSolved }) {
       if (!container || !keypadPath || !Array.isArray(keypadPath.correctPath)) {
         return;
@@ -4691,6 +4911,13 @@ const TEAM_COUNT = 11;
           }
         }
 
+        if (value.switchPuzzle && typeof value.switchPuzzle === "object") {
+          const sanitizedSwitchPuzzle = sanitizeStoredSwitchPuzzle(value.switchPuzzle);
+          if (sanitizedSwitchPuzzle) {
+            entryState.switchPuzzle = sanitizedSwitchPuzzle;
+          }
+        }
+
         if (value.keypadPath && typeof value.keypadPath === "object") {
           const sanitizedKeypadPath = sanitizeStoredKeypadPath(value.keypadPath);
           if (sanitizedKeypadPath) {
@@ -4788,6 +5015,37 @@ const TEAM_COUNT = 11;
         : [];
 
       return { foundDifferenceIds };
+    }
+
+    function sanitizeStoredSwitchPuzzle(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const rawGridSize = Number(candidate.gridSize);
+      const inferredSize = Number.isFinite(rawGridSize) ? Math.round(rawGridSize) : 0;
+      const switchesSource = Array.isArray(candidate.switches) ? candidate.switches : [];
+      const fallbackSize = Math.max(
+        0,
+        Math.min(6, Array.isArray(switchesSource) ? switchesSource.length : 0)
+      );
+      const gridSize = clampNumber(inferredSize || fallbackSize || 3, 2, 6);
+
+      const switches = [];
+      for (let row = 0; row < gridSize; row += 1) {
+        const rowSource = Array.isArray(switchesSource[row]) ? switchesSource[row] : [];
+        const rowData = [];
+        for (let col = 0; col < gridSize; col += 1) {
+          const rawValue = rowSource[col];
+          const isOn = rawValue === 1 || rawValue === true || rawValue === "1" || rawValue === "true";
+          rowData.push(isOn ? 1 : 0);
+        }
+        switches.push(rowData);
+      }
+
+      const moveCount = clampNumber(Number(candidate.moveCount) || 0, 0, 9999);
+
+      return { gridSize, switches, moveCount };
     }
 
     function sanitizeStoredKeypadPath(candidate) {
@@ -5236,6 +5494,13 @@ const TEAM_COUNT = 11;
           renderSpotDifferencePuzzle(puzzleBody, {
             puzzleIndex: currentSolving,
             spotDifference: puzzle.spotDifference,
+            prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.switchPuzzle) {
+          renderSwitchPuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            switchPuzzle: puzzle.switchPuzzle,
             prompt: puzzle.prompt,
             onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
           });
