@@ -4199,17 +4199,18 @@ const TEAM_COUNT = 11;
         return false;
       }
 
-      let serialized = null;
       const total = endpoints.length;
       const startIndex = Math.min(dashboardConfig.activeProgressIndex ?? 0, total - 1);
 
       for (let offset = 0; offset < total; offset += 1) {
         const index = (startIndex + offset) % total;
         const endpoint = endpoints[index];
-        if (!serialized) {
-          serialized = JSON.stringify(payload);
+        const request = createDashboardRequest(endpoint, payload);
+        if (!request) {
+          continue;
         }
-        const signature = `${endpoint}::${serialized}`;
+
+        const signature = `${endpoint}::${request.body}`;
         if (signature === dashboardLastSignature) {
           dashboardOverridePayload = null;
           return true;
@@ -4219,7 +4220,7 @@ const TEAM_COUNT = 11;
 
         if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
           try {
-            const beaconBlob = new Blob([serialized], { type: "application/json" });
+            const beaconBlob = new Blob([request.body], { type: request.contentType });
             synced = navigator.sendBeacon(endpoint, beaconBlob);
           } catch (err) {
             console.warn("Beacon dashboard sync failed", endpoint, err);
@@ -4227,7 +4228,7 @@ const TEAM_COUNT = 11;
         }
 
         if (!synced) {
-          synced = await attemptFetchSync(endpoint, serialized);
+          synced = await attemptFetchSync(endpoint, request.body, request.contentType);
         }
 
         if (synced) {
@@ -4253,7 +4254,7 @@ const TEAM_COUNT = 11;
       return false;
     }
 
-    async function attemptFetchSync(endpoint, body) {
+    async function attemptFetchSync(endpoint, body, contentType = "application/json") {
       try {
         let controller = null;
         let timeoutId = null;
@@ -4270,7 +4271,10 @@ const TEAM_COUNT = 11;
 
         const response = await fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": contentType,
+            Accept: "application/json, text/plain;q=0.8, */*;q=0.5"
+          },
           body,
           mode: "cors",
           credentials: "omit",
@@ -4292,6 +4296,90 @@ const TEAM_COUNT = 11;
         console.warn("Dashboard sync network error", endpoint, err);
       }
       return false;
+    }
+
+    function createDashboardRequest(endpoint, payload) {
+      if (!endpoint || !payload) {
+        return null;
+      }
+
+      if (isSheetEndpoint(endpoint)) {
+        const csv = encodePayloadAsCsv(payload);
+        if (!csv) {
+          return null;
+        }
+        return {
+          body: csv,
+          contentType: "text/plain; charset=utf-8"
+        };
+      }
+
+      let serialized;
+      try {
+        serialized = JSON.stringify(payload);
+      } catch (err) {
+        console.warn("Dashboard payload serialization failed", err);
+        return null;
+      }
+      return {
+        body: serialized,
+        contentType: "application/json"
+      };
+    }
+
+    function isSheetEndpoint(endpoint) {
+      if (typeof endpoint !== "string") {
+        return false;
+      }
+      return /script\.google\.com\/macros\//i.test(endpoint);
+    }
+
+    function encodePayloadAsCsv(payload) {
+      if (!payload || typeof payload !== "object") {
+        return "";
+      }
+
+      const record = {
+        TeamId: typeof payload.teamId === "number" ? payload.teamId : "",
+        TeamName: payload.teamName ?? "",
+        HasStarted: payload.hasStarted ? "TRUE" : "FALSE",
+        HasWon: payload.hasWon ? "TRUE" : "FALSE",
+        SolvedCount: typeof payload.solved === "number" ? payload.solved : 0,
+        PuzzleCount: typeof payload.puzzleCount === "number" ? payload.puzzleCount : 0,
+        ProgressPercent: typeof payload.progressPercent === "number" ? payload.progressPercent : 0,
+        CurrentPuzzleIndex: Number.isInteger(payload.currentPuzzleIndex) ? payload.currentPuzzleIndex : "",
+        NextPuzzleIndex: Number.isInteger(payload.nextPuzzleIndex) ? payload.nextPuzzleIndex : "",
+        NextPuzzleLabel: payload.nextPuzzleLabel ?? "",
+        Reason: payload.reason ?? "",
+        Timestamp: payload.timestamp ?? new Date().toISOString(),
+        Completions: encodeBooleanSeries(payload.completions),
+        Unlocked: encodeBooleanSeries(payload.unlocked)
+      };
+
+      const headers = Object.keys(record);
+      const values = headers.map(key => encodeCsvValue(record[key]));
+      return `${headers.join(",")}\n${values.join(",")}`;
+    }
+
+    function encodeBooleanSeries(source) {
+      if (!Array.isArray(source) || !source.length) {
+        return "";
+      }
+      return source.map(value => (value ? "1" : "0")).join("");
+    }
+
+    function encodeCsvValue(value) {
+      if (value === null || value === undefined) {
+        return "";
+      }
+      const stringValue = String(value);
+      if (!stringValue) {
+        return "";
+      }
+      if (/[",\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
     }
 
     function buildDashboardPayload(reason = "state-change") {
@@ -4536,7 +4624,10 @@ const TEAM_COUNT = 11;
         return null;
       }
       const overrides = normalizeOverrides(overridesInput);
-      const progressCandidates = [...overrides.progressPaths, ...DEFAULT_PROGRESS_PATHS];
+      const hasAbsoluteProgress = overrides.progressPaths.some(candidate => /^https?:\/\//i.test(candidate));
+      const progressCandidates = hasAbsoluteProgress
+        ? overrides.progressPaths.slice()
+        : [...overrides.progressPaths, ...DEFAULT_PROGRESS_PATHS];
       const progressEndpoints = [];
       for (const candidate of progressCandidates) {
         const endpoint = resolveEndpoint(sanitizedBase, candidate);
@@ -4545,9 +4636,19 @@ const TEAM_COUNT = 11;
         }
       }
       if (!progressEndpoints.length) {
-        const fallback = resolveEndpoint(sanitizedBase, DEFAULT_PROGRESS_PATHS[0]);
-        if (fallback) {
-          progressEndpoints.push(fallback);
+        if (hasAbsoluteProgress) {
+          for (const candidate of overrides.progressPaths) {
+            const endpoint = sanitizeEndpointBase(candidate);
+            if (endpoint && !progressEndpoints.includes(endpoint)) {
+              progressEndpoints.push(endpoint);
+            }
+          }
+        }
+        if (!progressEndpoints.length) {
+          const fallback = resolveEndpoint(sanitizedBase, DEFAULT_PROGRESS_PATHS[0]);
+          if (fallback) {
+            progressEndpoints.push(fallback);
+          }
         }
       }
       const stateCandidate = overrides.statePath ?? DEFAULT_STATE_PATH;

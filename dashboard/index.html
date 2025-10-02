@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="tower-dashboard-base" content="https://script.google.com/macros/s/AKfycbyz17Xpv8QY4ul-Abc7e40eME7Xzbw503R-sWliOsrYy4CKZmVULoW-S3he2OLPAantsw/exec" />
+  <title>GM Data Dashboard</title>
+  <link rel="stylesheet" href="../assets/dashboard.css" />
+  <script src="../assets/dashboard.js" defer></script>
+</head>
+<body>
+  <main class="dashboard-shell" id="dashboardShell">
+    <h1>GM Data Dashboard</h1>
+    <p class="dashboard-intro">
+      Review the latest user data captured from the control room sync endpoint. Refresh to pull the newest entries or sign out to lock the view.
+    </p>
+    <div class="dashboard-actions">
+      <button type="button" id="refreshDashboardData">Refresh Data</button>
+      <button type="button" id="dashboardSignOut">Sign Out</button>
+    </div>
+    <div class="dashboard-status" id="dashboardStatus"></div>
+    <div id="dashboardTableWrapper"></div>
+  </main>
+</body>
+</html>
