@@ -83,6 +83,103 @@ body {
   background: rgba(74, 120, 255, 0.08);
 }
 
+.dashboard-team-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.dashboard-team-meta {
+  margin-top: 4px;
+  color: rgba(245, 247, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+.dashboard-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(74, 120, 255, 0.22);
+  color: #e8ecff;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-status-pill.is-complete {
+  background: rgba(86, 226, 182, 0.2);
+  color: #c1ffe5;
+}
+
+.dashboard-status-pill.is-idle {
+  background: rgba(148, 163, 184, 0.22);
+  color: #d1d5db;
+}
+
+.dashboard-location-primary {
+  font-weight: 600;
+}
+
+.dashboard-location-secondary {
+  margin-top: 4px;
+  color: rgba(245, 247, 255, 0.65);
+  font-size: 0.85rem;
+}
+
+.dashboard-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard-progress-count {
+  font-weight: 500;
+}
+
+.dashboard-progress-rail {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(245, 247, 255, 0.12);
+  overflow: hidden;
+}
+
+.dashboard-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #6f8cff, #9aa7ff);
+  transition: width 160ms ease;
+}
+
+.dashboard-progress-meta {
+  color: rgba(245, 247, 255, 0.65);
+  font-size: 0.85rem;
+}
+
+.dashboard-updated {
+  font-weight: 500;
+}
+
+.dashboard-last-event {
+  margin-top: 4px;
+  color: rgba(245, 247, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+.dashboard-empty-button {
+  margin-top: 14px;
+  background: rgba(74, 120, 255, 0.25);
+  border: 1px solid rgba(74, 120, 255, 0.5);
+  color: #f5f7ff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.dashboard-empty-button:hover {
+  background: rgba(74, 120, 255, 0.4);
+}
+
 .dashboard-empty {
   margin: 32px 0;
   text-align: center;
