@@ -372,7 +372,7 @@
 
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    const headers = ["Team", "Tower Location", "Progress", "Last Update"];
+    const headers = ["Team", "Tower Location", "Progress", "Last Update", "Remove"];
     for (const label of headers) {
       const th = document.createElement("th");
       th.textContent = label;
@@ -444,7 +444,19 @@
         updatedCell.append(reasonEl);
       }
 
-      tr.append(teamCell, locationCell, progressCell, updatedCell);
+      const removeCell = document.createElement("td");
+      removeCell.className = "dashboard-actions-cell";
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "dashboard-delete-button";
+      deleteButton.textContent = "×";
+      deleteButton.setAttribute("aria-label", `Delete data for ${entry.teamName}`);
+      deleteButton.addEventListener("click", () => {
+        confirmDeleteTeam(entry, deleteButton);
+      });
+      removeCell.append(deleteButton);
+
+      tr.append(teamCell, locationCell, progressCell, updatedCell, removeCell);
       tbody.append(tr);
     }
 
@@ -455,6 +467,30 @@
     wrapper.append(table);
 
     tableWrapper.append(wrapper);
+  }
+
+  async function confirmDeleteTeam(entry, triggerButton) {
+    if (!entry || !Number.isInteger(entry.teamId)) {
+      return;
+    }
+    if (!window.confirm(`Delete all data for ${entry.teamName}?`)) {
+      return;
+    }
+
+    clearAutoRefreshTimer();
+    triggerButton.disabled = true;
+    setStatus(`Clearing data for ${entry.teamName}…`);
+
+    try {
+      await submitTeamDeletion(entry);
+      setStatus(`${entry.teamName} cleared. Waiting for updates…`);
+      loadData({ showLoading: true });
+    } catch (err) {
+      console.error("Failed to delete team data", err);
+      triggerButton.disabled = false;
+      setStatus(`Unable to delete ${entry.teamName}. Try again.`, { error: true });
+      scheduleAutoRefresh();
+    }
   }
 
   function normalizeDashboardEntries(payload) {
@@ -786,6 +822,105 @@
     updateClearButtonLabel();
     renderTable(latestEntries);
     setStatus("Dashboard data cleared. Waiting for new updates…");
+  }
+
+  async function submitTeamDeletion(entry) {
+    const payload = buildDeletionPayload(entry);
+    const body = encodePayloadAsCsv(payload);
+    if (!body) {
+      throw new Error("Unable to encode deletion payload");
+    }
+
+    const response = await fetch(DATA_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        Accept: "application/json, text/plain;q=0.8, */*;q=0.5"
+      },
+      body,
+      mode: "cors",
+      credentials: "omit",
+      cache: "no-store",
+      keepalive: true
+    });
+
+    if (!response.ok) {
+      throw new Error(`Delete request failed with status ${response.status}`);
+    }
+    return true;
+  }
+
+  function buildDeletionPayload(entry) {
+    if (!entry || !Number.isInteger(entry.teamId)) {
+      return null;
+    }
+    const puzzleCount = clampNumber(entry.puzzleCount ?? PUZZLE_LABELS.length, 1, PUZZLE_LABELS.length);
+    const completions = Array.from({ length: puzzleCount }, () => false);
+    const unlocked = completions.slice();
+
+    return {
+      teamId: entry.teamId,
+      teamName: entry.teamName ?? `Team ${entry.teamId + 1}`,
+      hasStarted: false,
+      hasWon: false,
+      solved: 0,
+      puzzleCount,
+      completions,
+      unlocked,
+      currentPuzzleIndex: null,
+      nextPuzzleIndex: null,
+      nextPuzzleLabel: null,
+      reason: "dashboard-delete",
+      timestamp: new Date().toISOString(),
+      progressPercent: 0
+    };
+  }
+
+  function encodePayloadAsCsv(payload) {
+    if (!payload) {
+      return "";
+    }
+    const record = {
+      TeamId: Number.isInteger(payload.teamId) ? payload.teamId : "",
+      TeamName: payload.teamName ?? "",
+      HasStarted: payload.hasStarted ? "TRUE" : "FALSE",
+      HasWon: payload.hasWon ? "TRUE" : "FALSE",
+      SolvedCount: Number.isFinite(payload.solved) ? payload.solved : 0,
+      PuzzleCount: Number.isFinite(payload.puzzleCount) ? payload.puzzleCount : PUZZLE_LABELS.length,
+      ProgressPercent: Number.isFinite(payload.progressPercent) ? payload.progressPercent : 0,
+      CurrentPuzzleIndex: Number.isInteger(payload.currentPuzzleIndex) ? payload.currentPuzzleIndex : "",
+      NextPuzzleIndex: Number.isInteger(payload.nextPuzzleIndex) ? payload.nextPuzzleIndex : "",
+      NextPuzzleLabel: payload.nextPuzzleLabel ?? "",
+      Reason: payload.reason ?? "",
+      Timestamp: payload.timestamp ?? new Date().toISOString(),
+      Completions: encodeBooleanSeries(payload.completions),
+      Unlocked: encodeBooleanSeries(payload.unlocked)
+    };
+
+    const headers = Object.keys(record);
+    const values = headers.map(key => encodeCsvValue(record[key]));
+    return `${headers.join(",")}\n${values.join(",")}`;
+  }
+
+  function encodeBooleanSeries(source) {
+    if (!Array.isArray(source) || !source.length) {
+      return "";
+    }
+    return source.map(value => (value ? "1" : "0")).join("");
+  }
+
+  function encodeCsvValue(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    const stringValue = String(value);
+    if (!stringValue) {
+      return "";
+    }
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
   }
 
   function setStatus(message, options = {}) {

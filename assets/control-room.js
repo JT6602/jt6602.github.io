@@ -108,7 +108,7 @@ const TEAM_COUNT = 11;
               id: "cipher-atbash",
               type: "input",
               label: "Step 2 — Atbash Mirror",
-              prompt: "Mirror the alphabet (A↔Z, B↔Y, ...) to decode OEVEV.",
+              prompt: "Mirror the alphabet (A↔Z, B↔Y, ...) to decode OVEVO.",
               solution: "LEVEL",
               placeholder: "Decoded word",
               hint: "Flip the alphabet end-to-end."
