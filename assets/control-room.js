@@ -322,6 +322,8 @@ const TEAM_COUNT = 11;
     const startGameSummary = document.getElementById("startGameSummary");
     const startGameNote = document.getElementById("startGameNote");
     const startGameBegin = document.getElementById("startGameBegin");
+    const startGameCard = document.getElementById("startGameCard");
+    const startGameShout = document.getElementById("startGameShout");
     const FLOOR_TRANSITION_STAGE_CLASSES = [
       "is-stage-hold",
       "is-stage-zoom-in",
@@ -474,6 +476,9 @@ const TEAM_COUNT = 11;
     const floorTransitionStageTimers = [];
     let startOverlayEscapeBound = false;
     let pendingTeamStart = null;
+    let startLaunchActive = false;
+    let startLaunchFallbackId = null;
+    let startLaunchAnimationHandler = null;
     let answerOverlayTimers = [];
     let scannerListenersBound = false;
     const gmAuthState = {
@@ -1078,6 +1083,11 @@ const TEAM_COUNT = 11;
         return;
       }
 
+      resetStartOverlayAnimation();
+      if (startGameShout) {
+        startGameShout.textContent = "HERE WE GO!!!";
+      }
+
       startGameOverlay.classList.add("is-visible");
       startGameOverlay.removeAttribute("hidden");
       startGameOverlay.setAttribute("aria-hidden", "false");
@@ -1128,13 +1138,106 @@ const TEAM_COUNT = 11;
         window.removeEventListener("keydown", handleStartOverlayKeydown);
         startOverlayEscapeBound = false;
       }
+
+      resetStartOverlayAnimation();
+    }
+
+    function resetStartOverlayAnimation() {
+      if (startLaunchFallbackId !== null) {
+        window.clearTimeout(startLaunchFallbackId);
+        startLaunchFallbackId = null;
+      }
+
+      if (startLaunchAnimationHandler && startGameCard) {
+        startGameCard.removeEventListener("animationend", startLaunchAnimationHandler);
+        startLaunchAnimationHandler = null;
+      }
+
+      startLaunchActive = false;
+
+      startGameOverlay?.classList.remove("is-launching");
+      startGameCard?.classList.remove("is-launching");
+
+      if (startGameBegin) {
+        startGameBegin.disabled = false;
+      }
     }
 
     function handleStartOverlayKeydown(event) {
       if ((event.key === "Enter" || event.key === " ") && pendingTeamStart) {
         event.preventDefault();
-        beginPendingTeamStart();
+        handleStartGameBegin(event);
       }
+    }
+
+    function handleStartGameBegin(event) {
+      event?.preventDefault?.();
+
+      if (!pendingTeamStart) {
+        beginPendingTeamStart();
+        return;
+      }
+
+      if (prefersReducedMotion || !startGameOverlay || !startGameCard) {
+        beginPendingTeamStart();
+        return;
+      }
+
+      if (startLaunchActive) {
+        return;
+      }
+
+      startLaunchActive = true;
+
+      if (startGameBegin) {
+        startGameBegin.disabled = true;
+      }
+
+      startGameOverlay.classList.add("is-launching");
+      startGameCard.classList.add("is-launching");
+
+      if (startLaunchAnimationHandler && startGameCard) {
+        startGameCard.removeEventListener("animationend", startLaunchAnimationHandler);
+        startLaunchAnimationHandler = null;
+      }
+
+      if (startLaunchFallbackId !== null) {
+        window.clearTimeout(startLaunchFallbackId);
+        startLaunchFallbackId = null;
+      }
+
+      const finalizeLaunch = () => {
+        if (!startLaunchActive) {
+          return;
+        }
+        startLaunchActive = false;
+
+        if (startLaunchAnimationHandler && startGameCard) {
+          startGameCard.removeEventListener("animationend", startLaunchAnimationHandler);
+          startLaunchAnimationHandler = null;
+        }
+
+        if (startLaunchFallbackId !== null) {
+          window.clearTimeout(startLaunchFallbackId);
+          startLaunchFallbackId = null;
+        }
+
+        beginPendingTeamStart();
+      };
+
+      startLaunchAnimationHandler = animationEvent => {
+        if (animationEvent.target !== startGameCard || animationEvent.animationName !== "startLaunchSequence") {
+          return;
+        }
+        finalizeLaunch();
+      };
+
+      startGameCard.addEventListener("animationend", startLaunchAnimationHandler);
+
+      startLaunchFallbackId = window.setTimeout(() => {
+        startLaunchFallbackId = null;
+        finalizeLaunch();
+      }, 1600);
     }
 
     function beginPendingTeamStart() {
@@ -3946,6 +4049,7 @@ const TEAM_COUNT = 11;
 
       exportButton?.addEventListener("click", exportProgress);
       importButton?.addEventListener("click", importProgress);
+      startGameBegin?.addEventListener("click", handleStartGameBegin);
       gmOverrideButton?.addEventListener("click", () => {
         if (!gmOverrideButton.disabled) {
           openScanner({ mode: "gmOverride" });

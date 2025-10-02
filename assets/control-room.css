@@ -1856,6 +1856,7 @@
       background: rgba(2, 8, 18, 0.92);
       backdrop-filter: blur(18px);
       z-index: 2600;
+      overflow: hidden;
     }
 
     .start-overlay.is-visible {
@@ -1877,6 +1878,8 @@
       box-shadow: 0 48px 120px -64px rgba(0, 0, 0, 0.9);
       color: rgba(224, 241, 255, 0.95);
       text-align: center;
+      position: relative;
+      will-change: transform, opacity;
     }
 
     .start-overlay-header {
@@ -1933,6 +1936,185 @@
     .start-overlay-actions .primary-action:hover,
     .start-overlay-actions .primary-action:focus-visible {
       box-shadow: 0 18px 40px -22px rgba(110, 230, 228, 0.95);
+    }
+
+    .start-overlay.is-launching {
+      background: rgba(4, 12, 24, 0.9);
+    }
+
+    .start-overlay.is-launching .start-overlay-card {
+      animation: startLaunchSequence 1.35s cubic-bezier(0.18, 0.72, 0.24, 1) forwards;
+    }
+
+    .start-overlay-effects {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      opacity: 0;
+      mix-blend-mode: screen;
+      transition: opacity 0.16s ease;
+    }
+
+    .start-overlay.is-launching .start-overlay-effects {
+      opacity: 1;
+    }
+
+    .start-overlay-line {
+      position: absolute;
+      background: linear-gradient(180deg, rgba(110, 230, 228, 0.9), transparent 75%);
+      filter: blur(0.4px);
+      opacity: 0;
+      transform: scale3d(1, 0.05, 1);
+    }
+
+    .start-overlay-line--left,
+    .start-overlay-line--right {
+      width: clamp(10px, 2vw, 14px);
+      height: 58%;
+      top: 18%;
+      transform-origin: center top;
+      border-radius: 999px;
+    }
+
+    .start-overlay-line--left {
+      left: clamp(12%, 18vw, 18%);
+    }
+
+    .start-overlay-line--right {
+      right: clamp(12%, 18vw, 18%);
+    }
+
+    .start-overlay-line--top {
+      height: clamp(9px, 2vw, 12px);
+      width: clamp(68%, 70vw, 78%);
+      top: clamp(14%, 12vw, 18%);
+      left: 50%;
+      transform-origin: left center;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(110, 230, 228, 0.95) 45%, transparent 85%);
+      transform: translateX(-50%) scale3d(0.12, 1, 1);
+    }
+
+    .start-overlay.is-launching .start-overlay-line--left {
+      animation: startLaunchLineVertical 0.42s 0.48s forwards cubic-bezier(0.23, 0.99, 0.34, 1);
+    }
+
+    .start-overlay.is-launching .start-overlay-line--right {
+      animation: startLaunchLineVertical 0.42s 0.52s forwards cubic-bezier(0.23, 0.99, 0.34, 1);
+    }
+
+    .start-overlay.is-launching .start-overlay-line--top {
+      animation: startLaunchLineHorizontal 0.45s 0.5s forwards cubic-bezier(0.26, 1, 0.34, 1);
+    }
+
+    .start-overlay-shout {
+      position: absolute;
+      top: 42%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.82) rotate(-3deg);
+      font-size: clamp(1.35rem, 4.8vw, 2.6rem);
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(248, 244, 255, 0.96);
+      text-shadow: 0 0 18px rgba(110, 230, 228, 0.75), 0 0 32px rgba(157, 101, 255, 0.55);
+      opacity: 0;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .start-overlay.is-launching .start-overlay-shout {
+      animation: startLaunchShout 0.6s 0.52s forwards cubic-bezier(0.25, 1, 0.3, 1);
+    }
+
+    @keyframes startLaunchSequence {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      12% {
+        transform: translateY(-14px) scale(1.02);
+      }
+      28% {
+        transform: translateY(10px) scale(0.98);
+      }
+      44% {
+        transform: translateY(-8px) scale(1.03);
+      }
+      58% {
+        transform: translateY(-14px) scale(1.05);
+      }
+      82% {
+        transform: translateY(-26px) scale(1.08);
+      }
+      100% {
+        transform: translateY(-120vh) scale(0.76);
+        opacity: 0;
+      }
+    }
+
+    @keyframes startLaunchLineVertical {
+      0% {
+        opacity: 0;
+        transform: scale3d(1, 0.05, 1);
+      }
+      35% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: scale3d(1, 1.12, 1);
+      }
+    }
+
+    @keyframes startLaunchLineHorizontal {
+      0% {
+        opacity: 0;
+        transform: translateX(-50%) scale3d(0.1, 1, 1);
+      }
+      40% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(-50%) scale3d(1.1, 1, 1);
+      }
+    }
+
+    @keyframes startLaunchShout {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.82) rotate(-4deg);
+      }
+      28% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.12) rotate(-4deg);
+      }
+      75% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) rotate(-4deg);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9) rotate(-4deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .start-overlay.is-launching .start-overlay-card {
+        animation: none;
+        transform: none;
+        opacity: 1;
+      }
+
+      .start-overlay.is-launching .start-overlay-effects,
+      .start-overlay.is-launching .start-overlay-line,
+      .start-overlay.is-launching .start-overlay-shout {
+        animation: none !important;
+        opacity: 0;
+      }
     }
 
     .win-page {

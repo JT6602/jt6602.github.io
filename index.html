@@ -215,7 +215,7 @@
   </div>
 
   <div class="start-overlay" id="startGameOverlay" hidden aria-modal="true" role="dialog" aria-labelledby="startGameTitle">
-    <div class="start-overlay-card">
+    <div class="start-overlay-card" id="startGameCard">
       <header class="start-overlay-header">
         <p class="start-overlay-team" id="startGameTeam"></p>
         <h2 id="startGameTitle">Tower Run Ready</h2>
@@ -227,6 +227,12 @@
       <div class="start-overlay-actions">
         <button type="button" class="primary-action" id="startGameBegin">Begin Tower Run</button>
       </div>
+    </div>
+    <div class="start-overlay-effects" id="startGameEffects" aria-hidden="true">
+      <span class="start-overlay-line start-overlay-line--left"></span>
+      <span class="start-overlay-line start-overlay-line--right"></span>
+      <span class="start-overlay-line start-overlay-line--top"></span>
+      <span class="start-overlay-shout" id="startGameShout">HERE WE GO!!!</span>
     </div>
   </div>
 
