@@ -121,7 +121,7 @@ const TEAM_COUNT = 11;
               choices: [
                 {
                   id: "choice-a",
-                  label: "They share exactly one letter."
+                  label: "They share more than one letter."
                 },
                 {
                   id: "choice-b",
