@@ -608,6 +608,209 @@
       overflow: hidden;
     }
 
+    .team-progress-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 10, 22, 0.94);
+      backdrop-filter: blur(18px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(1.5rem, 5vw, 3rem);
+      z-index: 2550;
+    }
+
+    .team-progress-overlay.is-visible {
+      display: flex;
+    }
+
+    .team-progress-close {
+      position: absolute;
+      top: clamp(1rem, 4vw, 2rem);
+      right: clamp(1rem, 4vw, 2rem);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid rgba(91, 192, 190, 0.4);
+      background: rgba(8, 22, 46, 0.78);
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .team-progress-close::before,
+    .team-progress-close::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 2px;
+      background: rgba(224, 241, 255, 0.75);
+      transform-origin: center;
+    }
+
+    .team-progress-close::before {
+      transform: rotate(45deg);
+    }
+
+    .team-progress-close::after {
+      transform: rotate(-45deg);
+    }
+
+    .team-progress-close:hover,
+    .team-progress-close:focus-visible {
+      outline: none;
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      background: rgba(10, 28, 56, 0.86);
+    }
+
+    .team-progress-dialog {
+      position: relative;
+      width: min(920px, 100%);
+      max-height: min(92vh, 900px);
+      display: grid;
+      gap: clamp(1.25rem, 3vw, 2rem);
+      padding: clamp(1.6rem, 4vw, 2.8rem);
+      border-radius: 28px;
+      border: 1px solid rgba(91, 192, 190, 0.32);
+      background: linear-gradient(165deg, rgba(6, 20, 44, 0.95), rgba(4, 12, 30, 0.96));
+      box-shadow: 0 42px 80px -45px rgba(0, 0, 0, 0.82);
+      overflow: hidden;
+    }
+
+    .team-progress-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .team-progress-header h2 {
+      margin: 0;
+      font-size: clamp(1.35rem, 3.5vw, 1.9rem);
+      font-weight: 600;
+      color: rgba(224, 241, 255, 0.94);
+    }
+
+    .team-progress-status {
+      margin: 0;
+      font-size: clamp(0.9rem, 2.4vw, 1rem);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(224, 241, 255, 0.72);
+      transition: color 0.2s ease;
+    }
+
+    .team-progress-status.is-info {
+      color: rgba(123, 207, 255, 0.85);
+    }
+
+    .team-progress-status.is-success {
+      color: rgba(116, 228, 190, 0.9);
+    }
+
+    .team-progress-status.is-error {
+      color: rgba(255, 148, 148, 0.85);
+    }
+
+    .team-progress-status.is-neutral {
+      color: rgba(214, 227, 242, 0.75);
+    }
+
+    .team-progress-body {
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid rgba(91, 192, 190, 0.24);
+      background: linear-gradient(150deg, rgba(6, 18, 38, 0.65), rgba(4, 14, 30, 0.7));
+      padding: clamp(1rem, 3vw, 1.6rem);
+    }
+
+    .team-progress-content {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(clamp(240px, 32vw, 360px), 1fr));
+      gap: clamp(1rem, 3vw, 1.6rem);
+      max-height: min(60vh, 560px);
+      overflow-y: auto;
+      padding-right: clamp(0.25rem, 1vw, 0.6rem);
+    }
+
+    .team-progress-content:empty::after {
+      content: "Waiting for team updates…";
+      grid-column: 1 / -1;
+      text-align: center;
+      font-size: clamp(0.95rem, 2.4vw, 1.1rem);
+      color: rgba(214, 227, 242, 0.65);
+      padding: 0.6rem 0;
+    }
+
+    .team-progress-card {
+      display: grid;
+      gap: 0.85rem;
+      padding: clamp(1rem, 3vw, 1.4rem);
+      border-radius: 20px;
+      border: 1px solid rgba(91, 192, 190, 0.22);
+      background: linear-gradient(150deg, rgba(6, 16, 36, 0.9), rgba(4, 12, 28, 0.86));
+      box-shadow: 0 28px 60px -38px rgba(4, 18, 42, 0.95);
+    }
+
+    .team-progress-card__header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .team-progress-card__header h3 {
+      margin: 0;
+      font-size: clamp(1.05rem, 3vw, 1.4rem);
+      font-weight: 600;
+      color: rgba(224, 241, 255, 0.95);
+    }
+
+    .team-progress-card__meta {
+      font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+      color: rgba(202, 224, 245, 0.72);
+    }
+
+    .team-progress-card__body {
+      display: grid;
+      gap: 0.6rem;
+    }
+
+    .team-progress-rail {
+      position: relative;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(70, 108, 148, 0.35);
+      overflow: hidden;
+    }
+
+    .team-progress-bar {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(116, 228, 190, 0.95), rgba(91, 192, 255, 0.95));
+      box-shadow: 0 0 14px rgba(116, 228, 190, 0.55);
+      transform-origin: left center;
+      transition: width 0.3s ease;
+    }
+
+    .team-progress-status-line {
+      font-size: clamp(0.88rem, 2.3vw, 1rem);
+      color: rgba(214, 227, 242, 0.78);
+      line-height: 1.4;
+    }
+
+    .team-progress-card__footer {
+      font-size: clamp(0.78rem, 2vw, 0.88rem);
+      color: rgba(160, 198, 234, 0.6);
+    }
+
+    body.is-team-progress-open {
+      overflow: hidden;
+    }
+
     .gm-override-overlay {
       position: fixed;
       inset: 0;
@@ -3825,12 +4028,14 @@
 
       .gm-qr-overlay-inner,
       .map-overlay-inner,
+      .team-progress-dialog,
       .modal-dialog {
         width: calc(100% - clamp(1.5rem, 8vw, 2.5rem));
       }
 
       .gm-qr-overlay-inner,
-      .map-overlay-inner {
+      .map-overlay-inner,
+      .team-progress-dialog {
         padding: clamp(1.2rem, 5vw, 1.8rem);
       }
 
@@ -3839,9 +4044,14 @@
       }
 
       .gm-qr-overlay-close,
-      .map-overlay-close {
+      .map-overlay-close,
+      .team-progress-close {
         top: clamp(0.75rem, 4vw, 1.2rem);
         right: clamp(0.75rem, 4vw, 1.2rem);
+      }
+
+      .team-progress-content {
+        max-height: min(58vh, 520px);
       }
 
       .manual-entry {
@@ -3883,5 +4093,20 @@
 
       .progress-track {
         padding: clamp(0.9rem, 5vw, 1.2rem);
+      }
+
+      .team-progress-overlay {
+        padding: clamp(1rem, 6vw, 1.4rem);
+        align-items: flex-start;
+      }
+
+      .team-progress-dialog {
+        gap: clamp(1rem, 4vw, 1.4rem);
+      }
+
+      .team-progress-content {
+        grid-template-columns: 1fr;
+        max-height: min(64vh, 500px);
+        padding-right: 0.2rem;
       }
     }
