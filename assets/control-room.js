@@ -1315,7 +1315,20 @@ const TEAM_COUNT = 11;
         ? Math.round(Math.min(100, Math.max(0, (solved / sanitizedPuzzleCount) * 100)))
         : 0;
       const hasStarted = Boolean(entry.hasStarted);
-      const hasWon = Boolean(entry.hasWon) || solved >= sanitizedPuzzleCount;
+      const order = getOrderForTeam(teamId);
+      const sanitizedOrder = Array.isArray(order)
+        ? order.filter(index => Number.isInteger(index) && index >= 0 && index < sanitizedPuzzleCount)
+        : [];
+      const finalIndex = sanitizedOrder.length ? sanitizedOrder[sanitizedOrder.length - 1] : null;
+      const completions = Array.isArray(entry.completions) ? entry.completions : [];
+      const finalCompletion = finalIndex !== null ? Boolean(completions[finalIndex]) : solved >= sanitizedPuzzleCount;
+      const towerIndices = sanitizedOrder.filter(index => index !== finalIndex);
+      const towerCompletion = towerIndices.length
+        ? towerIndices.every(index => Boolean(completions[index]))
+        : solved >= Math.max(0, sanitizedPuzzleCount - 1);
+      const finalPuzzleComplete = Boolean(entry.finalPuzzleComplete) || finalCompletion;
+      const towerComplete = finalPuzzleComplete ? true : Boolean(entry.towerComplete) || towerCompletion;
+      const hasWon = finalPuzzleComplete || Boolean(entry.hasWon) || solved >= sanitizedPuzzleCount;
       const currentIndex = Number.isInteger(entry.currentPuzzleIndex) ? entry.currentPuzzleIndex : null;
       const nextIndex = Number.isInteger(entry.nextPuzzleIndex) ? entry.nextPuzzleIndex : null;
       const runtimeSeconds = Number.isFinite(entry.runtimeSeconds) ? Math.max(0, Math.floor(entry.runtimeSeconds)) : null;
@@ -1324,17 +1337,19 @@ const TEAM_COUNT = 11;
 
       const currentLabel = currentIndex !== null ? puzzles[currentIndex]?.floor ?? `Mission ${currentIndex + 1}` : "Exploring";
       const nextLabel = nextIndex !== null ? puzzles[nextIndex]?.floor ?? `Mission ${nextIndex + 1}` : null;
+      const finalLabel = finalIndex !== null ? puzzles[finalIndex]?.floor ?? `Mission ${finalIndex + 1}` : "Final puzzle";
 
-      let statusMessage = hasWon
-        ? "Tower cleared"
-        : currentIndex !== null
-        ? `Solving ${currentLabel}`
-        : nextLabel
-        ? `Traveling to ${nextLabel}`
-        : "Launching the tower run";
-
+      let statusMessage;
       if (hasWon) {
         statusMessage = "Tower complete";
+      } else if (towerComplete) {
+        statusMessage = `Final puzzle: ${finalLabel}`;
+      } else if (currentIndex !== null) {
+        statusMessage = `Solving ${currentLabel}`;
+      } else if (nextLabel) {
+        statusMessage = `Traveling to ${nextLabel}`;
+      } else {
+        statusMessage = "Launching the tower run";
       }
 
       if (lastEvent) {
@@ -1351,6 +1366,8 @@ const TEAM_COUNT = 11;
         progressPercent,
         hasStarted,
         hasWon,
+        towerComplete,
+        finalPuzzleComplete,
         currentLabel,
         statusMessage,
         runtimeSeconds,
@@ -4671,6 +4688,8 @@ const TEAM_COUNT = 11;
         TeamName: payload.teamName ?? "",
         HasStarted: payload.hasStarted ? "TRUE" : "FALSE",
         HasWon: payload.hasWon ? "TRUE" : "FALSE",
+        TowerComplete: payload.towerComplete ? "TRUE" : "FALSE",
+        FinalPuzzleComplete: payload.finalPuzzleComplete ? "TRUE" : "FALSE",
         SolvedCount: typeof payload.solved === "number" ? payload.solved : 0,
         PuzzleCount: typeof payload.puzzleCount === "number" ? payload.puzzleCount : 0,
         ProgressPercent: typeof payload.progressPercent === "number" ? payload.progressPercent : 0,
@@ -4739,6 +4758,16 @@ const TEAM_COUNT = 11;
       const puzzleCount = PUZZLE_COUNT;
       const teamName = Number.isInteger(teamId) ? TEAM_NAMES[teamId] ?? `Team ${teamId + 1}` : "Unassigned device";
       const order = getOrderForTeam(teamId);
+      const sanitizedOrder = Array.isArray(order)
+        ? order.filter(index => Number.isInteger(index) && index >= 0 && index < PUZZLE_COUNT)
+        : [];
+      const finalPuzzleIndex = sanitizedOrder.length ? sanitizedOrder[sanitizedOrder.length - 1] : null;
+      const nonFinalIndices = finalPuzzleIndex !== null ? sanitizedOrder.filter(index => index !== finalPuzzleIndex) : sanitizedOrder;
+      const baseTowerComplete = nonFinalIndices.length
+        ? nonFinalIndices.every(index => completions[index])
+        : solved >= Math.max(0, puzzleCount - 1);
+      const finalPuzzleComplete = finalPuzzleIndex !== null ? completions[finalPuzzleIndex] : solved >= puzzleCount;
+      const towerComplete = finalPuzzleComplete ? true : baseTowerComplete;
 
       const currentIndex = targetState === state && Number.isInteger(teamId)
         ? getCurrentSolvingIndex()
@@ -4759,7 +4788,9 @@ const TEAM_COUNT = 11;
         teamId,
         teamName,
         hasStarted,
-        hasWon: Boolean(targetState.hasWon) || solved >= puzzleCount,
+        hasWon: Boolean(targetState.hasWon) || finalPuzzleComplete || solved >= puzzleCount,
+        towerComplete,
+        finalPuzzleComplete,
         solved,
         puzzleCount,
         completions,

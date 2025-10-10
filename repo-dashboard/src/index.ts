@@ -25,6 +25,19 @@ const GAME_PROGRESS_PATHS = new Set(["/api/game/progress", "/api/game/sync", "/a
 const TEAM_COUNT = 11;
 const PUZZLE_COUNT = 12;
 const SCOREBOARD_CACHE_KEY = new Request("https://dashboard.internal/game-state");
+const TEAM_ORDERS: number[][] = [
+  [1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 0],
+  [2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 0],
+  [3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 0],
+  [4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 0],
+  [5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 0],
+  [6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 0],
+  [7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 0],
+  [8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 0],
+  [9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 0],
+  [10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 0],
+  [11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 0]
+];
 
 interface ScoreboardEntry {
   teamId: number;
@@ -33,6 +46,8 @@ interface ScoreboardEntry {
   puzzleCount: number;
   hasStarted: boolean;
   hasWon: boolean;
+  towerComplete: boolean;
+  finalPuzzleComplete: boolean;
   currentPuzzleIndex: number | null;
   nextPuzzleIndex: number | null;
   nextPuzzleLabel: string | null;
@@ -299,6 +314,75 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function toBooleanFlag(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().toLowerCase() === "true";
+  }
+  return value === true;
+}
+
+function getTeamOrder(teamId: number, puzzleCount: number): number[] {
+  const order = TEAM_ORDERS[teamId] ?? [];
+  const sanitized = order.filter(index => Number.isInteger(index) && index >= 0 && index < puzzleCount);
+  if (sanitized.length) {
+    return sanitized;
+  }
+  return Array.from({ length: puzzleCount }, (_, idx) => idx);
+}
+
+function resolveFinalPuzzleIndex(teamId: number, puzzleCount: number): number | null {
+  if (puzzleCount <= 0) {
+    return null;
+  }
+  const order = getTeamOrder(teamId, puzzleCount);
+  if (!order.length) {
+    return puzzleCount - 1;
+  }
+  const finalIndex = order[order.length - 1];
+  return Number.isInteger(finalIndex) ? finalIndex : puzzleCount - 1;
+}
+
+function computeTowerFlags(
+  teamId: number,
+  puzzleCount: number,
+  completions: boolean[],
+  solvedCount: number,
+  fallbacks: { towerComplete?: boolean; finalPuzzleComplete?: boolean } = {}
+): { towerComplete: boolean; finalPuzzleComplete: boolean; finalIndex: number | null; order: number[] } {
+  const order = getTeamOrder(teamId, puzzleCount);
+  const finalIndex = resolveFinalPuzzleIndex(teamId, puzzleCount);
+  const fallbackTower = Boolean(fallbacks.towerComplete);
+  const fallbackFinal = Boolean(fallbacks.finalPuzzleComplete);
+
+  const finalCompletionFromSolved = puzzleCount > 0 && solvedCount >= puzzleCount;
+  const finalCompletionFromCompletions =
+    finalIndex !== null ? Boolean(completions[finalIndex]) : completions.every(Boolean);
+  const finalPuzzleComplete = fallbackFinal || finalCompletionFromSolved || finalCompletionFromCompletions;
+
+  const towerIndices = order.filter(index => index !== finalIndex);
+  const towerCompletionFromSolved =
+    puzzleCount > 1 ? solvedCount >= puzzleCount - 1 : finalPuzzleComplete;
+  const towerCompletionFromCompletions = towerIndices.length
+    ? towerIndices.every(index => Boolean(completions[index]))
+    : towerCompletionFromSolved;
+  const towerComplete = finalPuzzleComplete ? true : fallbackTower || towerCompletionFromCompletions;
+
+  return {
+    towerComplete,
+    finalPuzzleComplete,
+    finalIndex,
+    order
+  };
+}
+
+function timestampValue(value: string | null | undefined): number {
+  if (!value) {
+    return Number.NaN;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
 function sanitizeLabel(value: unknown, fallback: string, maxLength = 80): string {
   if (typeof value !== "string") {
     return fallback;
@@ -363,10 +447,14 @@ function sanitizeGameProgress(payload: unknown): SanitizedProgress | null {
   const solved = Number.isFinite(raw.solved)
     ? clamp(Math.trunc(Number(raw.solved)), 0, puzzleCount)
     : completions.filter(Boolean).length;
-  const hasStarted = Boolean(raw.hasStarted) || unlocked.some(Boolean) || completions.some(Boolean);
-  const hasWon = raw.hasWon === true || solved >= puzzleCount;
-  const currentPuzzleIndex = toIndex(raw.currentPuzzleIndex, puzzleCount);
-  const nextPuzzleIndex = toIndex(raw.nextPuzzleIndex, puzzleCount);
+  const flags = computeTowerFlags(teamId, puzzleCount, completions, solved, {
+    towerComplete: toBooleanFlag(raw.towerComplete),
+    finalPuzzleComplete: toBooleanFlag(raw.finalPuzzleComplete)
+  });
+  const hasStarted = toBooleanFlag(raw.hasStarted) || unlocked.some(Boolean) || completions.some(Boolean);
+  const hasWon = toBooleanFlag(raw.hasWon) || flags.finalPuzzleComplete || solved >= puzzleCount;
+  const currentPuzzleIndex = hasWon ? null : toIndex(raw.currentPuzzleIndex, puzzleCount);
+  const nextPuzzleIndex = hasWon ? null : toIndex(raw.nextPuzzleIndex, puzzleCount);
   const nextPuzzleLabel = typeof raw.nextPuzzleLabel === "string" && raw.nextPuzzleLabel.trim()
     ? sanitizeLabel(raw.nextPuzzleLabel, `Mission ${(nextPuzzleIndex ?? 0) + 1}`, 120)
     : nextPuzzleIndex !== null
@@ -384,6 +472,8 @@ function sanitizeGameProgress(payload: unknown): SanitizedProgress | null {
     puzzleCount,
     hasStarted,
     hasWon,
+    towerComplete: flags.towerComplete,
+    finalPuzzleComplete: flags.finalPuzzleComplete,
     currentPuzzleIndex,
     nextPuzzleIndex,
     nextPuzzleLabel,
@@ -397,13 +487,116 @@ function sanitizeGameProgress(payload: unknown): SanitizedProgress | null {
   return { entry };
 }
 
+function mergeEntries(existing: ScoreboardEntry | undefined, incoming: ScoreboardEntry): ScoreboardEntry {
+  if (!existing) {
+    return cloneEntry(incoming);
+  }
+
+  const puzzleCount = Math.max(existing.puzzleCount, incoming.puzzleCount, PUZZLE_COUNT);
+  const length = Math.max(puzzleCount, existing.completions.length, incoming.completions.length);
+
+  const completions = Array.from({ length }, (_, index) =>
+    Boolean(incoming.completions[index]) || Boolean(existing.completions[index])
+  ).slice(0, puzzleCount);
+
+  const unlocked = Array.from({ length }, (_, index) =>
+    completions[index] || Boolean(incoming.unlocked[index]) || Boolean(existing.unlocked[index])
+  ).slice(0, puzzleCount);
+
+  const solved = Math.max(
+    incoming.solved ?? 0,
+    existing.solved ?? 0,
+    completions.filter(Boolean).length
+  );
+
+  const flags = computeTowerFlags(incoming.teamId, puzzleCount, completions, solved, {
+    towerComplete: existing.towerComplete || incoming.towerComplete,
+    finalPuzzleComplete: existing.finalPuzzleComplete || incoming.finalPuzzleComplete
+  });
+
+  const hasStarted = existing.hasStarted || incoming.hasStarted || unlocked.some(Boolean);
+  const hasWon = existing.hasWon || incoming.hasWon || flags.finalPuzzleComplete || solved >= puzzleCount;
+
+  const progressPercent =
+    puzzleCount > 0
+      ? Math.max(
+          clamp(Math.round((solved / puzzleCount) * 100), 0, 100),
+          existing.progressPercent ?? 0,
+          incoming.progressPercent ?? 0
+        )
+      : 0;
+
+  const incomingTime = timestampValue(incoming.updatedAt);
+  const existingTime = timestampValue(existing.updatedAt);
+  const preferIncoming = !Number.isFinite(existingTime) || (Number.isFinite(incomingTime) && incomingTime >= existingTime);
+
+  const teamName = preferIncoming ? incoming.teamName : existing.teamName;
+  const updatedAt = preferIncoming ? incoming.updatedAt : existing.updatedAt;
+  const lastEvent = preferIncoming ? incoming.lastEvent ?? existing.lastEvent : existing.lastEvent ?? incoming.lastEvent;
+
+  const currentPuzzleIndex = hasWon
+    ? null
+    : preferIncoming
+    ? incoming.currentPuzzleIndex ?? existing.currentPuzzleIndex
+    : existing.currentPuzzleIndex ?? incoming.currentPuzzleIndex;
+
+  const nextPuzzleIndex = hasWon
+    ? null
+    : preferIncoming
+    ? incoming.nextPuzzleIndex ?? existing.nextPuzzleIndex
+    : existing.nextPuzzleIndex ?? incoming.nextPuzzleIndex;
+
+  const nextPuzzleLabel = hasWon
+    ? null
+    : preferIncoming
+    ? incoming.nextPuzzleLabel ?? existing.nextPuzzleLabel
+    : existing.nextPuzzleLabel ?? incoming.nextPuzzleLabel;
+
+  return {
+    teamId: incoming.teamId,
+    teamName,
+    solved,
+    puzzleCount,
+    hasStarted,
+    hasWon,
+    towerComplete: flags.towerComplete,
+    finalPuzzleComplete: flags.finalPuzzleComplete,
+    currentPuzzleIndex,
+    nextPuzzleIndex,
+    nextPuzzleLabel,
+    completions,
+    unlocked,
+    updatedAt,
+    lastEvent,
+    progressPercent
+  };
+}
+
 function applyProgressUpdate(state: ScoreboardState, update: SanitizedProgress): ScoreboardState {
   const working = cloneScoreboard(state);
-  const entry = cloneEntry(update.entry);
-  working.updatedAt = entry.updatedAt;
-  working.puzzleCount = Math.max(working.puzzleCount, entry.puzzleCount);
-  working.totalTeams = Math.max(working.totalTeams, entry.teamId + 1);
-  working.teams[String(entry.teamId)] = entry;
+  const incoming = cloneEntry(update.entry);
+  const key = String(incoming.teamId);
+  const existing = working.teams[key];
+
+  if (existing) {
+    const incomingTime = timestampValue(incoming.updatedAt);
+    const existingTime = timestampValue(existing.updatedAt);
+    if (Number.isFinite(existingTime) && Number.isFinite(incomingTime) && incomingTime < existingTime) {
+      return working;
+    }
+  }
+
+  const merged = mergeEntries(existing, incoming);
+  working.teams[key] = merged;
+  working.puzzleCount = Math.max(working.puzzleCount, merged.puzzleCount);
+  working.totalTeams = Math.max(working.totalTeams, merged.teamId + 1);
+
+  const mergedTime = timestampValue(merged.updatedAt);
+  const currentTime = timestampValue(working.updatedAt);
+  if (!Number.isFinite(currentTime) || (Number.isFinite(mergedTime) && mergedTime > currentTime)) {
+    working.updatedAt = merged.updatedAt;
+  }
+
   return working;
 }
 

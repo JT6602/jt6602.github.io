@@ -85,6 +85,58 @@
   let mapArrowRafId = null;
   const DEFAULT_INSPECTOR_MESSAGE = "Hover a team puck to inspect their mission.";
 
+  function getTeamOrder(teamId) {
+    const order = TEAM_ORDERS[teamId] ?? [];
+    const maxIndex = PUZZLE_LABELS.length;
+    const sanitized = order.filter(index => Number.isInteger(index) && index >= 0 && index < maxIndex);
+    if (sanitized.length) {
+      return sanitized;
+    }
+    return Array.from({ length: maxIndex }, (_, index) => index);
+  }
+
+  function resolveFinalIndex(teamId) {
+    const order = getTeamOrder(teamId);
+    if (!order.length) {
+      return PUZZLE_LABELS.length ? PUZZLE_LABELS.length - 1 : null;
+    }
+    const finalIndex = order[order.length - 1];
+    return Number.isInteger(finalIndex) ? finalIndex : PUZZLE_LABELS.length - 1;
+  }
+
+  function deriveTowerState(entry) {
+    const puzzleCount = Number.isFinite(entry.puzzleCount) ? entry.puzzleCount : PUZZLE_LABELS.length;
+    const completions = Array.isArray(entry.completions)
+      ? entry.completions
+      : Array.from({ length: puzzleCount }, () => false);
+    const order = getTeamOrder(entry.teamId ?? 0);
+    const finalIndex = resolveFinalIndex(entry.teamId ?? 0);
+    const solvedCount = Number.isFinite(entry.solved) ? entry.solved : completions.filter(Boolean).length;
+
+    const finalFromEntry = entry.finalPuzzleComplete === true;
+    const finalFromSolved = puzzleCount > 0 && solvedCount >= puzzleCount;
+    const finalFromCompletions =
+      finalIndex !== null ? Boolean(completions[finalIndex]) : completions.every(Boolean);
+    const finalPuzzleComplete = Boolean(finalFromEntry || finalFromSolved || finalFromCompletions || entry.hasWon);
+
+    const towerFromEntry = entry.towerComplete === true;
+    const towerIndices = order.filter(index => index !== finalIndex);
+    const towerFromCompletions = towerIndices.length
+      ? towerIndices.every(index => Boolean(completions[index]))
+      : puzzleCount > 1
+      ? solvedCount >= puzzleCount - 1
+      : finalPuzzleComplete;
+
+    const towerComplete = finalPuzzleComplete ? true : Boolean(towerFromEntry || towerFromCompletions);
+
+    return {
+      towerComplete,
+      finalPuzzleComplete,
+      finalIndex,
+      order
+    };
+  }
+
   function init() {
     if (!shell) {
       return;
@@ -651,27 +703,33 @@
     }
 
     const color = TEAM_COLORS[entry.teamId % TEAM_COLORS.length];
-    const order = TEAM_ORDERS[entry.teamId] ?? [];
-    const sanitizedOrder = order.filter(index => Number.isInteger(index) && index >= 0 && index < PUZZLE_LABELS.length);
+    const { towerComplete, finalPuzzleComplete, finalIndex, order } = deriveTowerState(entry);
+    const sanitizedOrder = order;
     const solvedClamped = clampNumber(entry.solved ?? 0, 0, sanitizedOrder.length);
     const lastSolvedIndex = solvedClamped > 0 ? sanitizedOrder[Math.min(solvedClamped, sanitizedOrder.length) - 1] ?? null : null;
+    const finalSolvedIndex = Number.isInteger(finalIndex) ? normalizeFloorIndex(finalIndex) : null;
+    const hasFinalWin = finalPuzzleComplete || entry.hasWon;
 
     let currentIndex = normalizeFloorIndex(entry.currentPuzzleIndex);
     if (!Number.isInteger(currentIndex)) {
-      if (entry.hasWon && sanitizedOrder.length) {
-        currentIndex = sanitizedOrder[sanitizedOrder.length - 1] ?? normalizeFloorIndex(PUZZLE_LABELS.length - 1);
+      if (hasFinalWin && finalSolvedIndex !== null) {
+        currentIndex = finalSolvedIndex;
+      } else if (towerComplete && finalSolvedIndex !== null) {
+        currentIndex = finalSolvedIndex;
       } else if (lastSolvedIndex !== null) {
         currentIndex = lastSolvedIndex;
       }
     }
     if (!Number.isInteger(currentIndex)) {
-      currentIndex = 0;
+      currentIndex = sanitizedOrder.length ? sanitizedOrder[0] : 0;
     }
     currentIndex = normalizeFloorIndex(currentIndex);
 
     let targetIndex = normalizeFloorIndex(entry.nextPuzzleIndex);
-    if (entry.hasWon) {
+    if (hasFinalWin) {
       targetIndex = null;
+    } else if (!Number.isInteger(targetIndex) && towerComplete && finalSolvedIndex !== null) {
+      targetIndex = finalSolvedIndex;
     }
 
     let arrowFromIndex = null;
@@ -703,7 +761,9 @@
       startedLabel,
       status,
       solved: entry.solved ?? 0,
-      puzzleCount: entry.puzzleCount ?? PUZZLE_LABELS.length
+      puzzleCount: entry.puzzleCount ?? PUZZLE_LABELS.length,
+      towerComplete,
+      finalPuzzleComplete: hasFinalWin
     };
   }
 
@@ -968,7 +1028,14 @@
     const puzzleCount = clampNumber(parseInteger(record.PuzzleCount) ?? PUZZLE_LABELS.length, 1, PUZZLE_LABELS.length);
     const solved = clampNumber(parseInteger(record.SolvedCount) ?? 0, 0, puzzleCount);
     const hasStarted = parseBoolean(record.HasStarted) || solved > 0;
-    const hasWon = parseBoolean(record.HasWon) || solved >= puzzleCount;
+    const baseHasWon = parseBoolean(record.HasWon) || solved >= puzzleCount;
+    const towerCompleteFlag = parseBoolean(record.TowerComplete);
+    const finalPuzzleFlag = parseBoolean(record.FinalPuzzleComplete);
+    const finalPuzzleComplete = finalPuzzleFlag || baseHasWon || (puzzleCount > 0 && solved >= puzzleCount);
+    const towerComplete = finalPuzzleComplete
+      ? true
+      : towerCompleteFlag || (puzzleCount > 1 && solved >= puzzleCount - 1);
+    const hasWon = finalPuzzleComplete || baseHasWon;
     const rawProgress = parseInteger(record.ProgressPercent);
     const fallbackProgress = puzzleCount > 0 ? Math.round((solved / puzzleCount) * 100) : 0;
     const progressPercent = clampNumber(Number.isFinite(rawProgress) ? rawProgress : fallbackProgress, 0, 100);
@@ -980,6 +1047,8 @@
     const runtimeSeconds = Number.isFinite(runtimeSecondsValue) ? Math.max(0, Math.round(runtimeSecondsValue)) : null;
     const startedAtDate = parseTimestamp(record.StartedAt);
     const startedAtValue = startedAtDate ? startedAtDate.getTime() : null;
+    const completions = parseBooleanSeries(record.Completions, puzzleCount);
+    const unlocked = parseBooleanSeries(record.Unlocked, puzzleCount);
 
     return {
       teamId,
@@ -988,6 +1057,8 @@
       solved,
       hasStarted,
       hasWon,
+      towerComplete,
+      finalPuzzleComplete,
       progressPercent,
       currentPuzzleIndex,
       nextPuzzleIndex,
@@ -997,13 +1068,22 @@
       timestampValue: timestamp.getTime(),
       runtimeSeconds,
       startedAt: startedAtDate,
-      startedAtValue
+      startedAtValue,
+      completions,
+      unlocked
     };
   }
 
   function sortEntries(a, b) {
-    if (a.hasWon !== b.hasWon) {
-      return Number(b.hasWon) - Number(a.hasWon);
+    const aFinal = a.finalPuzzleComplete || a.hasWon;
+    const bFinal = b.finalPuzzleComplete || b.hasWon;
+    if (aFinal !== bFinal) {
+      return Number(bFinal) - Number(aFinal);
+    }
+    const aTower = a.towerComplete || aFinal;
+    const bTower = b.towerComplete || bFinal;
+    if (aTower !== bTower) {
+      return Number(bTower) - Number(aTower);
     }
     const solvedDiff = (b.solved ?? 0) - (a.solved ?? 0);
     if (solvedDiff !== 0) {
@@ -1021,17 +1101,22 @@
   }
 
   function describeTeamStatus(entry) {
-    if (entry.hasWon) {
+    const { towerComplete, finalPuzzleComplete } = deriveTowerState(entry);
+    if (finalPuzzleComplete || entry.hasWon) {
       return { label: "Tower complete", className: "dashboard-status-pill is-complete" };
     }
     if (!entry.hasStarted) {
       return { label: "Not started", className: "dashboard-status-pill is-idle" };
     }
+    if (towerComplete) {
+      return { label: "Final puzzle", className: "dashboard-status-pill" };
+    }
     return { label: "In progress", className: "dashboard-status-pill" };
   }
 
   function describeTowerLocation(entry) {
-    if (entry.hasWon) {
+    const { towerComplete, finalPuzzleComplete, finalIndex } = deriveTowerState(entry);
+    if (finalPuzzleComplete || entry.hasWon) {
       return {
         primary: "Tower complete",
         secondary: "All missions cleared"
@@ -1049,6 +1134,14 @@
       return {
         primary: nextLabel ? `Ready for ${nextLabel}` : "Awaiting first mission",
         secondary: "No missions completed yet"
+      };
+    }
+
+    if (towerComplete && finalIndex !== null) {
+      const finalLabel = labelFromIndex(finalIndex) ?? "Final mission";
+      return {
+        primary: "Final puzzle active",
+        secondary: `Resolving ${finalLabel}`
       };
     }
 
@@ -1191,6 +1284,35 @@
       return Number.isFinite(numeric) ? numeric !== 0 : normalized === "1";
     }
     return false;
+  }
+
+  function parseBooleanSeries(value, length) {
+    const size = Number.isInteger(length) && length > 0 ? length : PUZZLE_LABELS.length;
+    const result = Array.from({ length: size }, () => false);
+    if (Array.isArray(value)) {
+      return result.map((_, index) => Boolean(value[index]));
+    }
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      if (!normalized) {
+        return result;
+      }
+      const limit = Math.min(size, normalized.length);
+      for (let index = 0; index < limit; index += 1) {
+        const char = normalized.charAt(index).toLowerCase();
+        if (char === "1" || char === "t" || char === "y") {
+          result[index] = true;
+        } else if (char === "0" || char === "f" || char === "n") {
+          result[index] = false;
+        }
+      }
+      return result;
+    }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const binary = value.toString(2).padStart(size, "0");
+      return result.map((_, index) => binary.charAt(index) === "1");
+    }
+    return result;
   }
 
   function parseText(value, allowEmpty = false) {
@@ -1337,6 +1459,8 @@
       teamName: entry.teamName ?? `Team ${entry.teamId + 1}`,
       hasStarted: false,
       hasWon: false,
+      towerComplete: false,
+      finalPuzzleComplete: false,
       solved: 0,
       puzzleCount,
       completions,
@@ -1359,6 +1483,8 @@
       TeamName: payload.teamName ?? "",
       HasStarted: payload.hasStarted ? "TRUE" : "FALSE",
       HasWon: payload.hasWon ? "TRUE" : "FALSE",
+      TowerComplete: payload.towerComplete ? "TRUE" : "FALSE",
+      FinalPuzzleComplete: payload.finalPuzzleComplete ? "TRUE" : "FALSE",
       SolvedCount: Number.isFinite(payload.solved) ? payload.solved : 0,
       PuzzleCount: Number.isFinite(payload.puzzleCount) ? payload.puzzleCount : PUZZLE_LABELS.length,
       ProgressPercent: Number.isFinite(payload.progressPercent) ? payload.progressPercent : 0,
