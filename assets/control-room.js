@@ -297,6 +297,7 @@ const TEAM_COUNT = 11;
     const progressList = document.getElementById("progressList");
     const progressPanel = document.getElementById("progressPanel");
     const progressDescriptor = document.getElementById("progressDescriptor");
+    const teamStartTimeLabel = document.getElementById("teamStartTime");
     const teamTimerLabel = document.getElementById("teamTimer");
     const towerLevels = document.getElementById("towerLevels");
     const towerMapOverlay = document.getElementById("towerMapOverlay");
@@ -5735,33 +5736,45 @@ const TEAM_COUNT = 11;
     }
 
     function updateTeamTimer() {
-      if (!teamTimerLabel) {
+      if (!teamTimerLabel && !teamStartTimeLabel) {
         return;
       }
 
       if (!state.hasStarted) {
-        teamTimerLabel.textContent = "Run time: –";
+        if (teamTimerLabel) {
+          teamTimerLabel.textContent = "Run time: –";
+        }
+        setTeamStartLabel(null);
         stopTeamTimerTick();
         return;
       }
 
       const startIso = sanitizeStartTimestamp(state.startTimestamp);
       if (!startIso) {
-        teamTimerLabel.textContent = "Run time: –";
+        if (teamTimerLabel) {
+          teamTimerLabel.textContent = "Run time: –";
+        }
+        setTeamStartLabel(null);
         stopTeamTimerTick();
         return;
       }
 
       const startDate = new Date(startIso);
       if (Number.isNaN(startDate.getTime())) {
-        teamTimerLabel.textContent = "Run time: –";
+        if (teamTimerLabel) {
+          teamTimerLabel.textContent = "Run time: –";
+        }
+        setTeamStartLabel(null);
         stopTeamTimerTick();
         return;
       }
 
       ensureTeamTimerTick(startDate, startIso);
       const elapsed = Date.now() - startDate.getTime();
-      teamTimerLabel.textContent = `Run time: ${formatElapsedDuration(elapsed)}`;
+      if (teamTimerLabel) {
+        teamTimerLabel.textContent = `Run time: ${formatElapsedDuration(elapsed)}`;
+      }
+      setTeamStartLabel(startDate);
     }
 
     function ensureTeamTimerTick(startDate, startIso) {
@@ -5774,6 +5787,7 @@ const TEAM_COUNT = 11;
 
       teamTimerStartDate = startDate;
       teamTimerIsoString = startIso;
+      setTeamStartLabel(startDate);
 
       teamTimerIntervalId = window.setInterval(() => {
         if (!teamTimerLabel) {
@@ -5784,6 +5798,7 @@ const TEAM_COUNT = 11;
         if (!state.hasStarted) {
           stopTeamTimerTick();
           teamTimerLabel.textContent = "Run time: –";
+          setTeamStartLabel(null);
           return;
         }
 
@@ -5791,6 +5806,7 @@ const TEAM_COUNT = 11;
         if (!currentStartIso) {
           stopTeamTimerTick();
           teamTimerLabel.textContent = "Run time: –";
+          setTeamStartLabel(null);
           return;
         }
 
@@ -5802,6 +5818,7 @@ const TEAM_COUNT = 11;
 
         const elapsed = Date.now() - teamTimerStartDate.getTime();
         teamTimerLabel.textContent = `Run time: ${formatElapsedDuration(elapsed)}`;
+        setTeamStartLabel(teamTimerStartDate);
       }, 1000);
     }
 
@@ -5833,6 +5850,33 @@ const TEAM_COUNT = 11;
       }
       parts.push(String(seconds).padStart(2, "0"));
       return parts.join(":");
+    }
+
+    function setTeamStartLabel(date) {
+      if (!teamStartTimeLabel) {
+        return;
+      }
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        teamStartTimeLabel.textContent = "Started: –";
+        return;
+      }
+      teamStartTimeLabel.textContent = `Started: ${formatStartTimestamp(date)}`;
+    }
+
+    function formatStartTimestamp(date) {
+      if (!(date instanceof Date)) {
+        return "–";
+      }
+      try {
+        const now = new Date();
+        const sameDay = now.toDateString() === date.toDateString();
+        const options = sameDay
+          ? { hour: "numeric", minute: "2-digit" }
+          : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+        return date.toLocaleString(undefined, options);
+      } catch (err) {
+        return date.toISOString();
+      }
     }
 
     function renderProgressList() {

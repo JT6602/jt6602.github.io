@@ -2420,6 +2420,21 @@
       box-shadow: 0 12px 24px -22px rgba(0, 0, 0, 0.75);
     }
 
+    .timing-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      min-width: 180px;
+    }
+
+    .run-timer {
+      font-family: "Fira Mono", "Roboto Mono", monospace;
+      font-size: 0.85rem;
+      letter-spacing: 0.04em;
+      color: rgba(224, 241, 255, 0.82);
+      white-space: nowrap;
+    }
+
     .action-buttons {
       display: flex;
       flex-wrap: wrap;
@@ -3717,6 +3732,17 @@
         width: 100%;
         justify-content: flex-start;
         padding: 0.85rem 1rem;
+      }
+
+      .timing-panel {
+        width: 100%;
+        flex-direction: row;
+        gap: 0.75rem;
+        justify-content: space-between;
+      }
+
+      .timing-panel .run-timer {
+        flex: 1 1 0;
       }
 
       .progress-wrapper {

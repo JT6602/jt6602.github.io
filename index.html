@@ -34,14 +34,17 @@
           </div>
           <progress id="progressBar" class="progress-bar" value="0" max="11"></progress>
         </div>
-        <div class="run-timer" id="teamTimer" aria-live="polite">Run time: –</div>
+        <div class="timing-panel">
+          <div class="run-timer" id="teamStartTime" aria-live="polite">Started: –</div>
+          <div class="run-timer" id="teamTimer" aria-live="polite">Run time: –</div>
+        </div>
       </div>
       <div class="action-buttons">
         <button type="button" class="action-button" id="exportProgress">Copy Progress Code</button>
         <button type="button" class="action-button" id="importProgress">Import Progress</button>
         <button type="button" class="action-button" id="gmOverrideButton">GM Override</button>
         <button type="button" class="action-button" id="viewTowerMap">View Tower Map</button>
-        <!-- <button type="button" class="action-button" id="showOtherProgress">Show Other Team Progress</button> -->
+        <button type="button" class="action-button" id="showOtherProgress">Show Other Team Progress</button>
         <button type="button" class="reset-button" id="resetAll">Reset Progress</button>
       </div>
       <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>

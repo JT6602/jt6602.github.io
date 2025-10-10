@@ -133,6 +133,21 @@ body {
   gap: 6px;
 }
 
+.dashboard-runtime {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-runtime-primary {
+  font-weight: 600;
+}
+
+.dashboard-runtime-secondary {
+  color: rgba(245, 247, 255, 0.65);
+  font-size: 0.85rem;
+}
+
 .dashboard-progress-count {
   font-weight: 500;
 }
@@ -213,6 +228,217 @@ body {
   margin: 32px 0;
   text-align: center;
   color: rgba(245, 247, 255, 0.6);
+}
+
+.dashboard-visuals {
+  margin-bottom: 32px;
+}
+
+.dashboard-map-card {
+  border: 1px solid rgba(245, 247, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(12, 15, 29, 0.72);
+  padding: 20px 24px 24px;
+  box-shadow: 0 30px 70px -48px rgba(0, 0, 0, 0.85);
+}
+
+.dashboard-map-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.dashboard-map-header p {
+  margin: 8px 0 0;
+  color: rgba(245, 247, 255, 0.7);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.dashboard-map-shell {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.dashboard-map-canvas {
+  position: relative;
+  flex: 1 1 420px;
+  min-height: 340px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(100, 142, 255, 0.18);
+  background: rgba(8, 12, 24, 0.78);
+  overflow: hidden;
+}
+
+.dashboard-map-canvas.is-empty::after {
+  content: "Waiting for team check-ins…";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(245, 247, 255, 0.55);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-map-levels {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1;
+}
+
+.dashboard-map-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 247, 255, 0.12);
+  background: rgba(74, 120, 255, 0.08);
+}
+
+.dashboard-map-label {
+  flex: 0 0 120px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245, 247, 255, 0.7);
+}
+
+.dashboard-map-lane {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.dashboard-map-marker {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 247, 255, 0.85);
+  background: var(--marker-color, #6ff0eb);
+  color: #0c0f1d;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.dashboard-map-marker:hover,
+.dashboard-map-marker:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px -18px rgba(0, 0, 0, 0.85);
+  outline: none;
+}
+
+.dashboard-map-marker.is-target {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--marker-color, #6ff0eb);
+  border-style: dashed;
+  border-color: rgba(245, 247, 255, 0.6);
+}
+
+.dashboard-map-marker__label {
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-map-arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dashboard-map-arrow {
+  position: absolute;
+  width: 4px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, rgba(245, 247, 255, 0.1), var(--marker-color, #6ff0eb));
+}
+
+.dashboard-map-arrow::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--marker-color, #6ff0eb);
+  bottom: -8px;
+}
+
+.dashboard-map-arrow.is-up {
+  background: linear-gradient(to top, rgba(245, 247, 255, 0.1), var(--marker-color, #6ff0eb));
+}
+
+.dashboard-map-arrow.is-up::after {
+  border-top: none;
+  border-bottom: 8px solid var(--marker-color, #6ff0eb);
+  bottom: auto;
+  top: -8px;
+}
+
+.dashboard-map-inspector {
+  flex: 0 0 260px;
+  min-height: 220px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 247, 255, 0.12);
+  background: rgba(10, 14, 28, 0.7);
+  padding: 16px 18px;
+  font-size: 0.95rem;
+  color: rgba(245, 247, 255, 0.75);
+  line-height: 1.5;
+  transition: color 0.2s ease;
+}
+
+.dashboard-map-inspector.is-active {
+  color: #f5f7ff;
+}
+
+.dashboard-map-inspector h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+}
+
+.dashboard-map-inspector__meta {
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  color: rgba(245, 247, 255, 0.6);
+}
+
+.dashboard-map-inspector__status {
+  font-weight: 600;
+}
+
+.dashboard-map-inspector__status-secondary {
+  margin-top: 4px;
+  color: rgba(245, 247, 255, 0.68);
+  font-size: 0.86rem;
+}
+
+.dashboard-map-inspector__list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.dashboard-map-inspector__event {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: rgba(245, 247, 255, 0.62);
 }
 
 .gm-auth-overlay {
@@ -312,5 +538,19 @@ body {
 
   .dashboard-actions button {
     width: 100%;
+  }
+
+  .dashboard-map-shell {
+    flex-direction: column;
+  }
+
+  .dashboard-map-canvas,
+  .dashboard-map-inspector {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .dashboard-map-label {
+    flex-basis: 110px;
   }
 }

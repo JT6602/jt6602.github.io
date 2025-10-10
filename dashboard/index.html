@@ -20,6 +20,23 @@
       <button type="button" id="dashboardSignOut">Sign Out</button>
     </div>
     <div class="dashboard-status" id="dashboardStatus"></div>
+    <section class="dashboard-visuals" aria-label="Tower overview">
+      <div class="dashboard-map-card">
+        <header class="dashboard-map-header">
+          <h2>Live Tower Map</h2>
+          <p>Active teams reporting in appear on the tower. Hover a puck to inspect their mission.</p>
+        </header>
+        <div class="dashboard-map-shell">
+          <div class="dashboard-map-canvas" id="dashboardTowerMap" role="presentation">
+            <div class="dashboard-map-levels" id="dashboardTowerLevels" role="list" aria-label="Tower levels"></div>
+            <div class="dashboard-map-arrows" id="dashboardMapArrows" aria-hidden="true"></div>
+          </div>
+          <aside class="dashboard-map-inspector" id="dashboardMapInspector" aria-live="polite">
+            Hover a team puck to inspect their mission.
+          </aside>
+        </div>
+      </div>
+    </section>
     <div id="dashboardTableWrapper"></div>
   </main>
 </body>

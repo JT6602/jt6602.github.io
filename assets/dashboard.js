@@ -19,6 +19,45 @@
     "Floor 10",
     "Floor 11"
   ];
+  const TEAM_NAMES = [
+    "Team 1",
+    "Team 2",
+    "Team 3",
+    "Team 4",
+    "Team 5",
+    "Team 6",
+    "Team 7",
+    "Team 8",
+    "Team 9",
+    "Team 10",
+    "Team 11"
+  ];
+  const TEAM_ORDERS = [
+    [1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 0],
+    [2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 0],
+    [3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 0],
+    [4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 0],
+    [5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 0],
+    [6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 0],
+    [7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 0],
+    [8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 0],
+    [9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 0],
+    [10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 0],
+    [11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 0]
+  ];
+  const TEAM_COLORS = [
+    "#64d5f7",
+    "#c792ea",
+    "#ff9966",
+    "#ff6fa5",
+    "#71e0b5",
+    "#ffd166",
+    "#6f9dff",
+    "#a787ff",
+    "#57dca5",
+    "#ffa38f",
+    "#7bc4ff"
+  ];
 
   const shell = document.getElementById("dashboardShell");
   const statusLabel = document.getElementById("dashboardStatus");
@@ -26,6 +65,10 @@
   const refreshButton = document.getElementById("refreshDashboardData");
   const clearButton = document.getElementById("clearDashboardData");
   const signOutButton = document.getElementById("dashboardSignOut");
+  const towerMapShell = document.getElementById("dashboardTowerMap");
+  const towerLevels = document.getElementById("dashboardTowerLevels");
+  const towerArrows = document.getElementById("dashboardMapArrows");
+  const towerInspector = document.getElementById("dashboardMapInspector");
 
   const gmState = {
     overlay: null,
@@ -38,6 +81,9 @@
   let latestEntries = [];
   let refreshTimerId = null;
   let autoRefreshEnabled = false;
+  let mapArrowData = [];
+  let mapArrowRafId = null;
+  const DEFAULT_INSPECTOR_MESSAGE = "Hover a team puck to inspect their mission.";
 
   function init() {
     if (!shell) {
@@ -45,6 +91,8 @@
     }
 
     shell.hidden = true;
+    resetMapInspector();
+    renderTowerMap([]);
 
     refreshButton?.addEventListener("click", () => {
       loadData({ showLoading: true });
@@ -342,6 +390,8 @@
       ? sourceEntries
       : sourceEntries.filter(entry => entry.timestampValue > clearedThreshold);
 
+    renderTowerMap(visibleEntries);
+
     if (!visibleEntries.length) {
       const empty = document.createElement("div");
       empty.className = "dashboard-empty";
@@ -372,7 +422,7 @@
 
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    const headers = ["Team", "Tower Location", "Progress", "Last Update", "Remove"];
+    const headers = ["Team", "Tower Location", "Progress", "Runtime", "Last Update", "Remove"];
     for (const label of headers) {
       const th = document.createElement("th");
       th.textContent = label;
@@ -432,6 +482,28 @@
       progressWrapper.append(progressCounts, progressRail, progressMeta);
       progressCell.append(progressWrapper);
 
+      const runtimeCell = document.createElement("td");
+      const runtimeWrapper = document.createElement("div");
+      runtimeWrapper.className = "dashboard-runtime";
+      const runtimeLabel = formatRuntime(entry.runtimeSeconds);
+      if (runtimeLabel) {
+        const primary = document.createElement("div");
+        primary.className = "dashboard-runtime-primary";
+        primary.textContent = runtimeLabel;
+        runtimeWrapper.append(primary);
+      }
+      const startedLabel = formatStartTimestamp(entry.startedAt);
+      if (startedLabel) {
+        const secondary = document.createElement("div");
+        secondary.className = "dashboard-runtime-secondary";
+        secondary.textContent = `Started ${startedLabel}`;
+        runtimeWrapper.append(secondary);
+      }
+      if (runtimeWrapper.childElementCount === 0) {
+        runtimeWrapper.textContent = entry.hasStarted ? "In progress" : "–";
+      }
+      runtimeCell.append(runtimeWrapper);
+
       const updatedCell = document.createElement("td");
       const updatedLabel = document.createElement("div");
       updatedLabel.className = "dashboard-updated";
@@ -456,7 +528,7 @@
       });
       removeCell.append(deleteButton);
 
-      tr.append(teamCell, locationCell, progressCell, updatedCell, removeCell);
+      tr.append(teamCell, locationCell, progressCell, runtimeCell, updatedCell, removeCell);
       tbody.append(tr);
     }
 
@@ -467,6 +539,354 @@
     wrapper.append(table);
 
     tableWrapper.append(wrapper);
+  }
+
+  function renderTowerMap(entries) {
+    if (!towerLevels || !towerMapShell) {
+      return;
+    }
+
+    towerLevels.innerHTML = "";
+    if (towerArrows) {
+      towerArrows.innerHTML = "";
+    }
+
+    const reportingTeams = Array.isArray(entries)
+      ? entries.filter(entry => entry && entry.hasStarted)
+      : [];
+
+    if (!reportingTeams.length) {
+      towerMapShell.classList.add("is-empty");
+      resetMapInspector("No teams reporting yet.");
+      mapArrowData = [];
+      scheduleMapArrowLayout();
+      return;
+    }
+
+    towerMapShell.classList.remove("is-empty");
+    resetMapInspector();
+
+    const rowLookup = buildTowerRows();
+    const arrowDefs = [];
+
+    const teamContexts = reportingTeams
+      .map(entry => normalizeMapTeam(entry))
+      .filter(Boolean)
+      .sort((a, b) => (a.entry.teamId ?? 0) - (b.entry.teamId ?? 0));
+
+    if (!teamContexts.length) {
+      towerMapShell.classList.add("is-empty");
+      resetMapInspector("No active teams to display yet.");
+      mapArrowData = [];
+      scheduleMapArrowLayout();
+      return;
+    }
+
+    teamContexts.forEach(context => {
+      const { currentIndex, targetIndex, arrowFromIndex, arrowToIndex } = context;
+      if (Number.isInteger(currentIndex) && rowLookup[currentIndex]) {
+        const marker = createMapMarker(context, { variant: "current" });
+        rowLookup[currentIndex].lane.append(marker);
+      }
+
+      if (Number.isInteger(targetIndex) && rowLookup[targetIndex]) {
+        const targetMarker = createMapMarker(context, { variant: "target" });
+        rowLookup[targetIndex].lane.append(targetMarker);
+      }
+
+      if (
+        Number.isInteger(arrowFromIndex) &&
+        Number.isInteger(arrowToIndex) &&
+        rowLookup[arrowFromIndex]?.row &&
+        rowLookup[arrowToIndex]?.row &&
+        towerArrows
+      ) {
+        const arrowElement = document.createElement("div");
+        arrowElement.className = "dashboard-map-arrow";
+        arrowElement.style.setProperty("--marker-color", context.color);
+        arrowElement.setAttribute("hidden", "true");
+        towerArrows.append(arrowElement);
+        arrowDefs.push({
+          element: arrowElement,
+          fromRow: rowLookup[arrowFromIndex].row,
+          fromLane: rowLookup[arrowFromIndex].lane,
+          toRow: rowLookup[arrowToIndex].row,
+          toLane: rowLookup[arrowToIndex].lane
+        });
+      }
+    });
+
+    mapArrowData = arrowDefs;
+    scheduleMapArrowLayout();
+  }
+
+  function buildTowerRows() {
+    const rows = [];
+    if (!towerLevels) {
+      return rows;
+    }
+    for (let index = PUZZLE_LABELS.length - 1; index >= 0; index -= 1) {
+      const row = document.createElement("div");
+      row.className = "dashboard-map-row";
+      row.dataset.floorIndex = String(index);
+      row.setAttribute("role", "listitem");
+
+      const label = document.createElement("div");
+      label.className = "dashboard-map-label";
+      label.textContent = PUZZLE_LABELS[index];
+
+      const lane = document.createElement("div");
+      lane.className = "dashboard-map-lane";
+
+      row.append(label, lane);
+      towerLevels.append(row);
+      rows[index] = { row, lane };
+    }
+    return rows;
+  }
+
+  function normalizeMapTeam(entry) {
+    if (!entry || !Number.isInteger(entry.teamId)) {
+      return null;
+    }
+
+    const color = TEAM_COLORS[entry.teamId % TEAM_COLORS.length];
+    const order = TEAM_ORDERS[entry.teamId] ?? [];
+    const sanitizedOrder = order.filter(index => Number.isInteger(index) && index >= 0 && index < PUZZLE_LABELS.length);
+    const solvedClamped = clampNumber(entry.solved ?? 0, 0, sanitizedOrder.length);
+    const lastSolvedIndex = solvedClamped > 0 ? sanitizedOrder[Math.min(solvedClamped, sanitizedOrder.length) - 1] ?? null : null;
+
+    let currentIndex = normalizeFloorIndex(entry.currentPuzzleIndex);
+    if (!Number.isInteger(currentIndex)) {
+      if (entry.hasWon && sanitizedOrder.length) {
+        currentIndex = sanitizedOrder[sanitizedOrder.length - 1] ?? normalizeFloorIndex(PUZZLE_LABELS.length - 1);
+      } else if (lastSolvedIndex !== null) {
+        currentIndex = lastSolvedIndex;
+      }
+    }
+    if (!Number.isInteger(currentIndex)) {
+      currentIndex = 0;
+    }
+    currentIndex = normalizeFloorIndex(currentIndex);
+
+    let targetIndex = normalizeFloorIndex(entry.nextPuzzleIndex);
+    if (entry.hasWon) {
+      targetIndex = null;
+    }
+
+    let arrowFromIndex = null;
+    let arrowToIndex = null;
+    if (targetIndex !== null) {
+      const originIndex = Number.isInteger(currentIndex) ? currentIndex : lastSolvedIndex;
+      if (Number.isInteger(originIndex) && originIndex !== targetIndex) {
+        arrowFromIndex = originIndex;
+        arrowToIndex = targetIndex;
+      }
+    }
+
+    const currentLabel = labelFromIndex(currentIndex);
+    const targetLabel = labelFromIndex(targetIndex, entry.nextPuzzleLabel);
+    const runtimeLabel = formatRuntime(entry.runtimeSeconds);
+    const startedLabel = formatStartTimestamp(entry.startedAt);
+    const status = describeTowerLocation(entry);
+
+    return {
+      entry,
+      color,
+      currentIndex,
+      targetIndex,
+      arrowFromIndex,
+      arrowToIndex,
+      currentLabel,
+      targetLabel,
+      runtimeLabel,
+      startedLabel,
+      status,
+      solved: entry.solved ?? 0,
+      puzzleCount: entry.puzzleCount ?? PUZZLE_LABELS.length
+    };
+  }
+
+  function createMapMarker(context, { variant }) {
+    const marker = document.createElement("button");
+    marker.type = "button";
+    marker.className = "dashboard-map-marker";
+    marker.style.setProperty("--marker-color", context.color);
+    marker.dataset.teamId = String(context.entry.teamId);
+    if (variant === "target") {
+      marker.classList.add("is-target");
+    }
+
+    const label = document.createElement("span");
+    label.className = "dashboard-map-marker__label";
+    label.textContent = `T${context.entry.teamId + 1}`;
+    marker.append(label);
+
+    const teamName = context.entry.teamName ?? TEAM_NAMES[context.entry.teamId] ?? `Team ${context.entry.teamId + 1}`;
+    const locationLabel = variant === "target" ? context.targetLabel ?? "Unknown" : context.currentLabel ?? "Unknown";
+    const roleLabel = variant === "target" ? "Destination" : "Current location";
+    marker.setAttribute("aria-label", `${teamName} · ${roleLabel}: ${locationLabel}`);
+
+    registerMarkerInspector(marker, context, variant);
+    return marker;
+  }
+
+  function registerMarkerInspector(marker, context, variant) {
+    if (!marker) {
+      return;
+    }
+
+    const showInspector = () => {
+      showMapInspector(context, variant);
+    };
+    const resetInspector = () => {
+      resetMapInspector();
+    };
+
+    marker.addEventListener("mouseenter", showInspector);
+    marker.addEventListener("focus", showInspector);
+    marker.addEventListener("mouseleave", resetInspector);
+    marker.addEventListener("blur", resetInspector);
+  }
+
+  function showMapInspector(context, variant) {
+    if (!towerInspector) {
+      return;
+    }
+    const team = context.entry;
+    const teamName = team.teamName ?? TEAM_NAMES[team.teamId] ?? `Team ${team.teamId + 1}`;
+
+    towerInspector.innerHTML = "";
+    towerInspector.classList.add("is-active");
+
+    const title = document.createElement("h3");
+    title.textContent = teamName;
+    towerInspector.append(title);
+
+    const meta = document.createElement("div");
+    meta.className = "dashboard-map-inspector__meta";
+    meta.textContent = `Team ${team.teamId + 1} · ${context.solved} / ${context.puzzleCount} solved`;
+    towerInspector.append(meta);
+
+    const statusPrimary = document.createElement("div");
+    statusPrimary.className = "dashboard-map-inspector__status";
+    statusPrimary.textContent = context.status?.primary ?? "Status unknown";
+    towerInspector.append(statusPrimary);
+
+    if (context.status?.secondary) {
+      const statusSecondary = document.createElement("div");
+      statusSecondary.className = "dashboard-map-inspector__status-secondary";
+      statusSecondary.textContent = context.status.secondary;
+      towerInspector.append(statusSecondary);
+    }
+
+    const detailList = document.createElement("ul");
+    detailList.className = "dashboard-map-inspector__list";
+
+    if (context.currentLabel) {
+      const li = document.createElement("li");
+      li.textContent = `Current: ${context.currentLabel}`;
+      detailList.append(li);
+    }
+
+    if (context.targetLabel && variant === "target") {
+      const li = document.createElement("li");
+      li.textContent = `Destination: ${context.targetLabel}`;
+      detailList.append(li);
+    } else if (context.targetLabel && context.currentLabel !== context.targetLabel) {
+      const li = document.createElement("li");
+      li.textContent = `Next: ${context.targetLabel}`;
+      detailList.append(li);
+    }
+
+    if (context.runtimeLabel || context.startedLabel) {
+      const li = document.createElement("li");
+      const parts = [];
+      if (context.runtimeLabel) {
+        parts.push(`Runtime ${context.runtimeLabel}`);
+      }
+      if (context.startedLabel) {
+        parts.push(`Started ${context.startedLabel}`);
+      }
+      li.textContent = parts.join(" · ");
+      detailList.append(li);
+    }
+
+    if (detailList.childElementCount > 0) {
+      towerInspector.append(detailList);
+    }
+
+    if (team.reason) {
+      const lastEvent = document.createElement("div");
+      lastEvent.className = "dashboard-map-inspector__event";
+      lastEvent.textContent = team.reason;
+      towerInspector.append(lastEvent);
+    }
+  }
+
+  function resetMapInspector(message = DEFAULT_INSPECTOR_MESSAGE) {
+    if (!towerInspector) {
+      return;
+    }
+    towerInspector.classList.remove("is-active");
+    towerInspector.textContent = message;
+  }
+
+  function scheduleMapArrowLayout() {
+    if (mapArrowRafId !== null) {
+      window.cancelAnimationFrame(mapArrowRafId);
+    }
+    mapArrowRafId = window.requestAnimationFrame(() => {
+      mapArrowRafId = null;
+      applyMapArrowPositions();
+    });
+  }
+
+  function applyMapArrowPositions() {
+    if (!towerArrows || !towerMapShell) {
+      return;
+    }
+    if (!mapArrowData.length) {
+      return;
+    }
+
+    const canvasRect = towerMapShell.getBoundingClientRect();
+
+    mapArrowData.forEach(arrow => {
+      if (!arrow || !arrow.element || !arrow.fromRow || !arrow.toRow) {
+        if (arrow?.element) {
+          arrow.element.setAttribute("hidden", "true");
+        }
+        return;
+      }
+
+      const fromOffset = arrow.fromRow.offsetTop + arrow.fromRow.offsetHeight / 2;
+      const toOffset = arrow.toRow.offsetTop + arrow.toRow.offsetHeight / 2;
+      const lane = arrow.fromLane ?? arrow.toLane;
+      let left = canvasRect.width / 2;
+      if (lane) {
+        const laneRect = lane.getBoundingClientRect();
+        left = laneRect.left + laneRect.width / 2 - canvasRect.left;
+      }
+      const clampedLeft = Math.max(24, Math.min(canvasRect.width - 24, left));
+      const top = Math.min(fromOffset, toOffset);
+      const height = Math.max(Math.abs(toOffset - fromOffset), 6);
+      arrow.element.style.left = `${clampedLeft}px`;
+      arrow.element.style.top = `${top}px`;
+      arrow.element.style.height = `${height}px`;
+      arrow.element.classList.toggle("is-up", toOffset < fromOffset);
+      arrow.element.removeAttribute("hidden");
+    });
+  }
+
+  function normalizeFloorIndex(value) {
+    if (!Number.isInteger(value)) {
+      return null;
+    }
+    if (value < 0 || value >= PUZZLE_LABELS.length) {
+      return null;
+    }
+    return value;
   }
 
   async function confirmDeleteTeam(entry, triggerButton) {
@@ -556,6 +976,10 @@
     const nextPuzzleIndex = toPuzzleIndex(record.NextPuzzleIndex, puzzleCount);
     const nextPuzzleLabel = parseText(record.NextPuzzleLabel, true);
     const reason = parseText(record.Reason, true);
+    const runtimeSecondsValue = parseNumber(record.RuntimeSeconds);
+    const runtimeSeconds = Number.isFinite(runtimeSecondsValue) ? Math.max(0, Math.round(runtimeSecondsValue)) : null;
+    const startedAtDate = parseTimestamp(record.StartedAt);
+    const startedAtValue = startedAtDate ? startedAtDate.getTime() : null;
 
     return {
       teamId,
@@ -570,7 +994,10 @@
       nextPuzzleLabel,
       reason,
       timestamp,
-      timestampValue: timestamp.getTime()
+      timestampValue: timestamp.getTime(),
+      runtimeSeconds,
+      startedAt: startedAtDate,
+      startedAtValue
     };
   }
 
@@ -678,6 +1105,36 @@
     }
   }
 
+  function formatStartTimestamp(date) {
+    if (!(date instanceof Date)) {
+      return null;
+    }
+    try {
+      const now = new Date();
+      const sameDay = now.toDateString() === date.toDateString();
+      const options = sameDay
+        ? { hour: "numeric", minute: "2-digit" }
+        : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+      return date.toLocaleString(undefined, options);
+    } catch (err) {
+      return date.toISOString();
+    }
+  }
+
+  function formatRuntime(seconds) {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return null;
+    }
+    const totalSeconds = Math.floor(seconds);
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+    return `${mins}:${String(secs).padStart(2, "0")}`;
+  }
+
   function parseInteger(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
       return Math.trunc(value);
@@ -688,6 +1145,23 @@
         return null;
       }
       const parsed = Number.parseInt(trimmed, 10);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  function parseNumber(value) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const parsed = Number.parseFloat(trimmed);
       if (Number.isFinite(parsed)) {
         return parsed;
       }
@@ -942,6 +1416,12 @@
     shell.hidden = true;
     showGmAuthOverlay();
   }
+
+  window.addEventListener("resize", () => {
+    if (mapArrowData.length) {
+      scheduleMapArrowLayout();
+    }
+  });
 
   document.addEventListener("DOMContentLoaded", init);
 })();
