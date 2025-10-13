@@ -3,6 +3,7 @@ const TEAM_COUNT = 11;
     const COOKIE_NAME = "towerHuntProgress";
     const CACHE_DURATION_DAYS = 365;
     const VALIDATION_DELAY_MS = 1200;
+    const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 
     const TEAM_NAMES = [
       "Team 1",
@@ -368,6 +369,7 @@ const TEAM_COUNT = 11;
     const puzzleLock = document.getElementById("puzzleLock");
     const puzzleLockMessage = document.getElementById("puzzleLockMessage");
     const puzzleLockAction = document.getElementById("puzzleLockAction");
+    const easterEggButton = document.getElementById("towerEasterEgg");
 
     const scannerModal = document.getElementById("scannerModal");
     const scannerVideo = document.getElementById("scannerVideo");
@@ -501,6 +503,9 @@ const TEAM_COUNT = 11;
       remember: null,
       feedback: null
     };
+    let inactivityTimerId = null;
+    let inactivityWatcherBound = false;
+    let inactivityPromptPending = false;
 
     const hasMediaDevices = Boolean(navigator.mediaDevices?.getUserMedia);
     const prefersReducedMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? { matches: false };
@@ -565,15 +570,16 @@ const TEAM_COUNT = 11;
         return;
       }
       if (isGmSheet) {
-      enforceGmPassword();
-      return;
-    }
-    detectPlatform();
-    attachEventListeners();
-    configureTeamProgressButton();
-    render();
-    maybePromptForWin();
-    scheduleDashboardSync("init");
+        enforceGmPassword();
+        return;
+      }
+      detectPlatform();
+      attachEventListeners();
+      setupInactivityWatcher();
+      configureTeamProgressButton();
+      render();
+      maybePromptForWin();
+      scheduleDashboardSync("init");
     }
 
     function maybePromptForWin() {
@@ -4389,6 +4395,15 @@ const TEAM_COUNT = 11;
         }
       });
 
+      easterEggButton?.addEventListener("click", () => {
+        try {
+          window.location.assign("https://chromedino.com/");
+        } catch (error) {
+          // fallback for browsers blocking direct navigation
+          window.open("https://chromedino.com/", "_blank", "noopener");
+        }
+      });
+
       ensureScannerListeners();
 
       gmOverrideClose?.addEventListener("click", event => {
@@ -4420,6 +4435,91 @@ const TEAM_COUNT = 11;
         }
       });
     }
+
+    function setupInactivityWatcher() {
+      if (inactivityWatcherBound || typeof window === "undefined") {
+        return;
+      }
+      const activityEvents = ["pointerdown", "pointermove", "mousedown", "mousemove", "keydown", "scroll", "touchstart"];
+      const activityHandler = () => {
+        recordUserActivity();
+      };
+      activityEvents.forEach(eventName => {
+        window.addEventListener(eventName, activityHandler, { passive: true });
+      });
+      document.addEventListener("visibilitychange", handleInactivityVisibilityChange);
+      window.addEventListener("focus", recordUserActivity);
+      window.addEventListener("beforeunload", clearInactivityTimer);
+      inactivityWatcherBound = true;
+      recordUserActivity();
+    }
+
+    function recordUserActivity() {
+      if (document.hidden) {
+        return;
+      }
+      inactivityPromptPending = false;
+      startInactivityTimer();
+    }
+
+    function startInactivityTimer() {
+      if (typeof window === "undefined") {
+        return;
+      }
+      if (inactivityTimerId !== null) {
+        window.clearTimeout(inactivityTimerId);
+      }
+      inactivityTimerId = window.setTimeout(handleInactivityTimeout, INACTIVITY_TIMEOUT_MS);
+    }
+
+    function clearInactivityTimer() {
+      if (typeof window === "undefined") {
+        return;
+      }
+      if (inactivityTimerId !== null) {
+        window.clearTimeout(inactivityTimerId);
+        inactivityTimerId = null;
+      }
+    }
+
+    function handleInactivityTimeout() {
+      inactivityTimerId = null;
+      if (document.hidden) {
+        inactivityPromptPending = true;
+        return;
+      }
+      showInactivityPrompt();
+    }
+
+    function showInactivityPrompt() {
+      inactivityPromptPending = false;
+      try {
+        showStatus("You still there?");
+      } catch (error) {
+        // ignore status errors
+      }
+      window.setTimeout(() => {
+        try {
+          window.alert("You still there?");
+        } catch (error) {
+          // ignore alert errors
+        }
+      }, 0);
+      startInactivityTimer();
+    }
+
+    function handleInactivityVisibilityChange() {
+      if (document.hidden) {
+        clearInactivityTimer();
+        return;
+      }
+      if (inactivityPromptPending) {
+        showInactivityPrompt();
+        return;
+      }
+      recordUserActivity();
+    }
+
     function ensureScannerListeners() {
       if (scannerListenersBound) {
         return;
