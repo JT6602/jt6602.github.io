@@ -141,14 +141,14 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.BASEMENT
       },
-      {
+      {//8 char word
         floor: "Floor 1",
         prompt: "Unscramble RACTE.",
         answerType: ANSWER_TYPES.TEXT,
         answer: "trace",
         qr: QR_CODES.FLOOR_1
       },
-      {
+      {//change for harry potter riddle, add the picture
         floor: "Floor 2",
         prompt:
           "I have keys but no locks, I have space but no room, you can enter but not go outside. What am I?",
@@ -156,14 +156,14 @@ const TEAM_COUNT = 11;
         answer: "keyboard",
         qr: QR_CODES.FLOOR_2
       },
-      {
+      {//make the shift -8
         floor: "Floor 3",
         prompt: "Decode mfwfm with a Caesar shift of -1.",
         answerType: ANSWER_TYPES.TEXT,
         answer: "level",
         qr: QR_CODES.FLOOR_3
       },
-      {
+      {//keep
         floor: "Floor 4",
         prompt: "Find the words panel, lever, cable, gauge, and wires hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
@@ -183,7 +183,7 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_4
       },
-      {
+      {//keep
         floor: "Floor 5",
         prompt:
           "You see a 3×3 grid of switches (ON/OFF). Toggling a switch flips itself and its orthogonal neighbors. Goal: turn all switches OFF. Start in a random mixed state.",
@@ -193,7 +193,7 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_5
       },
-      {
+      {//replace with wordle
         floor: "Floor 6",
         prompt: "Locate the words console, monitor, switch, circuit, relay, sensor, and module hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
@@ -215,7 +215,7 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_6
       },
-      {
+      {//math with variables makes an answer in text
         floor: "Floor 7",
         prompt: "What is 7 × 8?",
         answerType: ANSWER_TYPES.TEXT,
@@ -229,7 +229,7 @@ const TEAM_COUNT = 11;
         answer: "riddle",
         qr: QR_CODES.FLOOR_8
       },
-      {
+      {//puzzle? if not then hangman (6 char word)
         floor: "Floor 9",
         prompt: "Trace the keypad path forming an L shape to advance.",
         answerType: ANSWER_TYPES.PUZZLE,
@@ -260,7 +260,7 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_10
       },
-      {
+      {//TBD
         floor: "Floor 11",
         prompt: "Replace each letter with the one before it in the alphabet: uijt.",
         answerType: ANSWER_TYPES.TEXT,
