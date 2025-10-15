@@ -4463,7 +4463,7 @@ Identify the potion that lets you pass forward through the flames and enter its 
           deck.push({ cardId: `${pair.id}-a`, pairId: pair.id, face: pair.face });
           deck.push({ cardId: `${pair.id}-b`, pairId: pair.id, face: pair.face });
         });
-        shuffleArray(deck);
+        deck = shuffleArray(deck);
       }
 
       const storedMatchedPairs = Array.isArray(storedMemoryGame?.matchedPairIds)
@@ -5135,10 +5135,10 @@ Identify the potion that lets you pass forward through the flames and enter its 
 
       easterEggButton?.addEventListener("click", () => {
         try {
-          window.location.assign("https://chromedino.com/");
+          window.location.assign("https://chromedino.com/batman");
         } catch (error) {
           // fallback for browsers blocking direct navigation
-          window.open("https://chromedino.com/", "_blank", "noopener");
+          window.open("https://chromedino.com/batman", "_blank", "noopener");
         }
       });
 
