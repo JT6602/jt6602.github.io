@@ -87,6 +87,51 @@ const TEAM_COUNT = 11;
       PUZZLE: "puzzle"
     });
 
+    const HANGMAN_ASCII_STAGES = Object.freeze([
+      `  +---+
+  |   |
+      |
+      |
+      |
+======`,
+      `  +---+
+  |   |
+  O   |
+      |
+      |
+======`,
+      `  +---+
+  |   |
+  O   |
+  |   |
+      |
+======`,
+      `  +---+
+  |   |
+  O   |
+ /|   |
+      |
+======`,
+      `  +---+
+  |   |
+  O   |
+ /|\\  |
+      |
+======`,
+      `  +---+
+  |   |
+  O   |
+ /|\\  |
+ /    |
+======`,
+      `  +---+
+  |   |
+  O   |
+ /|\\  |
+ / \\  |
+======`
+    ]);
+
     const puzzles = [
       {
         floor: "Basement",
@@ -141,29 +186,45 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.BASEMENT
       },
-      {//8 char word
+      {
         floor: "Floor 1",
-        prompt: "Unscramble RACTE.",
+        prompt: "Unscramble AELORTVE.",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "trace",
+        answer: "elevator",
         qr: QR_CODES.FLOOR_1
       },
-      {//change for harry potter riddle, add the picture
+      {
         floor: "Floor 2",
-        prompt:
-          "I have keys but no locks, I have space but no room, you can enter but not go outside. What am I?",
+        prompt: `Danger lies before you, while safety lies behind.
+Two of us will help you, whichever you would find.
+One among us seven will let you move ahead,
+Another will transport the drinker back instead.
+Two among our number hold only nettle wine,
+Three of us are killers, waiting hidden in line.
+Choose, unless you wish to stay here for evermore,
+To help you in your choice, we give you these clues four:
+1. However slyly the poison tries to hide, you will always find some on nettle wine's left side.
+2. Different are those who stand at either end; if you would move onwards neither is your friend.
+3. As you see clearly, all are different size; neither dwarf nor giant holds death in their insides.
+4. The second left and the second on the right are twins once you taste them, though different at first sight.
+
+Identify the potion that lets you pass forward through the flames and enter its color.`,
+        promptImage: {
+          src: "image.png",
+          alt: "Seven bottles of potion arranged in a line on a table."
+        },
         answerType: ANSWER_TYPES.TEXT,
-        answer: "keyboard",
+        answer: "blue",
         qr: QR_CODES.FLOOR_2
       },
-      {//make the shift -8
+      {
         floor: "Floor 3",
-        prompt: "Decode mfwfm with a Caesar shift of -1.",
+        prompt: "Decode tmdmt with a Caesar shift of -8.",
         answerType: ANSWER_TYPES.TEXT,
         answer: "level",
         qr: QR_CODES.FLOOR_3
       },
-      {//keep
+      {
         floor: "Floor 4",
         prompt: "Find the words panel, lever, cable, gauge, and wires hidden in the grid to progress.",
         answerType: ANSWER_TYPES.PUZZLE,
@@ -183,7 +244,7 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_4
       },
-      {//keep
+      {
         floor: "Floor 5",
         prompt:
           "You see a 3×3 grid of switches (ON/OFF). Toggling a switch flips itself and its orthogonal neighbors. Goal: turn all switches OFF. Start in a random mixed state.",
@@ -193,33 +254,23 @@ const TEAM_COUNT = 11;
         },
         qr: QR_CODES.FLOOR_5
       },
-      {//replace with wordle
+      {
         floor: "Floor 6",
-        prompt: "Locate the words console, monitor, switch, circuit, relay, sensor, and module hidden in the grid to progress.",
+        prompt: "Play a systems-themed Wordle. Guess the five-letter term within six attempts.",
         answerType: ANSWER_TYPES.PUZZLE,
-        wordSearch: {
-          size: 8,
-          words: ["console", "monitor", "switch", "circuit", "relay", "sensor"],
-          grid: [
-            "C O N S O L E P M T",
-            "A H Q Z V R B L O M",
-            "D S W I T C H A N O",
-            "F U L Q X S P H I D",
-            "T E C I R C U I T U",
-            "K R E L A Y G B O L",
-            "J N P C F H Q E R E",
-            "L T A S E N S O R W",
-            "P V D G L T M C A H",
-            "Q X J B K D V R Y S"
-          ]
+        wordle: {
+          solution: "relay",
+          maxGuesses: 6,
+          hint: "Each guess must be a five-letter English word related to control systems."
         },
         qr: QR_CODES.FLOOR_6
       },
-      {//math with variables makes an answer in text
+      {
         floor: "Floor 7",
-        prompt: "What is 7 × 8?",
+        prompt:
+          "Solve the system: C + D = 7, D + E = 9, C + O = 18, and O - E = 10. Map each variable's value to a letter (A=1, B=2, ...) and read the four-letter code.",
         answerType: ANSWER_TYPES.TEXT,
-        answer: "56",
+        answer: "code",
         qr: QR_CODES.FLOOR_7
       },
       {
@@ -229,17 +280,14 @@ const TEAM_COUNT = 11;
         answer: "riddle",
         qr: QR_CODES.FLOOR_8
       },
-      {//puzzle? if not then hangman (6 char word)
+      {
         floor: "Floor 9",
-        prompt: "Trace the keypad path forming an L shape to advance.",
+        prompt: "Play hangman to reveal the systems keyword before the figure is completed.",
         answerType: ANSWER_TYPES.PUZZLE,
-        keypadPath: {
-          gridSize: 3,
-          correctPath: [1, 4, 7, 8, 9],
-          hints: [
-            "Begin at the top-left key.",
-            "You must move vertically first, then horizontally."
-          ]
+        hangman: {
+          word: "cables",
+          maxMisses: 6,
+          hint: "They link the control room to remote machinery."
         },
         qr: QR_CODES.FLOOR_9
       },
@@ -250,17 +298,17 @@ const TEAM_COUNT = 11;
         memoryGame: {
           finalWord: "BEACON",
           pairs: [
-            { id: "letter-b", face: "B" },
-            { id: "letter-e", face: "E" },
-            { id: "letter-a", face: "A" },
-            { id: "letter-c", face: "C" },
             { id: "letter-o", face: "O" },
-            { id: "letter-n", face: "N" }
+            { id: "letter-b", face: "B" },
+            { id: "letter-a", face: "A" },
+            { id: "letter-n", face: "N" },
+            { id: "letter-c", face: "C" },
+            { id: "letter-e", face: "E" }
           ]
         },
         qr: QR_CODES.FLOOR_10
       },
-      {//TBD
+      {
         floor: "Floor 11",
         prompt: "Replace each letter with the one before it in the alphabet: uijt.",
         answerType: ANSWER_TYPES.TEXT,
@@ -408,6 +456,423 @@ const TEAM_COUNT = 11;
         state.puzzleState = {};
       }
       return state.puzzleState;
+    }
+
+    function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImage, onSolved }) {
+      if (!container || !wordle) {
+        return;
+      }
+
+      const rawSolution = String(wordle.solution ?? "").trim();
+      const solution = rawSolution.toUpperCase().replace(/[^A-Z]/g, "");
+      if (!solution) {
+        container.textContent = "Wordle configuration unavailable.";
+        return;
+      }
+
+      const wordLength = clampNumber(solution.length, 3, 10);
+      const rawMaxGuesses = Number(wordle.maxGuesses);
+      const maxGuesses = clampNumber(Number.isFinite(rawMaxGuesses) ? Math.round(rawMaxGuesses) : 6, 1, 10);
+      const hintText = String(wordle.hint ?? "").trim();
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedWordle = storedInteractiveState?.wordle ?? null;
+
+      const sanitizeWordInput = value => String(value ?? "").toUpperCase().replace(/[^A-Z]/g, "");
+      const sanitizeStatus = token => {
+        const normalized = String(token ?? "").toLowerCase();
+        if (normalized === "correct" || normalized === "present") {
+          return normalized;
+        }
+        return "absent";
+      };
+
+      const guesses = [];
+      if (Array.isArray(storedWordle?.guesses)) {
+        for (let index = 0; index < storedWordle.guesses.length && guesses.length < maxGuesses; index += 1) {
+          const entry = storedWordle.guesses[index];
+          if (!entry || typeof entry !== "object") {
+            continue;
+          }
+          const word = sanitizeWordInput(entry.word ?? "").slice(0, wordLength);
+          if (!word || word.length !== wordLength) {
+            continue;
+          }
+          const rawResult = Array.isArray(entry.result) ? entry.result : [];
+          const result = [];
+          for (let position = 0; position < wordLength; position += 1) {
+            result.push(sanitizeStatus(rawResult[position]));
+          }
+          guesses.push({ word, result });
+        }
+      }
+
+      let currentGuess = sanitizeWordInput(storedWordle?.currentGuess ?? "").slice(0, wordLength);
+      let puzzleCompleted = Boolean(storedWordle?.isComplete);
+      let puzzleFailed = Boolean(storedWordle?.isFailed) && !puzzleCompleted;
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "wordle-wrapper";
+
+      if (prompt || promptImage) {
+        const promptContainer = document.createElement("div");
+        promptContainer.className = "wordle-prompt-block";
+        wrapper.append(promptContainer);
+        renderBasicPrompt(promptContainer, { prompt, promptImage }, { fallbackText: "" });
+      }
+
+      if (hintText) {
+        const hintEl = document.createElement("p");
+        hintEl.className = "wordle-hint";
+        hintEl.textContent = hintText;
+        wrapper.append(hintEl);
+      }
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "wordle-status";
+      wrapper.append(statusEl);
+
+      const grid = document.createElement("div");
+      grid.className = "wordle-grid";
+      grid.style.setProperty("--wordle-rows", String(maxGuesses));
+      grid.style.setProperty("--wordle-cols", String(wordLength));
+      wrapper.append(grid);
+
+      const keyboardWrapper = document.createElement("div");
+      keyboardWrapper.className = "wordle-keyboard";
+      wrapper.append(keyboardWrapper);
+
+      const controls = document.createElement("div");
+      controls.className = "wordle-controls";
+      const resetButton = document.createElement("button");
+      resetButton.type = "button";
+      resetButton.className = "wordle-reset";
+      resetButton.textContent = "Reset";
+      controls.append(resetButton);
+      wrapper.append(controls);
+
+      container.append(wrapper);
+
+      const defaultKeyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+      const keyboardRows = Array.isArray(wordle.keyboardRows) && wordle.keyboardRows.length
+        ? wordle.keyboardRows
+            .map(row => String(row ?? "").toUpperCase().replace(/[^A-Z]/g, ""))
+            .filter(row => row.length)
+        : defaultKeyboardRows;
+
+      const letterStatuses = new Map();
+      guesses.forEach(entry => {
+        for (let position = 0; position < entry.word.length; position += 1) {
+          const letter = entry.word[position];
+          const status = entry.result[position] ?? "absent";
+          upgradeLetterStatus(letter, status);
+        }
+      });
+
+      const cellRefs = [];
+      for (let rowIndex = 0; rowIndex < maxGuesses; rowIndex += 1) {
+        const rowEl = document.createElement("div");
+        rowEl.className = "wordle-row";
+        const cells = [];
+        for (let colIndex = 0; colIndex < wordLength; colIndex += 1) {
+          const cell = document.createElement("span");
+          cell.className = "wordle-cell";
+          rowEl.append(cell);
+          cells.push(cell);
+        }
+        grid.append(rowEl);
+        cellRefs.push(cells);
+      }
+
+      const keyButtons = new Map();
+      keyboardRows.forEach((row, rowIndex) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "wordle-keyboard-row";
+
+        if (rowIndex === keyboardRows.length - 1) {
+          const enterKey = createActionKey("Enter", "ENTER");
+          rowEl.append(enterKey);
+        }
+
+        row.split("").forEach(letter => {
+          const key = document.createElement("button");
+          key.type = "button";
+          key.className = "wordle-key";
+          key.textContent = letter;
+          key.addEventListener("click", () => {
+            handleLetter(letter);
+          });
+          rowEl.append(key);
+          keyButtons.set(letter, key);
+        });
+
+        if (rowIndex === keyboardRows.length - 1) {
+          const deleteKey = createActionKey("Delete", "DELETE");
+          rowEl.append(deleteKey);
+        }
+
+        keyboardWrapper.append(rowEl);
+      });
+
+      let hasNotifiedSolve = puzzleCompleted;
+
+      resetButton.addEventListener("click", () => {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        guesses.length = 0;
+        currentGuess = "";
+        puzzleCompleted = false;
+        puzzleFailed = false;
+        hasNotifiedSolve = false;
+        letterStatuses.clear();
+        persistState();
+        updateKeyboard();
+        updateGrid();
+        updateStatus();
+      });
+
+      updateGrid();
+      updateKeyboard();
+      updateStatus();
+
+      function createActionKey(label, action) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "wordle-key wordle-action-key";
+        button.textContent = label;
+        button.dataset.action = action;
+        button.addEventListener("click", () => {
+          if (action === "ENTER") {
+            submitGuess();
+          } else if (action === "DELETE") {
+            removeLetter();
+          }
+        });
+        keyButtons.set(action, button);
+        return button;
+      }
+
+      function handleLetter(letter) {
+        if (puzzleCompleted || puzzleFailed) {
+          return;
+        }
+        if (currentGuess.length >= wordLength) {
+          return;
+        }
+        currentGuess += letter;
+        persistState();
+        updateGrid();
+        updateStatus();
+      }
+
+      function removeLetter() {
+        if (!currentGuess || puzzleCompleted || puzzleFailed) {
+          return;
+        }
+        currentGuess = currentGuess.slice(0, -1);
+        persistState();
+        updateGrid();
+        updateStatus();
+      }
+
+      function submitGuess() {
+        if (puzzleCompleted || puzzleFailed) {
+          return;
+        }
+        if (currentGuess.length !== wordLength) {
+          setStatus(`Enter a ${wordLength}-letter word.`, "error");
+          return;
+        }
+
+        const guessWord = currentGuess;
+        const result = evaluateWordleGuess(guessWord, solution);
+        guesses.push({ word: guessWord, result });
+
+        currentGuess = "";
+        result.forEach((status, index) => {
+          const letter = guessWord[index];
+          upgradeLetterStatus(letter, status);
+        });
+
+        if (guessWord === solution) {
+          puzzleCompleted = true;
+        } else if (guesses.length >= maxGuesses) {
+          puzzleFailed = true;
+        }
+
+        persistState();
+        updateGrid();
+        updateKeyboard();
+        updateStatus();
+
+        if (puzzleCompleted && !hasNotifiedSolve && typeof onSolved === "function") {
+          hasNotifiedSolve = true;
+          try {
+            const completion = onSolved();
+            if (completion && typeof completion.catch === "function") {
+              completion.catch(error => console.error("Wordle completion handler failed", error));
+            }
+          } catch (error) {
+            console.error("Wordle completion handler failed", error);
+          }
+        }
+      }
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        const payload = {
+          guesses: guesses.map(entry => ({
+            word: entry.word,
+            result: entry.result.slice(0, wordLength)
+          })),
+          currentGuess,
+          isComplete: puzzleCompleted,
+          isFailed: puzzleFailed
+        };
+        setPuzzleInteractiveState(normalizedIndex, { wordle: payload });
+      }
+
+      function updateGrid() {
+        for (let rowIndex = 0; rowIndex < cellRefs.length; rowIndex += 1) {
+          const cells = cellRefs[rowIndex];
+          const entry = guesses[rowIndex] ?? null;
+          cells.forEach(cell => {
+            cell.textContent = "";
+            cell.className = "wordle-cell";
+          });
+          if (entry) {
+            for (let colIndex = 0; colIndex < Math.min(entry.word.length, cells.length); colIndex += 1) {
+              const cell = cells[colIndex];
+              cell.textContent = entry.word[colIndex];
+              cell.classList.add("is-filled", "is-submitted");
+              cell.classList.add(`is-${entry.result[colIndex] ?? "absent"}`);
+            }
+          } else if (!puzzleCompleted && !puzzleFailed && rowIndex === guesses.length && currentGuess) {
+            for (let colIndex = 0; colIndex < Math.min(currentGuess.length, cells.length); colIndex += 1) {
+              const cell = cells[colIndex];
+              cell.textContent = currentGuess[colIndex];
+              cell.classList.add("is-filled", "is-active");
+            }
+          }
+        }
+      }
+
+      function updateKeyboard() {
+        keyButtons.forEach((button, key) => {
+          const isAction = key === "ENTER" || key === "DELETE";
+          button.disabled = puzzleCompleted || puzzleFailed;
+          button.className = isAction ? "wordle-key wordle-action-key" : "wordle-key";
+          if (isAction && key === "ENTER") {
+            button.classList.add("wordle-enter-key");
+          } else if (isAction && key === "DELETE") {
+            button.classList.add("wordle-delete-key");
+          }
+          if (!isAction) {
+            const status = letterStatuses.get(key);
+            if (status) {
+              button.classList.add(`is-${status}`);
+            }
+          }
+        });
+      }
+
+      function updateStatus() {
+        if (puzzleCompleted) {
+          setStatus("Systems word secured!", "success");
+          return;
+        }
+        if (puzzleFailed) {
+          setStatus(`Out of attempts! The word was ${solution}.`, "error");
+          return;
+        }
+        const attemptsLeft = Math.max(0, maxGuesses - guesses.length);
+        setStatus(`${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining.`, "info");
+      }
+
+      function setStatus(message, tone) {
+        statusEl.textContent = message ?? "";
+        statusEl.className = "wordle-status";
+        if (tone === "success") {
+          statusEl.classList.add("is-success");
+        } else if (tone === "error") {
+          statusEl.classList.add("is-error");
+        }
+      }
+
+      function upgradeLetterStatus(letter, status) {
+        if (!letter) {
+          return;
+        }
+        const sanitizedLetter = letter.toUpperCase();
+        const normalizedStatus = status === "correct" || status === "present" ? status : "absent";
+        const existing = letterStatuses.get(sanitizedLetter);
+        if (!existing || compareWordleStatus(normalizedStatus, existing) > 0) {
+          letterStatuses.set(sanitizedLetter, normalizedStatus);
+        }
+      }
+    }
+
+    function compareWordleStatus(nextStatus, previousStatus) {
+      return getWordleStatusPriority(nextStatus) - getWordleStatusPriority(previousStatus);
+    }
+
+    function getWordleStatusPriority(status) {
+      if (status === "correct") {
+        return 3;
+      }
+      if (status === "present") {
+        return 2;
+      }
+      if (status === "absent") {
+        return 1;
+      }
+      return 0;
+    }
+
+    function evaluateWordleGuess(guess, solution) {
+      const sanitizedGuess = String(guess ?? "").toUpperCase().replace(/[^A-Z]/g, "");
+      const sanitizedSolution = String(solution ?? "").toUpperCase().replace(/[^A-Z]/g, "");
+      const length = Math.min(sanitizedGuess.length, sanitizedSolution.length);
+      const result = Array.from({ length }, () => "absent");
+      const solutionChars = sanitizedSolution.split("");
+      const usedIndices = Array(length).fill(false);
+
+      for (let index = 0; index < length; index += 1) {
+        if (sanitizedGuess[index] === sanitizedSolution[index]) {
+          result[index] = "correct";
+          usedIndices[index] = true;
+        }
+      }
+
+      for (let guessIndex = 0; guessIndex < length; guessIndex += 1) {
+        if (result[guessIndex] === "correct") {
+          continue;
+        }
+        const letter = sanitizedGuess[guessIndex];
+        let matchIndex = -1;
+        for (let solutionIndex = 0; solutionIndex < length; solutionIndex += 1) {
+          if (!usedIndices[solutionIndex] && solutionChars[solutionIndex] === letter) {
+            matchIndex = solutionIndex;
+            break;
+          }
+        }
+        if (matchIndex !== -1) {
+          result[guessIndex] = "present";
+          usedIndices[matchIndex] = true;
+        }
+      }
+
+      return result;
+    }
+
+    function getHangmanAsciiStates() {
+      return HANGMAN_ASCII_STAGES;
     }
 
     function getPuzzleInteractiveState(puzzleIndex) {
@@ -3668,6 +4133,279 @@ const TEAM_COUNT = 11;
       }
     }
 
+    function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptImage, onSolved }) {
+      if (!container || !hangman) {
+        return;
+      }
+
+      const rawWord = String(hangman.word ?? "").trim();
+      const solution = rawWord.toUpperCase().replace(/[^A-Z]/g, "");
+      if (!solution) {
+        container.textContent = "Hangman configuration unavailable.";
+        return;
+      }
+
+      const solutionLetters = new Set(solution.split(""));
+      const asciiStates = getHangmanAsciiStates();
+      const maxStageMisses = asciiStates.length - 1;
+      const rawMaxMisses = Number(hangman.maxMisses);
+      const maxMisses = clampNumber(Number.isFinite(rawMaxMisses) ? Math.round(rawMaxMisses) : 6, 1, maxStageMisses);
+      const hintText = String(hangman.hint ?? "").trim();
+
+      const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+      const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+      const storedHangman = storedInteractiveState?.hangman ?? null;
+
+      const sanitizeLetter = value => {
+        const letter = String(value ?? "").trim().toUpperCase();
+        return letter.length === 1 && letter >= "A" && letter <= "Z" ? letter : "";
+      };
+
+      const guessedLetters = new Set();
+      if (Array.isArray(storedHangman?.guessedLetters)) {
+        storedHangman.guessedLetters.forEach(letter => {
+          const sanitized = sanitizeLetter(letter);
+          if (sanitized) {
+            guessedLetters.add(sanitized);
+          }
+        });
+      }
+
+      const correctLetters = new Set();
+      const wrongLetters = new Set();
+      guessedLetters.forEach(letter => {
+        if (solutionLetters.has(letter)) {
+          correctLetters.add(letter);
+        } else {
+          wrongLetters.add(letter);
+        }
+      });
+
+      const storedMisses = Number(storedHangman?.misses);
+      let misses = clampNumber(
+        Math.max(wrongLetters.size, Number.isFinite(storedMisses) ? Math.round(storedMisses) : 0),
+        0,
+        maxMisses
+      );
+
+      let puzzleCompleted = Boolean(storedHangman?.isComplete);
+      if (Array.from(solutionLetters).every(letter => guessedLetters.has(letter))) {
+        puzzleCompleted = true;
+      }
+      let puzzleFailed = Boolean(storedHangman?.isFailed) && !puzzleCompleted;
+      if (misses >= maxMisses && !puzzleCompleted) {
+        puzzleFailed = true;
+      }
+
+      container.innerHTML = "";
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "hangman-wrapper";
+
+      if (prompt || promptImage) {
+        const promptContainer = document.createElement("div");
+        promptContainer.className = "hangman-prompt-block";
+        wrapper.append(promptContainer);
+        renderBasicPrompt(promptContainer, { prompt, promptImage }, { fallbackText: "" });
+      }
+
+      if (hintText) {
+        const hintEl = document.createElement("p");
+        hintEl.className = "hangman-hint";
+        hintEl.textContent = hintText;
+        wrapper.append(hintEl);
+      }
+
+      const figureEl = document.createElement("pre");
+      figureEl.className = "hangman-figure";
+      figureEl.setAttribute("aria-hidden", "true");
+      wrapper.append(figureEl);
+
+      const wordEl = document.createElement("div");
+      wordEl.className = "hangman-word";
+      const letterSpans = [];
+      solution.split("").forEach(letter => {
+        const span = document.createElement("span");
+        span.className = "hangman-letter";
+        span.dataset.letter = letter;
+        letterSpans.push(span);
+        wordEl.append(span);
+      });
+      wrapper.append(wordEl);
+
+      const statusEl = document.createElement("p");
+      statusEl.className = "hangman-status";
+      wrapper.append(statusEl);
+
+      const wrongEl = document.createElement("p");
+      wrongEl.className = "hangman-wrong";
+      wrapper.append(wrongEl);
+
+      const keyboardWrapper = document.createElement("div");
+      keyboardWrapper.className = "hangman-keyboard";
+      wrapper.append(keyboardWrapper);
+
+      const controls = document.createElement("div");
+      controls.className = "hangman-controls";
+      const resetButton = document.createElement("button");
+      resetButton.type = "button";
+      resetButton.className = "hangman-reset";
+      resetButton.textContent = "Reset";
+      controls.append(resetButton);
+      wrapper.append(controls);
+
+      container.append(wrapper);
+
+      const keyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+      const keyButtons = new Map();
+
+      keyboardRows.forEach(row => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "hangman-keyboard-row";
+        row.split("").forEach(letter => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "hangman-key";
+          button.textContent = letter;
+          button.addEventListener("click", () => handleGuess(letter));
+          rowEl.append(button);
+          keyButtons.set(letter, button);
+        });
+        keyboardWrapper.append(rowEl);
+      });
+
+      resetButton.addEventListener("click", () => {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        guessedLetters.clear();
+        correctLetters.clear();
+        wrongLetters.clear();
+        misses = 0;
+        puzzleCompleted = false;
+        puzzleFailed = false;
+        persistState();
+        updateAll();
+      });
+
+      updateAll();
+
+      function handleGuess(letter) {
+        if (puzzleCompleted || puzzleFailed) {
+          return;
+        }
+
+        const uppercase = letter.toUpperCase();
+        if (guessedLetters.has(uppercase)) {
+          return;
+        }
+
+        guessedLetters.add(uppercase);
+        if (solutionLetters.has(uppercase)) {
+          correctLetters.add(uppercase);
+          if (Array.from(solutionLetters).every(char => guessedLetters.has(char))) {
+            puzzleCompleted = true;
+            puzzleFailed = false;
+          }
+        } else {
+          wrongLetters.add(uppercase);
+          misses = clampNumber(misses + 1, 0, maxMisses);
+          if (misses >= maxMisses) {
+            puzzleFailed = true;
+            puzzleCompleted = false;
+          }
+        }
+
+        persistState();
+        updateAll();
+
+        if (puzzleCompleted && typeof onSolved === "function") {
+          try {
+            const completion = onSolved();
+            if (completion && typeof completion.catch === "function") {
+              completion.catch(error => console.error("Hangman completion handler failed", error));
+            }
+          } catch (error) {
+            console.error("Hangman completion handler failed", error);
+          }
+        }
+      }
+
+      function persistState() {
+        if (!Number.isInteger(normalizedIndex)) {
+          return;
+        }
+        const payload = {
+          guessedLetters: Array.from(guessedLetters),
+          misses,
+          isComplete: puzzleCompleted,
+          isFailed: puzzleFailed
+        };
+        setPuzzleInteractiveState(normalizedIndex, { hangman: payload });
+      }
+
+      function updateAll() {
+        updateFigure();
+        updateWordDisplay();
+        updateWrongLetters();
+        updateKeyboard();
+        updateStatus();
+      }
+
+      function updateFigure() {
+        const stageIndex = Math.min(puzzleFailed ? maxMisses : misses, asciiStates.length - 1);
+        figureEl.textContent = asciiStates[stageIndex];
+      }
+
+      function updateWordDisplay() {
+        letterSpans.forEach(span => {
+          const letter = span.dataset.letter ?? "";
+          const revealed = puzzleCompleted || puzzleFailed || guessedLetters.has(letter);
+          span.textContent = revealed ? letter : "—";
+          span.className = "hangman-letter";
+          if (revealed) {
+            span.classList.add("is-revealed");
+          }
+        });
+      }
+
+      function updateWrongLetters() {
+        if (!wrongLetters.size) {
+          wrongEl.textContent = "Wrong guesses: none";
+          return;
+        }
+        wrongEl.textContent = `Wrong guesses: ${Array.from(wrongLetters).join(", ")}`;
+      }
+
+      function updateKeyboard() {
+        keyButtons.forEach((button, letter) => {
+          button.disabled = puzzleCompleted || puzzleFailed || guessedLetters.has(letter);
+          button.className = "hangman-key";
+          if (correctLetters.has(letter)) {
+            button.classList.add("is-correct");
+          } else if (wrongLetters.has(letter)) {
+            button.classList.add("is-wrong");
+          }
+        });
+      }
+
+      function updateStatus() {
+        statusEl.className = "hangman-status";
+        if (puzzleCompleted) {
+          statusEl.classList.add("is-success");
+          statusEl.textContent = "Keyword secured!";
+          return;
+        }
+        if (puzzleFailed) {
+          statusEl.classList.add("is-error");
+          statusEl.textContent = `Out of attempts! The word was ${solution}.`;
+          return;
+        }
+        const remaining = Math.max(0, maxMisses - misses);
+        statusEl.textContent = `Misses remaining: ${remaining}`;
+      }
+    }
+
     function renderMemoryGamePuzzle(container, { puzzleIndex, memoryGame, prompt, onSolved }) {
       if (!container || !memoryGame || !Array.isArray(memoryGame.pairs)) {
         return;
@@ -5641,6 +6379,20 @@ const TEAM_COUNT = 11;
           }
         }
 
+        if (value.wordle && typeof value.wordle === "object") {
+          const sanitizedWordle = sanitizeStoredWordle(value.wordle);
+          if (sanitizedWordle) {
+            entryState.wordle = sanitizedWordle;
+          }
+        }
+
+        if (value.hangman && typeof value.hangman === "object") {
+          const sanitizedHangman = sanitizeStoredHangman(value.hangman);
+          if (sanitizedHangman) {
+            entryState.hangman = sanitizedHangman;
+          }
+        }
+
         if (value.memoryGame && typeof value.memoryGame === "object") {
           const sanitizedMemoryGame = sanitizeStoredMemoryGame(value.memoryGame);
           if (sanitizedMemoryGame) {
@@ -5818,6 +6570,78 @@ const TEAM_COUNT = 11;
         : [];
 
       return { deck, matchedPairIds };
+    }
+
+    function sanitizeStoredWordle(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const guesses = Array.isArray(candidate.guesses)
+        ? candidate.guesses
+            .map(entry => {
+              if (!entry || typeof entry !== "object") {
+                return null;
+              }
+              const word = String(entry.word ?? "")
+                .toUpperCase()
+                .replace(/[^A-Z]/g, "")
+                .slice(0, 10);
+              if (!word) {
+                return null;
+              }
+              const rawResult = Array.isArray(entry.result) ? entry.result : [];
+              const result = [];
+              for (let index = 0; index < Math.min(word.length, 10); index += 1) {
+                const token = String(rawResult[index] ?? "").toLowerCase();
+                if (token === "correct" || token === "present") {
+                  result.push(token);
+                } else {
+                  result.push("absent");
+                }
+              }
+              return { word, result };
+            })
+            .filter(Boolean)
+            .slice(0, 10)
+        : [];
+
+      const currentGuess = String(candidate.currentGuess ?? "")
+        .toUpperCase()
+        .replace(/[^A-Z]/g, "")
+        .slice(0, 10);
+
+      return {
+        guesses,
+        currentGuess,
+        isComplete: Boolean(candidate.isComplete),
+        isFailed: Boolean(candidate.isFailed)
+      };
+    }
+
+    function sanitizeStoredHangman(candidate) {
+      if (!candidate || typeof candidate !== "object") {
+        return null;
+      }
+
+      const guessedLetters = Array.isArray(candidate.guessedLetters)
+        ? Array.from(
+            new Set(
+              candidate.guessedLetters
+                .map(letter => String(letter ?? "").trim().toUpperCase())
+                .filter(letter => letter.length === 1 && letter >= "A" && letter <= "Z")
+            )
+          ).slice(0, 26)
+        : [];
+
+      const misses = clampNumber(Number(candidate.misses) || 0, 0, 10);
+
+      return {
+        guessedLetters,
+        misses,
+        isComplete: Boolean(candidate.isComplete),
+        isFailed: Boolean(candidate.isFailed)
+      };
     }
 
     function buildScanIntent() {
@@ -6312,6 +7136,48 @@ const TEAM_COUNT = 11;
       puzzleLockCurrentState = "locked";
     }
 
+    function renderBasicPrompt(container, puzzle, { fallbackText = "", promptClass = "puzzle-basic-prompt" } = {}) {
+      if (!container) {
+        return;
+      }
+
+      container.innerHTML = "";
+
+      const resolvedPrompt = String(puzzle?.prompt ?? fallbackText ?? "").trim();
+      if (resolvedPrompt) {
+        const promptEl = document.createElement("p");
+        promptEl.className = promptClass;
+        promptEl.textContent = resolvedPrompt;
+        container.append(promptEl);
+      }
+
+      const promptImage = puzzle?.promptImage ?? null;
+      if (promptImage && typeof promptImage === "object") {
+        const imageSrc = String(promptImage.src ?? "").trim();
+        if (imageSrc) {
+          const figure = document.createElement("figure");
+          figure.className = "puzzle-prompt-figure";
+
+          const imageEl = document.createElement("img");
+          imageEl.src = imageSrc;
+          imageEl.loading = "lazy";
+          imageEl.decoding = "async";
+          imageEl.alt = String(promptImage.alt ?? "").trim();
+          figure.append(imageEl);
+
+          const captionText = String(promptImage.caption ?? "").trim();
+          if (captionText) {
+            const caption = document.createElement("figcaption");
+            caption.className = "puzzle-prompt-caption";
+            caption.textContent = captionText;
+            figure.append(caption);
+          }
+
+          container.append(figure);
+        }
+      }
+    }
+
     function renderPuzzle() {
       const hasTeam = Number.isInteger(state.teamId);
       toggleWaitingAnimation(false);
@@ -6371,6 +7237,22 @@ const TEAM_COUNT = 11;
             puzzleIndex: currentSolving,
             keypadPath: puzzle.keypadPath,
             prompt: puzzle.prompt,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.wordle) {
+          renderWordlePuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            wordle: puzzle.wordle,
+            prompt: puzzle.prompt,
+            promptImage: puzzle.promptImage,
+            onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
+          });
+        } else if (puzzle?.hangman) {
+          renderHangmanPuzzle(puzzleBody, {
+            puzzleIndex: currentSolving,
+            hangman: puzzle.hangman,
+            prompt: puzzle.prompt,
+            promptImage: puzzle.promptImage,
             onSolved: () => completePuzzleSolve({ puzzleIndex: currentSolving })
           });
         } else if (puzzle?.memoryGame) {
@@ -6434,11 +7316,8 @@ const TEAM_COUNT = 11;
             onSolved: handleWordSearchSolved
           });
         } else {
-          if (usesInteractiveAnswer) {
-            puzzleBody.textContent = puzzle?.prompt ?? "Complete the puzzle to continue.";
-          } else {
-            puzzleBody.textContent = puzzle?.prompt ?? "Puzzle intel loading.";
-          }
+          const fallbackText = usesInteractiveAnswer ? "Complete the puzzle to continue." : "Puzzle intel loading.";
+          renderBasicPrompt(puzzleBody, puzzle, { fallbackText });
         }
         if (usesInteractiveAnswer) {
           setPuzzleFeedback("Complete the puzzle to unlock the next destination.");
