@@ -202,12 +202,12 @@ Another will transport the drinker back instead.
 Two among our number hold only nettle wine,
 Three of us are killers, waiting hidden in line.
 Choose, unless you wish to stay here for evermore,
-To help you in your choice, we give you these clues four:
-1. However slyly the poison tries to hide, you will always find some on nettle wine's left side.
-2. Different are those who stand at either end; if you would move onwards neither is your friend.
-3. As you see clearly, all are different size; neither dwarf nor giant holds death in their insides.
-4. The second left and the second on the right are twins once you taste them, though different at first sight.
-
+\nTo help you in your choice, we give you these clues four:
+\n1. However slyly the poison tries to hide, you will always find some on nettle wine's left side.
+\n2. Different are those who stand at either end; if you would move onwards neither is your friend.
+\n3. As you see clearly, all are different size; neither dwarf nor giant holds death in their insides.
+\n4. The second left and the second on the right are twins once you taste them, though different at first sight.
+\n
 Identify the potion that lets you pass forward through the flames and enter its color.`,
         promptImage: {
           src: "image.png",
