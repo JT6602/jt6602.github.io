@@ -4,6 +4,9 @@ const COOKIE_NAME = "towerHuntProgress";
 const CACHE_DURATION_DAYS = 365;
 const VALIDATION_DELAY_MS = 1200;
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
+const WORDLE_FAIL_TIMEOUT_MS = 30 * 1000;
+const HANGMAN_FAIL_TIMEOUT_MS = 30 * 1000;
+const HANGMAN_MAX_SEGMENTS = 6;
 
 const TEAM_NAMES = [
   "Team 1",
@@ -33,18 +36,24 @@ const TEAM_ORDERS = [
   [11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 0]
 ];
 
+const QR_FRAGMENT_CODES = Object.freeze({
+  BASEMENT: Object.freeze(["Z7PX-HL0Q-AV34", "B9TN-4LQ2-XM87", "C3RD-7VJ5-QK60"]),
+  FLOOR_4: Object.freeze(["RX1B-W8Q7-5LZJ", "F4LT-9S2H-MK31", "F4LT-3V8N-QP62"]),
+  FLOOR_10: Object.freeze(["P6ZR-2WQJ-M31T", "T0WR-10QG-FR27", "T0WR-10SL-XB95"])
+});
+
 const QR_CODES = Object.freeze({
-  BASEMENT: "Z7PX-HL0Q-AV34",
+  BASEMENT: QR_FRAGMENT_CODES.BASEMENT[0],
   FLOOR_1: "M1QF-8RVZ-T6JD",
   FLOOR_2: "Q4SN-P2LX-9G0B",
   FLOOR_3: "V9KT-3H2C-LM55",
-  FLOOR_4: "RX1B-W8Q7-5LZJ",
+  FLOOR_4: QR_FRAGMENT_CODES.FLOOR_4[0],
   FLOOR_5: "T0HC-4ZKM-PP18",
   FLOOR_6: "C8FW-J3VQ-7N2S",
   FLOOR_7: "L5MB-Y6RT-XQ04",
   FLOOR_8: "H2SV-N9PC-41LJ",
   FLOOR_9: "G7QD-K0LX-UF82",
-  FLOOR_10: "P6ZR-2WQJ-M31T",
+  FLOOR_10: QR_FRAGMENT_CODES.FLOOR_10[0],
   FLOOR_11: "B3XN-5TLY-VA96"
 });
 
@@ -87,50 +96,6 @@ const ANSWER_TYPES = Object.freeze({
   PUZZLE: "puzzle"
 });
 
-const HANGMAN_ASCII_STAGES = Object.freeze([
-  `  +---+
-|   |
-  |
-  |
-  |
-======`,
-  `  +---+
-|   |
-O   |
-  |
-  |
-======`,
-  `  +---+
-|   |
-O   |
-|   |
-  |
-======`,
-  `  +---+
-|   |
-O   |
-/|   |
-  |
-======`,
-  `  +---+
-|   |
-O   |
-/|\\  |
-  |
-======`,
-  `  +---+
-|   |
-O   |
-/|\\  |
-/    |
-======`,
-  `  +---+
-|   |
-O   |
-/|\\  |
-/ \\  |
-======`
-]);
 
 const puzzles = [
   {
@@ -184,7 +149,8 @@ const puzzles = [
       ],
       completionMessage: "Cipher relay complete."
     },
-    qr: QR_CODES.BASEMENT
+    qr: QR_CODES.BASEMENT,
+    qrFragments: QR_FRAGMENT_CODES.BASEMENT
   },
   {
     floor: "Floor 1",
@@ -242,7 +208,8 @@ Identify the potion that lets you pass forward through the flames and enter its 
         "J M Q D Z H V C"
       ]
     },
-    qr: QR_CODES.FLOOR_4
+    qr: QR_CODES.FLOOR_4,
+    qrFragments: QR_FRAGMENT_CODES.FLOOR_4
   },
   {
     floor: "Floor 5",
@@ -260,6 +227,7 @@ Identify the potion that lets you pass forward through the flames and enter its 
     answerType: ANSWER_TYPES.PUZZLE,
     wordle: {
       solution: "relay",
+      wordBank: ["relay", "servo", "plant", "input", "valve"],
       maxGuesses: 6,
       hint: "Each guess must be a five-letter English word related to control systems."
     },
@@ -286,6 +254,7 @@ Identify the potion that lets you pass forward through the flames and enter its 
     answerType: ANSWER_TYPES.PUZZLE,
     hangman: {
       word: "cables",
+      wordBank: ["cables", "sensor", "valves", "motors", "signal"],
       maxMisses: 6,
       hint: "They link the control room to remote machinery."
     },
@@ -306,7 +275,8 @@ Identify the potion that lets you pass forward through the flames and enter its 
         { id: "letter-e", face: "E" }
       ]
     },
-    qr: QR_CODES.FLOOR_10
+    qr: QR_CODES.FLOOR_10,
+    qrFragments: QR_FRAGMENT_CODES.FLOOR_10
   },
   {
     floor: "Floor 11",
@@ -317,12 +287,82 @@ Identify the potion that lets you pass forward through the flames and enter its 
   }
 ];
 
+const PUZZLE_FRAGMENT_DATA = Object.freeze(
+  puzzles.map(puzzle => {
+    const rawFragments = Array.isArray(puzzle?.qrFragments) && puzzle.qrFragments.length
+      ? puzzle.qrFragments
+      : [puzzle.qr];
+    const sanitizedRaw = rawFragments
+      .map(code => String(code ?? "").trim())
+      .filter(code => code.length)
+      .slice(0, 8);
+    const normalized = sanitizedRaw.map(code => normalizeCode(code));
+    return Object.freeze({
+      raw: Object.freeze(sanitizedRaw),
+      normalized: Object.freeze(normalized),
+      count: sanitizedRaw.length
+    });
+  })
+);
+
+const PUZZLE_FRAGMENT_COUNT = Object.freeze(PUZZLE_FRAGMENT_DATA.map(entry => entry.count));
+const PUZZLE_FRAGMENT_FULL_MASK = Object.freeze(
+  PUZZLE_FRAGMENT_COUNT.map(count => {
+    if (count <= 0) {
+      return 0;
+    }
+    if (count >= 31) {
+      return 0x7fffffff;
+    }
+    return (1 << count) - 1;
+  })
+);
+
 const PUZZLE_CODE_LOOKUP = Object.freeze(
-  puzzles.reduce((map, puzzle, index) => {
-    map[normalizeCode(puzzle.qr)] = index;
+  PUZZLE_FRAGMENT_DATA.reduce((map, entry, index) => {
+    entry.normalized.forEach((code, fragmentIndex) => {
+      if (!code) {
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(map, code)) {
+        map[code] = {
+          puzzleIndex: index,
+          fragmentIndex,
+          fragments: entry.count
+        };
+      }
+    });
     return map;
   }, {})
 );
+
+function getPuzzleFragmentCount(puzzleIndex) {
+  const count = PUZZLE_FRAGMENT_COUNT[puzzleIndex];
+  return Number.isInteger(count) && count > 0 ? count : 1;
+}
+
+function getPuzzleFragmentRawCodes(puzzleIndex) {
+  const entry = PUZZLE_FRAGMENT_DATA[puzzleIndex];
+  if (!entry || !Array.isArray(entry.raw)) {
+    return [];
+  }
+  return entry.raw;
+}
+
+function getPuzzleFragmentFullMask(puzzleIndex) {
+  const mask = PUZZLE_FRAGMENT_FULL_MASK[puzzleIndex];
+  return Number.isInteger(mask) && mask >= 0 ? mask : 0;
+}
+
+function countFragmentBits(mask) {
+  let working = Number.isInteger(mask) ? mask : 0;
+  let count = 0;
+  while (working > 0) {
+    working &= working - 1;
+    count += 1;
+  }
+  return count;
+}
 
 const progressBar = document.getElementById("progressBar");
 const progressCount = document.getElementById("progressCount");
@@ -435,6 +475,7 @@ const defaultState = (teamId = null) => ({
   completions: Array.from({ length: PUZZLE_COUNT }, () => false),
   unlocked: Array.from({ length: PUZZLE_COUNT }, () => false),
   revealed: Array.from({ length: PUZZLE_COUNT }, () => false),
+  unlockFragments: Array.from({ length: PUZZLE_COUNT }, () => 0),
   hasWon: false,
   puzzleState: {},
   startTimestamp: null
@@ -463,22 +504,6 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     return;
   }
 
-  const rawSolution = String(wordle.solution ?? "").trim();
-  const solution = rawSolution.toUpperCase().replace(/[^A-Z]/g, "");
-  if (!solution) {
-    container.textContent = "Wordle configuration unavailable.";
-    return;
-  }
-
-  const wordLength = clampNumber(solution.length, 3, 10);
-  const rawMaxGuesses = Number(wordle.maxGuesses);
-  const maxGuesses = clampNumber(Number.isFinite(rawMaxGuesses) ? Math.round(rawMaxGuesses) : 6, 1, 10);
-  const hintText = String(wordle.hint ?? "").trim();
-
-  const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
-  const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
-  const storedWordle = storedInteractiveState?.wordle ?? null;
-
   const sanitizeWordInput = value => String(value ?? "").toUpperCase().replace(/[^A-Z]/g, "");
   const sanitizeStatus = token => {
     const normalized = String(token ?? "").toLowerCase();
@@ -487,9 +512,85 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     }
     return "absent";
   };
+  const sanitizeLockoutTimestamp = value => {
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
+      return null;
+    }
+    return timestamp;
+  };
+
+  const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
+  const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
+  const storedWordle = storedInteractiveState?.wordle ?? null;
+
+  const storedSolution = sanitizeWordInput(storedWordle?.solution ?? "");
+  const configuredWords = [];
+
+  if (Array.isArray(wordle.wordBank)) {
+    wordle.wordBank.forEach(entry => {
+      const sanitized = sanitizeWordInput(entry);
+      if (sanitized.length >= 3 && sanitized.length <= 10) {
+        configuredWords.push(sanitized);
+      }
+    });
+  }
+
+  const configuredSolution = sanitizeWordInput(wordle.solution ?? "");
+  if (configuredSolution.length >= 3 && configuredSolution.length <= 10) {
+    configuredWords.push(configuredSolution);
+  }
+
+  if (storedSolution.length >= 3 && storedSolution.length <= 10) {
+    configuredWords.push(storedSolution);
+  }
+
+  const uniqueWords = Array.from(new Set(configuredWords));
+  let targetLength = storedSolution.length >= 3 && storedSolution.length <= 10 ? storedSolution.length : null;
+  if (targetLength === null) {
+    const firstWord = uniqueWords.find(word => word.length >= 3 && word.length <= 10);
+    if (firstWord) {
+      targetLength = firstWord.length;
+    }
+  }
+
+  if (!targetLength) {
+    container.textContent = "Wordle configuration unavailable.";
+    return;
+  }
+
+  const availableSolutions = uniqueWords.filter(word => word.length === targetLength);
+  if (!availableSolutions.length) {
+    container.textContent = "Wordle configuration unavailable.";
+    return;
+  }
+
+  const selectRandomSolution = (exclude = null) => {
+    if (!availableSolutions.length) {
+      return exclude ?? "";
+    }
+    const pool = availableSolutions.filter(word => word !== exclude);
+    const candidates = pool.length ? pool : availableSolutions;
+    const index = Math.floor(Math.random() * candidates.length);
+    return candidates[index];
+  };
+
+  let activeSolution = storedSolution.length === targetLength ? storedSolution : selectRandomSolution();
+  if (!activeSolution) {
+    container.textContent = "Wordle configuration unavailable.";
+    return;
+  }
+
+  const wordLength = clampNumber(activeSolution.length, 3, 10);
+  const rawMaxGuesses = Number(wordle.maxGuesses);
+  const maxGuesses = clampNumber(Number.isFinite(rawMaxGuesses) ? Math.round(rawMaxGuesses) : 6, 1, 10);
+  const hintText = String(wordle.hint ?? "").trim();
+
+  const canReuseStoredProgress =
+    Boolean(storedWordle) && sanitizeWordInput(storedWordle.solution ?? "") === activeSolution;
 
   const guesses = [];
-  if (Array.isArray(storedWordle?.guesses)) {
+  if (canReuseStoredProgress && Array.isArray(storedWordle?.guesses)) {
     for (let index = 0; index < storedWordle.guesses.length && guesses.length < maxGuesses; index += 1) {
       const entry = storedWordle.guesses[index];
       if (!entry || typeof entry !== "object") {
@@ -508,9 +609,26 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     }
   }
 
-  let currentGuess = sanitizeWordInput(storedWordle?.currentGuess ?? "").slice(0, wordLength);
-  let puzzleCompleted = Boolean(storedWordle?.isComplete);
-  let puzzleFailed = Boolean(storedWordle?.isFailed) && !puzzleCompleted;
+  let currentGuess = canReuseStoredProgress
+    ? sanitizeWordInput(storedWordle?.currentGuess ?? "").slice(0, wordLength)
+    : "";
+  let puzzleCompleted = canReuseStoredProgress ? Boolean(storedWordle?.isComplete) : false;
+  let puzzleFailed = !puzzleCompleted && canReuseStoredProgress ? Boolean(storedWordle?.isFailed) : false;
+  let lockoutUntil = canReuseStoredProgress ? sanitizeLockoutTimestamp(storedWordle?.lockoutUntil) : null;
+
+  if (puzzleCompleted) {
+    puzzleFailed = false;
+    lockoutUntil = null;
+  }
+
+  const letterStatuses = new Map();
+  guesses.forEach(entry => {
+    for (let position = 0; position < entry.word.length; position += 1) {
+      const letter = entry.word[position];
+      const status = entry.result[position] ?? "absent";
+      upgradeLetterStatus(letter, status);
+    }
+  });
 
   container.innerHTML = "";
 
@@ -545,15 +663,6 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   keyboardWrapper.className = "wordle-keyboard";
   wrapper.append(keyboardWrapper);
 
-  const controls = document.createElement("div");
-  controls.className = "wordle-controls";
-  const resetButton = document.createElement("button");
-  resetButton.type = "button";
-  resetButton.className = "wordle-reset";
-  resetButton.textContent = "Reset";
-  controls.append(resetButton);
-  wrapper.append(controls);
-
   container.append(wrapper);
 
   const defaultKeyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
@@ -562,15 +671,6 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
         .map(row => String(row ?? "").toUpperCase().replace(/[^A-Z]/g, ""))
         .filter(row => row.length)
     : defaultKeyboardRows;
-
-  const letterStatuses = new Map();
-  guesses.forEach(entry => {
-    for (let position = 0; position < entry.word.length; position += 1) {
-      const letter = entry.word[position];
-      const status = entry.result[position] ?? "absent";
-      upgradeLetterStatus(letter, status);
-    }
-  });
 
   const cellRefs = [];
   for (let rowIndex = 0; rowIndex < maxGuesses; rowIndex += 1) {
@@ -618,26 +718,23 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   });
 
   let hasNotifiedSolve = puzzleCompleted;
+  let lockoutTimerId = null;
+  let lockoutCountdownId = null;
 
-  resetButton.addEventListener("click", () => {
-    if (!Number.isInteger(normalizedIndex)) {
-      return;
-    }
-    guesses.length = 0;
-    currentGuess = "";
-    puzzleCompleted = false;
-    puzzleFailed = false;
-    hasNotifiedSolve = false;
-    letterStatuses.clear();
-    persistState();
-    updateKeyboard();
+  const shouldAutoResetOnLoad =
+    !puzzleCompleted && puzzleFailed && (!lockoutUntil || lockoutUntil <= Date.now());
+
+  if (shouldAutoResetOnLoad) {
+    beginNewRound();
+  } else {
     updateGrid();
+    updateKeyboard();
     updateStatus();
-  });
-
-  updateGrid();
-  updateKeyboard();
-  updateStatus();
+    if (isLockoutActive()) {
+      scheduleLockoutReset();
+    }
+    persistState();
+  }
 
   function createActionKey(label, action) {
     const button = document.createElement("button");
@@ -656,8 +753,16 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     return button;
   }
 
+  function isLockoutActive() {
+    return Boolean(lockoutUntil && lockoutUntil > Date.now());
+  }
+
+  function isInteractionLocked() {
+    return puzzleCompleted || isLockoutActive();
+  }
+
   function handleLetter(letter) {
-    if (puzzleCompleted || puzzleFailed) {
+    if (isInteractionLocked()) {
       return;
     }
     if (currentGuess.length >= wordLength) {
@@ -670,7 +775,10 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   }
 
   function removeLetter() {
-    if (!currentGuess || puzzleCompleted || puzzleFailed) {
+    if (isInteractionLocked()) {
+      return;
+    }
+    if (!currentGuess) {
       return;
     }
     currentGuess = currentGuess.slice(0, -1);
@@ -680,7 +788,7 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   }
 
   function submitGuess() {
-    if (puzzleCompleted || puzzleFailed) {
+    if (isInteractionLocked()) {
       return;
     }
     if (currentGuess.length !== wordLength) {
@@ -689,7 +797,7 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     }
 
     const guessWord = currentGuess;
-    const result = evaluateWordleGuess(guessWord, solution);
+    const result = evaluateWordleGuess(guessWord, activeSolution);
     guesses.push({ word: guessWord, result });
 
     currentGuess = "";
@@ -698,16 +806,23 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
       upgradeLetterStatus(letter, status);
     });
 
-    if (guessWord === solution) {
+    if (guessWord === activeSolution) {
       puzzleCompleted = true;
+      puzzleFailed = false;
+      lockoutUntil = null;
     } else if (guesses.length >= maxGuesses) {
       puzzleFailed = true;
+      lockoutUntil = Date.now() + WORDLE_FAIL_TIMEOUT_MS;
     }
 
     persistState();
     updateGrid();
     updateKeyboard();
     updateStatus();
+
+    if (puzzleFailed) {
+      scheduleLockoutReset();
+    }
 
     if (puzzleCompleted && !hasNotifiedSolve && typeof onSolved === "function") {
       hasNotifiedSolve = true;
@@ -722,18 +837,68 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
     }
   }
 
+  function beginNewRound() {
+    window.clearTimeout(lockoutTimerId);
+    lockoutTimerId = null;
+    window.clearInterval(lockoutCountdownId);
+    lockoutCountdownId = null;
+
+    const previousSolution = activeSolution;
+    activeSolution = selectRandomSolution(previousSolution) || previousSolution;
+
+    guesses.length = 0;
+    currentGuess = "";
+    puzzleCompleted = false;
+    puzzleFailed = false;
+    hasNotifiedSolve = false;
+    lockoutUntil = null;
+    letterStatuses.clear();
+
+    persistState();
+    updateKeyboard();
+    updateGrid();
+    updateStatus();
+  }
+
+  function scheduleLockoutReset() {
+    window.clearTimeout(lockoutTimerId);
+    lockoutTimerId = null;
+    window.clearInterval(lockoutCountdownId);
+    lockoutCountdownId = null;
+
+    if (!isLockoutActive()) {
+      return;
+    }
+
+    const remaining = Math.max(0, lockoutUntil - Date.now());
+    lockoutTimerId = window.setTimeout(() => {
+      beginNewRound();
+    }, remaining);
+
+    lockoutCountdownId = window.setInterval(() => {
+      if (!isLockoutActive()) {
+        window.clearInterval(lockoutCountdownId);
+        lockoutCountdownId = null;
+        return;
+      }
+      updateStatus();
+    }, 250);
+  }
+
   function persistState() {
     if (!Number.isInteger(normalizedIndex)) {
       return;
     }
     const payload = {
+      solution: activeSolution,
       guesses: guesses.map(entry => ({
         word: entry.word,
         result: entry.result.slice(0, wordLength)
       })),
       currentGuess,
       isComplete: puzzleCompleted,
-      isFailed: puzzleFailed
+      isFailed: puzzleFailed,
+      lockoutUntil: lockoutUntil ?? null
     };
     setPuzzleInteractiveState(normalizedIndex, { wordle: payload });
   }
@@ -753,7 +918,7 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
           cell.classList.add("is-filled", "is-submitted");
           cell.classList.add(`is-${entry.result[colIndex] ?? "absent"}`);
         }
-      } else if (!puzzleCompleted && !puzzleFailed && rowIndex === guesses.length && currentGuess) {
+      } else if (!isLockoutActive() && !puzzleCompleted && rowIndex === guesses.length && currentGuess) {
         for (let colIndex = 0; colIndex < Math.min(currentGuess.length, cells.length); colIndex += 1) {
           const cell = cells[colIndex];
           cell.textContent = currentGuess[colIndex];
@@ -764,9 +929,10 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   }
 
   function updateKeyboard() {
+    const locked = isInteractionLocked();
     keyButtons.forEach((button, key) => {
       const isAction = key === "ENTER" || key === "DELETE";
-      button.disabled = puzzleCompleted || puzzleFailed;
+      button.disabled = locked;
       button.className = isAction ? "wordle-key wordle-action-key" : "wordle-key";
       if (isAction && key === "ENTER") {
         button.classList.add("wordle-enter-key");
@@ -783,12 +949,18 @@ function renderWordlePuzzle(container, { puzzleIndex, wordle, prompt, promptImag
   }
 
   function updateStatus() {
+    const lockedOut = isLockoutActive();
     if (puzzleCompleted) {
       setStatus("Systems word secured!", "success");
       return;
     }
+    if (lockedOut) {
+      const remainingSeconds = Math.ceil(Math.max(0, lockoutUntil - Date.now()) / 1000);
+      setStatus(`Out of attempts! The word was ${activeSolution}. Retry in ${remainingSeconds}s.`, "error");
+      return;
+    }
     if (puzzleFailed) {
-      setStatus(`Out of attempts! The word was ${solution}.`, "error");
+      setStatus(`Out of attempts! The word was ${activeSolution}.`, "error");
       return;
     }
     const attemptsLeft = Math.max(0, maxGuesses - guesses.length);
@@ -869,10 +1041,6 @@ function evaluateWordleGuess(guess, solution) {
   }
 
   return result;
-}
-
-function getHangmanAsciiStates() {
-  return HANGMAN_ASCII_STAGES;
 }
 
 function getPuzzleInteractiveState(puzzleIndex) {
@@ -1441,19 +1609,45 @@ function renderGmOverrideList() {
 
 function renderGmLocationList() {
   if (!gmLocationList) return;
-  gmLocationList.innerHTML = puzzles
-    .map((puzzle, index) => {
-      const label = puzzle?.floor ?? `Puzzle ${index + 1}`;
-      return buildGmCellItemMarkup({
-        code: puzzle.qr,
-        category: "location",
-        primary: label,
-        secondary: "Location QR",
-        title: label,
-        subtitle: "Onsite checkpoint"
+  const items = [];
+  puzzles.forEach((puzzle, index) => {
+    const label = puzzle?.floor ?? `Puzzle ${index + 1}`;
+    const fragments = getPuzzleFragmentRawCodes(index);
+    const totalFragments = fragments.length;
+    if (totalFragments > 1) {
+      fragments.forEach((code, fragmentIndex) => {
+        if (!code) {
+          return;
+        }
+        items.push(
+          buildGmCellItemMarkup({
+            code,
+            category: "location",
+            primary: `${label} Fragment ${fragmentIndex + 1}`,
+            secondary: `Location QR ${fragmentIndex + 1} of ${totalFragments}`,
+            title: `${label} Fragment ${fragmentIndex + 1}`,
+            subtitle: `Fragment checkpoint • ${totalFragments} required to unlock`
+          })
+        );
       });
-    })
-    .join("");
+    } else {
+      const code = fragments[0] ?? (puzzle?.qr ? String(puzzle.qr) : "");
+      if (!code) {
+        return;
+      }
+      items.push(
+        buildGmCellItemMarkup({
+          code,
+          category: "location",
+          primary: label,
+          secondary: "Location QR",
+          title: label,
+          subtitle: "Onsite checkpoint"
+        })
+      );
+    }
+  });
+  gmLocationList.innerHTML = items.join("");
 }
 
 function buildGmCellItemMarkup({ code, category, primary, secondary, title, subtitle }) {
@@ -4326,31 +4520,80 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
     return;
   }
 
-  const rawWord = String(hangman.word ?? "").trim();
-  const solution = rawWord.toUpperCase().replace(/[^A-Z]/g, "");
-  if (!solution) {
-    container.textContent = "Hangman configuration unavailable.";
-    return;
-  }
-
-  const solutionLetters = new Set(solution.split(""));
-  const asciiStates = getHangmanAsciiStates();
-  const maxStageMisses = asciiStates.length - 1;
-  const rawMaxMisses = Number(hangman.maxMisses);
-  const maxMisses = clampNumber(Number.isFinite(rawMaxMisses) ? Math.round(rawMaxMisses) : 6, 1, maxStageMisses);
-  const hintText = String(hangman.hint ?? "").trim();
+  const sanitizeWord = value => String(value ?? "").trim().toUpperCase().replace(/[^A-Z]/g, "");
+  const sanitizeLetter = value => {
+    const letter = String(value ?? "").trim().toUpperCase();
+    return letter.length === 1 && letter >= "A" && letter <= "Z" ? letter : "";
+  };
+  const sanitizeLockoutTimestamp = value => {
+    const timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
+      return null;
+    }
+    return timestamp;
+  };
 
   const normalizedIndex = Number.isInteger(puzzleIndex) ? clampNumber(puzzleIndex, 0, PUZZLE_COUNT - 1) : null;
   const storedInteractiveState = Number.isInteger(normalizedIndex) ? getPuzzleInteractiveState(normalizedIndex) : null;
   const storedHangman = storedInteractiveState?.hangman ?? null;
 
-  const sanitizeLetter = value => {
-    const letter = String(value ?? "").trim().toUpperCase();
-    return letter.length === 1 && letter >= "A" && letter <= "Z" ? letter : "";
+  const storedWord = sanitizeWord(storedHangman?.word ?? "");
+  const configuredWords = [];
+
+  if (Array.isArray(hangman.wordBank)) {
+    hangman.wordBank.forEach(entry => {
+      const sanitized = sanitizeWord(entry);
+      if (sanitized.length >= 3 && sanitized.length <= 12) {
+        configuredWords.push(sanitized);
+      }
+    });
+  }
+
+  const configuredWord = sanitizeWord(hangman.word ?? "");
+  if (configuredWord.length >= 3 && configuredWord.length <= 12) {
+    configuredWords.push(configuredWord);
+  }
+
+  if (storedWord.length >= 3 && storedWord.length <= 12) {
+    configuredWords.push(storedWord);
+  }
+
+  const uniqueWords = Array.from(new Set(configuredWords));
+  if (!uniqueWords.length) {
+    container.textContent = "Hangman configuration unavailable.";
+    return;
+  }
+
+  const selectRandomWord = (exclude = null) => {
+    if (!uniqueWords.length) {
+      return exclude ?? "";
+    }
+    const pool = uniqueWords.filter(word => word !== exclude);
+    const candidates = pool.length ? pool : uniqueWords;
+    const index = Math.floor(Math.random() * candidates.length);
+    return candidates[index];
   };
 
+  let activeWord = storedWord || selectRandomWord();
+  if (!activeWord) {
+    container.textContent = "Hangman configuration unavailable.";
+    return;
+  }
+
+  const rawMaxMisses = Number(hangman.maxMisses);
+  const maxMisses = clampNumber(
+    Number.isFinite(rawMaxMisses) ? Math.round(rawMaxMisses) : HANGMAN_MAX_SEGMENTS,
+    1,
+    HANGMAN_MAX_SEGMENTS
+  );
+  const hintText = String(hangman.hint ?? "").trim();
+
+  let solutionLetters = new Set(activeWord.split(""));
+  const canReuseStoredProgress =
+    Boolean(storedHangman) && sanitizeWord(storedHangman.word ?? "") === activeWord;
+
   const guessedLetters = new Set();
-  if (Array.isArray(storedHangman?.guessedLetters)) {
+  if (canReuseStoredProgress && Array.isArray(storedHangman?.guessedLetters)) {
     storedHangman.guessedLetters.forEach(letter => {
       const sanitized = sanitizeLetter(letter);
       if (sanitized) {
@@ -4369,20 +4612,26 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
     }
   });
 
-  const storedMisses = Number(storedHangman?.misses);
+  const storedMisses = canReuseStoredProgress ? Number(storedHangman?.misses) : 0;
   let misses = clampNumber(
     Math.max(wrongLetters.size, Number.isFinite(storedMisses) ? Math.round(storedMisses) : 0),
     0,
     maxMisses
   );
 
-  let puzzleCompleted = Boolean(storedHangman?.isComplete);
+  let puzzleCompleted = canReuseStoredProgress ? Boolean(storedHangman?.isComplete) : false;
   if (Array.from(solutionLetters).every(letter => guessedLetters.has(letter))) {
     puzzleCompleted = true;
   }
-  let puzzleFailed = Boolean(storedHangman?.isFailed) && !puzzleCompleted;
+  let puzzleFailed = !puzzleCompleted && canReuseStoredProgress ? Boolean(storedHangman?.isFailed) : false;
   if (misses >= maxMisses && !puzzleCompleted) {
     puzzleFailed = true;
+  }
+
+  let lockoutUntil = canReuseStoredProgress ? sanitizeLockoutTimestamp(storedHangman?.lockoutUntil) : null;
+  if (puzzleCompleted) {
+    puzzleFailed = false;
+    lockoutUntil = null;
   }
 
   container.innerHTML = "";
@@ -4404,22 +4653,41 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
     wrapper.append(hintEl);
   }
 
-  const figureEl = document.createElement("pre");
+  const figureEl = document.createElement("div");
   figureEl.className = "hangman-figure";
   figureEl.setAttribute("aria-hidden", "true");
+  const figureLabel = document.createElement("div");
+  figureLabel.className = "hangman-figure-label";
+  const meter = document.createElement("div");
+  meter.className = "hangman-meter";
+  const meterSegments = [];
+  for (let index = 0; index < maxMisses; index += 1) {
+    const segment = document.createElement("span");
+    segment.className = "hangman-meter-segment";
+    meter.append(segment);
+    meterSegments.push(segment);
+  }
+  const figureDescription = document.createElement("p");
+  figureDescription.className = "hangman-figure-description";
+  figureEl.append(figureLabel, meter, figureDescription);
   wrapper.append(figureEl);
 
   const wordEl = document.createElement("div");
   wordEl.className = "hangman-word";
-  const letterSpans = [];
-  solution.split("").forEach(letter => {
-    const span = document.createElement("span");
-    span.className = "hangman-letter";
-    span.dataset.letter = letter;
-    letterSpans.push(span);
-    wordEl.append(span);
-  });
   wrapper.append(wordEl);
+  let letterSpans = [];
+  const rebuildWordSlots = word => {
+    wordEl.innerHTML = "";
+    letterSpans = [];
+    word.split("").forEach(letter => {
+      const span = document.createElement("span");
+      span.className = "hangman-letter";
+      span.dataset.letter = letter;
+      letterSpans.push(span);
+      wordEl.append(span);
+    });
+  };
+  rebuildWordSlots(activeWord);
 
   const statusEl = document.createElement("p");
   statusEl.className = "hangman-status";
@@ -4432,15 +4700,6 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
   const keyboardWrapper = document.createElement("div");
   keyboardWrapper.className = "hangman-keyboard";
   wrapper.append(keyboardWrapper);
-
-  const controls = document.createElement("div");
-  controls.className = "hangman-controls";
-  const resetButton = document.createElement("button");
-  resetButton.type = "button";
-  resetButton.className = "hangman-reset";
-  resetButton.textContent = "Reset";
-  controls.append(resetButton);
-  wrapper.append(controls);
 
   container.append(wrapper);
 
@@ -4455,31 +4714,42 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
       button.type = "button";
       button.className = "hangman-key";
       button.textContent = letter;
-      button.addEventListener("click", () => handleGuess(letter));
+      button.addEventListener("click", () => {
+        handleGuess(letter);
+      });
       rowEl.append(button);
       keyButtons.set(letter, button);
     });
     keyboardWrapper.append(rowEl);
   });
 
-  resetButton.addEventListener("click", () => {
-    if (!Number.isInteger(normalizedIndex)) {
-      return;
-    }
-    guessedLetters.clear();
-    correctLetters.clear();
-    wrongLetters.clear();
-    misses = 0;
-    puzzleCompleted = false;
-    puzzleFailed = false;
-    persistState();
-    updateAll();
-  });
+  let hasNotifiedSolve = puzzleCompleted;
+  let lockoutTimerId = null;
+  let lockoutCountdownId = null;
 
-  updateAll();
+  const shouldAutoResetOnLoad =
+    !puzzleCompleted && puzzleFailed && (!lockoutUntil || lockoutUntil <= Date.now());
+
+  if (shouldAutoResetOnLoad) {
+    beginNewRound();
+  } else {
+    updateAll();
+    if (isLockoutActive()) {
+      scheduleLockoutReset();
+    }
+    persistState();
+  }
+
+  function isLockoutActive() {
+    return Boolean(lockoutUntil && lockoutUntil > Date.now());
+  }
+
+  function isInteractionLocked() {
+    return puzzleCompleted || isLockoutActive();
+  }
 
   function handleGuess(letter) {
-    if (puzzleCompleted || puzzleFailed) {
+    if (isInteractionLocked()) {
       return;
     }
 
@@ -4494,6 +4764,7 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
       if (Array.from(solutionLetters).every(char => guessedLetters.has(char))) {
         puzzleCompleted = true;
         puzzleFailed = false;
+        lockoutUntil = null;
       }
     } else {
       wrongLetters.add(uppercase);
@@ -4501,13 +4772,19 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
       if (misses >= maxMisses) {
         puzzleFailed = true;
         puzzleCompleted = false;
+        lockoutUntil = Date.now() + HANGMAN_FAIL_TIMEOUT_MS;
       }
     }
 
     persistState();
     updateAll();
 
-    if (puzzleCompleted && typeof onSolved === "function") {
+    if (puzzleFailed) {
+      scheduleLockoutReset();
+    }
+
+    if (puzzleCompleted && typeof onSolved === "function" && !hasNotifiedSolve) {
+      hasNotifiedSolve = true;
       try {
         const completion = onSolved();
         if (completion && typeof completion.catch === "function") {
@@ -4519,15 +4796,65 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
     }
   }
 
+  function beginNewRound() {
+    window.clearTimeout(lockoutTimerId);
+    lockoutTimerId = null;
+    window.clearInterval(lockoutCountdownId);
+    lockoutCountdownId = null;
+
+    const previousWord = activeWord;
+    activeWord = selectRandomWord(previousWord) || previousWord;
+    solutionLetters = new Set(activeWord.split(""));
+    guessedLetters.clear();
+    correctLetters.clear();
+    wrongLetters.clear();
+    misses = 0;
+    puzzleCompleted = false;
+    puzzleFailed = false;
+    hasNotifiedSolve = false;
+    lockoutUntil = null;
+    rebuildWordSlots(activeWord);
+
+    persistState();
+    updateAll();
+  }
+
+  function scheduleLockoutReset() {
+    window.clearTimeout(lockoutTimerId);
+    lockoutTimerId = null;
+    window.clearInterval(lockoutCountdownId);
+    lockoutCountdownId = null;
+
+    if (!isLockoutActive()) {
+      return;
+    }
+
+    const remaining = Math.max(0, lockoutUntil - Date.now());
+    lockoutTimerId = window.setTimeout(() => {
+      beginNewRound();
+    }, remaining);
+
+    lockoutCountdownId = window.setInterval(() => {
+      if (!isLockoutActive()) {
+        window.clearInterval(lockoutCountdownId);
+        lockoutCountdownId = null;
+        return;
+      }
+      updateStatus();
+    }, 250);
+  }
+
   function persistState() {
     if (!Number.isInteger(normalizedIndex)) {
       return;
     }
     const payload = {
+      word: activeWord,
       guessedLetters: Array.from(guessedLetters),
       misses,
       isComplete: puzzleCompleted,
-      isFailed: puzzleFailed
+      isFailed: puzzleFailed,
+      lockoutUntil: lockoutUntil ?? null
     };
     setPuzzleInteractiveState(normalizedIndex, { hangman: payload });
   }
@@ -4540,9 +4867,113 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
     updateStatus();
   }
 
+  function describeSafetyState({ attemptsRemaining, maxAttempts, spentAttempts, completed, failed, lockout, lockoutSeconds }) {
+    if (completed) {
+      if (spentAttempts === 0) {
+        return {
+          label: "Secured",
+          message: "Keyword recovered without releasing any safeguards."
+        };
+      }
+      return {
+        label: "Secured",
+        message: `${attemptsRemaining}/${maxAttempts} safeguards remained engaged when the keyword was recovered.`
+      };
+    }
+
+    if (failed) {
+      if (lockout) {
+        const suffix = lockoutSeconds > 0 ? ` Retry in ${lockoutSeconds}s.` : "";
+        return {
+          label: "Lockout",
+          message: `Safety system is recalibrating.${suffix}`
+        };
+      }
+      return {
+        label: "Failure",
+        message: "Safety system collapsed. Await GM assistance."
+      };
+    }
+
+    if (lockout) {
+      const suffix = lockoutSeconds > 0 ? ` Retry in ${lockoutSeconds}s.` : "";
+      return {
+        label: "Lockout",
+        message: `Controls resetting.${suffix}`
+      };
+    }
+
+    if (attemptsRemaining === maxAttempts) {
+      return {
+        label: "Stable",
+        message: "Safety rig secure. No clamps released yet."
+      };
+    }
+
+    if (attemptsRemaining >= Math.max(2, Math.ceil(maxAttempts * 0.5))) {
+      return {
+        label: "Guarded",
+        message: `${attemptsRemaining}/${maxAttempts} safeguards intact. Minor strain detected.`
+      };
+    }
+
+    if (attemptsRemaining === 1) {
+      return {
+        label: "Critical",
+        message: "Only one safeguard remains."
+      };
+    }
+
+    if (attemptsRemaining > 0) {
+      return {
+        label: "Tense",
+        message: `${attemptsRemaining}/${maxAttempts} safeguards intact. Choose carefully.`
+      };
+    }
+
+    return {
+      label: "Failure",
+      message: "Safety system collapsed."
+    };
+  }
+
   function updateFigure() {
-    const stageIndex = Math.min(puzzleFailed ? maxMisses : misses, asciiStates.length - 1);
-    figureEl.textContent = asciiStates[stageIndex];
+    const attemptsRemaining = Math.max(0, maxMisses - misses);
+    const spentAttempts = Math.max(0, maxMisses - attemptsRemaining);
+    const lockoutActive = isLockoutActive();
+    const lockoutSeconds = lockoutActive ? Math.ceil(Math.max(0, lockoutUntil - Date.now()) / 1000) : 0;
+
+    figureEl.className = "hangman-figure";
+    if (puzzleCompleted) {
+      figureEl.classList.add("is-complete");
+    } else if (puzzleFailed) {
+      figureEl.classList.add("is-failed");
+    }
+    if (lockoutActive) {
+      figureEl.classList.add("is-lockout");
+    }
+
+    meterSegments.forEach((segment, index) => {
+      segment.className = "hangman-meter-segment";
+      if (index < attemptsRemaining) {
+        segment.classList.add("is-safe");
+      } else {
+        segment.classList.add("is-spent");
+      }
+    });
+
+    const figureState = describeSafetyState({
+      attemptsRemaining,
+      maxAttempts: maxMisses,
+      spentAttempts,
+      completed: puzzleCompleted,
+      failed: puzzleFailed,
+      lockout: lockoutActive,
+      lockoutSeconds
+    });
+
+    figureLabel.textContent = `Safety Level: ${figureState.label}`;
+    figureDescription.textContent = figureState.message;
   }
 
   function updateWordDisplay() {
@@ -4566,8 +4997,9 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
   }
 
   function updateKeyboard() {
+    const locked = isInteractionLocked();
     keyButtons.forEach((button, letter) => {
-      button.disabled = puzzleCompleted || puzzleFailed || guessedLetters.has(letter);
+      button.disabled = locked || guessedLetters.has(letter);
       button.className = "hangman-key";
       if (correctLetters.has(letter)) {
         button.classList.add("is-correct");
@@ -4584,13 +5016,19 @@ function renderHangmanPuzzle(container, { puzzleIndex, hangman, prompt, promptIm
       statusEl.textContent = "Keyword secured!";
       return;
     }
-    if (puzzleFailed) {
+    if (isLockoutActive()) {
+      const remainingSeconds = Math.ceil(Math.max(0, lockoutUntil - Date.now()) / 1000);
       statusEl.classList.add("is-error");
-      statusEl.textContent = `Out of attempts! The word was ${solution}.`;
+      statusEl.textContent = `Out of attempts! The word was ${activeWord}. Retry in ${remainingSeconds}s.`;
       return;
     }
-    const remaining = Math.max(0, maxMisses - misses);
-    statusEl.textContent = `Misses remaining: ${remaining}`;
+    if (puzzleFailed) {
+      statusEl.classList.add("is-error");
+      statusEl.textContent = `Out of attempts! The word was ${activeWord}.`;
+      return;
+    }
+    const attemptsLeft = Math.max(0, maxMisses - misses);
+    statusEl.textContent = `${attemptsLeft} miss${attemptsLeft === 1 ? "" : "es"} remaining.`;
   }
 }
 
@@ -4945,13 +5383,25 @@ function renderGmOverrideOptions(teamId) {
 
   order.forEach((puzzleIndex, position) => {
     const floorName = puzzles[puzzleIndex]?.floor ?? `Mission ${puzzleIndex + 1}`;
+    const fragmentCount = getPuzzleFragmentCount(puzzleIndex);
+    const needsFragments = fragmentCount > 1;
+    const labelSuffix = needsFragments ? ` (${fragmentCount} fragments)` : "";
+    const travelDescription = needsFragments
+      ? position === order.length - 1
+        ? `Send the team to the final mission location. They must collect all ${fragmentCount} QR fragments onsite to unlock it.`
+        : `Mark previous missions as complete and direct the team here. They must collect all ${fragmentCount} QR fragments on this floor to unlock the puzzle.`
+      : position === order.length - 1
+        ? "Send the team to the final mission location."
+        : "Mark previous missions as complete and direct the team to travel here.";
+    const solveDescription = needsFragments
+      ? `Unlock this puzzle immediately (bypassing the ${fragmentCount}-fragment requirement).`
+      : "Unlock this puzzle so the team can work on it immediately.";
+
     const travelOption = createGmOverrideOption({
       id: `gm-override-${teamId}-travel-${puzzleIndex}`,
       value: `travel-${puzzleIndex}`,
-      label: `Travel to ${floorName}`,
-      description: position === order.length - 1
-        ? "Send the team to the final mission location."
-        : "Mark previous missions as complete and direct the team to travel here.",
+      label: `Travel to ${floorName}${labelSuffix}`,
+      description: travelDescription,
       mode: "travel",
       puzzleIndex
     });
@@ -4959,8 +5409,8 @@ function renderGmOverrideOptions(teamId) {
     const solveOption = createGmOverrideOption({
       id: `gm-override-${teamId}-solve-${puzzleIndex}`,
       value: `solve-${puzzleIndex}`,
-      label: `Solve ${floorName}`,
-      description: "Unlock this puzzle so the team can work on it immediately.",
+      label: `Solve ${floorName}${labelSuffix}`,
+      description: solveDescription,
       mode: "solve",
       puzzleIndex
     });
@@ -5103,6 +5553,9 @@ function applyGmOverrideState({ teamId, mode, puzzleIndex }) {
     working.unlocked.fill(true);
     working.completions.fill(true);
     working.hasWon = true;
+    for (let index = 0; index < PUZZLE_COUNT; index += 1) {
+      working.unlockFragments[index] = getPuzzleFragmentFullMask(index);
+    }
     describe.message = `${TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`} marked as tower complete.`;
   } else if ((mode === "travel" || mode === "solve") && Number.isInteger(puzzleIndex)) {
     const position = order.indexOf(puzzleIndex);
@@ -5115,11 +5568,17 @@ function applyGmOverrideState({ teamId, mode, puzzleIndex }) {
       working.revealed[clearedIndex] = true;
       working.unlocked[clearedIndex] = true;
       working.completions[clearedIndex] = true;
+      working.unlockFragments[clearedIndex] = getPuzzleFragmentFullMask(clearedIndex);
     }
 
     working.revealed[puzzleIndex] = true;
     working.unlocked[puzzleIndex] = mode === "solve";
     working.completions[puzzleIndex] = false;
+    if (mode === "solve") {
+      working.unlockFragments[puzzleIndex] = getPuzzleFragmentFullMask(puzzleIndex);
+    } else {
+      working.unlockFragments[puzzleIndex] = 0;
+    }
     working.hasWon = false;
 
     const destination = puzzles[puzzleIndex]?.floor ?? `Mission ${puzzleIndex + 1}`;
@@ -6458,6 +6917,20 @@ function sanitizeState(candidate) {
     return Boolean(revealedSource[index]);
   });
 
+  const fragmentsSource = Array.isArray(candidate.unlockFragments) ? candidate.unlockFragments : [];
+  const sanitizedFragments = Array.from({ length: PUZZLE_COUNT }, (_, index) => {
+    const rawValue = Number(fragmentsSource[index]);
+    if (!Number.isFinite(rawValue) || rawValue <= 0) {
+      return 0;
+    }
+    const normalizedValue = Math.round(rawValue);
+    const fullMask = getPuzzleFragmentFullMask(index);
+    if (fullMask <= 0) {
+      return 0;
+    }
+    return clampNumber(normalizedValue, 0, fullMask);
+  });
+
   const hasStarted =
     Boolean(candidate.hasStarted) ||
     sanitizedRevealed.some(Boolean) ||
@@ -6478,6 +6951,7 @@ function sanitizeState(candidate) {
     completions: sanitizedCompletions,
     unlocked: sanitizedUnlocked,
     revealed: sanitizedRevealed,
+    unlockFragments: sanitizedFragments,
     hasWon,
     puzzleState: sanitizedPuzzleState,
     startTimestamp
@@ -6783,6 +7257,11 @@ function sanitizeStoredWordle(candidate) {
     return null;
   }
 
+  const solution = String(candidate.solution ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 10);
+
   const guesses = Array.isArray(candidate.guesses)
     ? candidate.guesses
         .map(entry => {
@@ -6817,11 +7296,16 @@ function sanitizeStoredWordle(candidate) {
     .replace(/[^A-Z]/g, "")
     .slice(0, 10);
 
+  const rawLockout = Number(candidate.lockoutUntil);
+  const lockoutUntil = Number.isFinite(rawLockout) && rawLockout > 0 ? rawLockout : null;
+
   return {
     guesses,
     currentGuess,
     isComplete: Boolean(candidate.isComplete),
-    isFailed: Boolean(candidate.isFailed)
+    isFailed: Boolean(candidate.isFailed),
+    solution: solution || "",
+    lockoutUntil
   };
 }
 
@@ -6841,12 +7325,20 @@ function sanitizeStoredHangman(candidate) {
     : [];
 
   const misses = clampNumber(Number(candidate.misses) || 0, 0, 10);
+  const word = String(candidate.word ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 12);
+  const rawLockout = Number(candidate.lockoutUntil);
+  const lockoutUntil = Number.isFinite(rawLockout) && rawLockout > 0 ? rawLockout : null;
 
   return {
     guessedLetters,
     misses,
     isComplete: Boolean(candidate.isComplete),
-    isFailed: Boolean(candidate.isFailed)
+    isFailed: Boolean(candidate.isFailed),
+    word: word || "",
+    lockoutUntil
   };
 }
 
@@ -6857,13 +7349,23 @@ function buildScanIntent() {
 
   const currentSolving = getCurrentSolvingIndex();
   if (currentSolving !== null) {
-    return { mode: "location", puzzleIndex: currentSolving, reason: "rescan" };
+    return {
+      mode: "location",
+      puzzleIndex: currentSolving,
+      reason: "rescan",
+      fragmentCount: getPuzzleFragmentCount(currentSolving)
+    };
   }
 
   const nextIndex = getNextDestinationIndex();
   if (nextIndex !== null) {
     if (state.revealed[nextIndex]) {
-      return { mode: "location", puzzleIndex: nextIndex, reason: "travel" };
+      return {
+        mode: "location",
+        puzzleIndex: nextIndex,
+        reason: "travel",
+        fragmentCount: getPuzzleFragmentCount(nextIndex)
+      };
     }
     return { mode: "locked", puzzleIndex: nextIndex };
   }
@@ -7084,7 +7586,10 @@ function buildProgressCardData({ currentSolving, nextDestination, order }) {
     card.stageLabel = destination;
     card.stageStatus = "Travel to this floor";
     card.index = step;
-    card.travelHint = "Scan the onsite QR code to unlock the puzzle.";
+    const fragmentCount = getPuzzleFragmentCount(nextDestination);
+    card.travelHint = fragmentCount > 1
+      ? `Collect and scan all ${fragmentCount} QR fragments on this floor to unlock the puzzle.`
+      : "Scan the onsite QR code to unlock the puzzle.";
     return { descriptor, card };
   }
 
@@ -7564,12 +8069,23 @@ function renderPuzzle() {
     const destination = puzzle?.floor ?? fallbackDestination;
     puzzleTitle.textContent = destination;
     puzzleMeta.textContent = `${TEAM_NAMES[state.teamId]} • Step ${stepNumber} of ${PUZZLE_COUNT}`;
-    puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
+    const fragmentCount = getPuzzleFragmentCount(nextIndex);
+    const unlockArray = Array.isArray(state.unlockFragments) ? state.unlockFragments : [];
+    const fragmentMaskState = Number.isFinite(unlockArray[nextIndex])
+      ? clampNumber(Math.round(unlockArray[nextIndex]), 0, getPuzzleFragmentFullMask(nextIndex) || 0)
+      : 0;
+    const fragmentsFound = fragmentCount > 1 ? countFragmentBits(fragmentMaskState) : 0;
+    if (fragmentCount > 1) {
+      puzzleBody.textContent = `Locate and scan all ${fragmentCount} QR fragments on this floor to unlock the puzzle.`;
+    } else {
+      puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
+    }
     setPuzzleFeedback("");
     scanButton.disabled = false;
-    scanButton.textContent = "Scan Location QR";
+    scanButton.textContent = fragmentCount > 1 ? "Scan Fragment QR" : "Scan Location QR";
+    const fragmentStatusSuffix = fragmentCount > 1 ? ` • ${fragmentsFound}/${fragmentCount} fragments logged` : "";
     setPuzzleLockState("locked", {
-      message: `Locked • Scan ${destination}`,
+      message: `Locked • Scan ${destination}${fragmentStatusSuffix}`,
       actionLabel: scanButton.textContent,
       actionDisabled: scanButton.disabled
     });
@@ -8033,7 +8549,11 @@ function updateScannerInstruction(intent) {
       message = "Scan the starting QR code provided by the game master.";
       break;
     case "location":
-      message = "Scan the QR code posted at this mission location.";
+      if (Number.isInteger(intent.fragmentCount) && intent.fragmentCount > 1) {
+        message = `Scan each QR fragment on this floor (${intent.fragmentCount} total).`;
+      } else {
+        message = "Scan the QR code posted at this mission location.";
+      }
       break;
     case "locked":
       message = "Scan an override code from the game master or return after unlocking the next mission.";
@@ -8273,7 +8793,8 @@ function processValidatedCode(normalizedValue, rawValue) {
     if (intentMode === "gmOverride") {
       updateScanStatus("GM Override mode only accepts override badges.", "error");
     } else {
-      handled = handleLocationScan(PUZZLE_CODE_LOOKUP[normalizedValue]);
+      const unlockEntry = PUZZLE_CODE_LOOKUP[normalizedValue];
+      handled = handleLocationScan(unlockEntry?.puzzleIndex, unlockEntry);
     }
   } else {
     updateScanStatus("Code not recognized for this hunt. Check with the game master.", "error");
@@ -8369,7 +8890,7 @@ function handleGmOverrideCode(teamId, rawValue) {
   return true;
 }
 
-function handleLocationScan(puzzleIndex) {
+function handleLocationScan(puzzleIndex, unlockInfo = null) {
   if (!state.hasStarted || !Number.isInteger(state.teamId)) {
     updateScanStatus("Scan your starting code before visiting floors.", "error");
     return false;
@@ -8381,6 +8902,21 @@ function handleLocationScan(puzzleIndex) {
   }
 
   const floorName = puzzles[puzzleIndex]?.floor ?? "This mission";
+  const fragmentCount = getPuzzleFragmentCount(puzzleIndex);
+  const hasFragments = fragmentCount > 1;
+  const boundedFragmentIndex = hasFragments && Number.isInteger(unlockInfo?.fragmentIndex)
+    ? clampNumber(unlockInfo.fragmentIndex, 0, fragmentCount - 1)
+    : null;
+  const fullMask = getPuzzleFragmentFullMask(puzzleIndex);
+
+  if (!Array.isArray(state.unlockFragments)) {
+    state.unlockFragments = Array.from({ length: PUZZLE_COUNT }, () => 0);
+  }
+  const fragmentsArray = state.unlockFragments;
+  let fragmentMaskState = 0;
+  if (Number.isFinite(fragmentsArray[puzzleIndex])) {
+    fragmentMaskState = clampNumber(Math.round(fragmentsArray[puzzleIndex]), 0, fullMask || 0);
+  }
 
   if (state.completions[puzzleIndex]) {
     updateScanStatus(`${floorName} is already solved.`, "success");
@@ -8410,6 +8946,50 @@ function handleLocationScan(puzzleIndex) {
     return false;
   }
 
+  if (hasFragments) {
+    const fragmentBit = boundedFragmentIndex !== null ? 1 << boundedFragmentIndex : 0;
+    if (fragmentBit) {
+      if ((fragmentMaskState & fragmentBit) === fragmentBit) {
+        const collected = countFragmentBits(fragmentMaskState);
+        if (collected < fragmentCount) {
+          const remaining = Math.max(0, fragmentCount - collected);
+          updateScanStatus(
+            `Fragment ${boundedFragmentIndex + 1}/${fragmentCount} already logged for ${floorName}. ${remaining} remaining.`,
+            "success"
+          );
+          return false;
+        }
+      } else {
+        fragmentMaskState |= fragmentBit;
+        fragmentsArray[puzzleIndex] = clampNumber(fragmentMaskState, 0, fullMask || fragmentMaskState);
+        saveState();
+        render();
+        const collected = countFragmentBits(fragmentMaskState);
+        if (collected < fragmentCount) {
+          const remaining = Math.max(0, fragmentCount - collected);
+          updateScanStatus(
+            `Fragment ${boundedFragmentIndex + 1}/${fragmentCount} secured for ${floorName}. ${remaining} remaining.`,
+            "success"
+          );
+          return false;
+        }
+      }
+    } else {
+      const collected = countFragmentBits(fragmentMaskState);
+      if (collected < fragmentCount) {
+        const remaining = Math.max(0, fragmentCount - collected);
+        updateScanStatus(`Fragment secured for ${floorName}. ${collected}/${fragmentCount} logged. ${remaining} remaining.`, "success");
+        return false;
+      }
+    }
+  }
+
+  if (hasFragments) {
+    fragmentsArray[puzzleIndex] = fullMask > 0 ? fullMask : fragmentMaskState;
+  } else if (fullMask > 0 && fragmentsArray[puzzleIndex] === 0) {
+    fragmentsArray[puzzleIndex] = Math.min(fullMask, 1);
+  }
+
   state.unlocked[puzzleIndex] = true;
   state.revealed[puzzleIndex] = true;
   unlockAnimationQueue.add(puzzleIndex);
@@ -8429,6 +9009,7 @@ function handleLocationScan(puzzleIndex) {
 
   return true;
 }
+
 
 function assignTeamRun(teamId, { sourceLabel = "Team", force = false } = {}) {
   const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
