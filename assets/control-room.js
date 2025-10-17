@@ -6282,6 +6282,27 @@ function isSheetEndpoint(endpoint) {
   return /script\.google\.com\/macros\//i.test(endpoint);
 }
 
+const SHEET_PAYLOAD_COLUMNS = Object.freeze([
+  "TeamId",
+  "TeamName",
+  "HasStarted",
+  "HasWon",
+  "TowerComplete",
+  "FinalPuzzleComplete",
+  "SolvedCount",
+  "PuzzleCount",
+  "ProgressPercent",
+  "CurrentPuzzleIndex",
+  "NextPuzzleIndex",
+  "NextPuzzleLabel",
+  "StartedAt",
+  "RuntimeSeconds",
+  "Reason",
+  "Timestamp",
+  "Completions",
+  "Unlocked"
+]);
+
 function encodePayloadAsCsv(payload) {
   if (!payload || typeof payload !== "object") {
     return "";
@@ -6308,9 +6329,8 @@ function encodePayloadAsCsv(payload) {
     Unlocked: encodeBooleanSeries(payload.unlocked)
   };
 
-  const headers = Object.keys(record);
-  const values = headers.map(key => encodeCsvValue(record[key]));
-  return `${headers.join(",")}\n${values.join(",")}`;
+  const values = SHEET_PAYLOAD_COLUMNS.map(key => encodeCsvValue(record[key]));
+  return values.join(",");
 }
 
 function encodeBooleanSeries(source) {
