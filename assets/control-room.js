@@ -2025,14 +2025,44 @@ function sheetParseBooleanSeries(value, length) {
     return result;
   }
 
-  if (typeof value !== "string") {
+  let source = null;
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    source = Math.trunc(value).toString();
+  } else if (typeof value === "string") {
+    source = value.trim();
+  } else {
     return result;
   }
 
-  const trimmed = value.trim();
-  for (let index = 0; index < Math.min(trimmed.length, size); index += 1) {
-    const token = trimmed.charAt(index);
-    result[index] = token === "1" || token === "T" || token === "t";
+  if (!source) {
+    return result;
+  }
+
+  if (/^[0-9]+$/.test(source) && source.length < size) {
+    source = source.padStart(size, "0");
+  }
+
+  const tokens = source.toLowerCase().match(/true|false|t|f|y|n|1|0/g);
+  if (!tokens || !tokens.length) {
+    return result;
+  }
+
+  let resultIndex = 0;
+  for (const token of tokens) {
+    if (resultIndex >= size) {
+      break;
+    }
+    const normalized = token.charAt(0);
+    if (normalized === "1" || normalized === "t" || normalized === "y") {
+      result[resultIndex] = true;
+      resultIndex += 1;
+      continue;
+    }
+    if (normalized === "0" || normalized === "f" || normalized === "n") {
+      result[resultIndex] = false;
+      resultIndex += 1;
+    }
   }
   return result;
 }
@@ -6337,7 +6367,7 @@ function encodeBooleanSeries(source) {
   if (!Array.isArray(source) || !source.length) {
     return "";
   }
-  return source.map(value => (value ? "1" : "0")).join("");
+  return source.map(value => (value ? "1" : "0")).join(",");
 }
 
 function encodeCsvValue(value) {
