@@ -90,6 +90,7 @@ const GM_PASSWORD = "GoTowerHats";
 const GM_PASSWORD_TOKEN_KEY = "towerHuntGmToken";
 const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
 const COOKIE_SECRET = "tower-hunt-shield-9317";
+const DEV_DOOR_STORAGE_KEY = "towerHuntDevDoor";
 
 const ANSWER_TYPES = Object.freeze({
   TEXT: "text",
@@ -404,6 +405,9 @@ const gmOverrideSubtitle = document.getElementById("gmOverrideSubtitle");
 const gmOverrideFeedback = document.getElementById("gmOverrideFeedback");
 const gmOverrideClose = document.getElementById("gmOverrideClose");
 const gmOverrideCancel = document.getElementById("gmOverrideCancel");
+const gmDevDoorSection = document.getElementById("gmDevDoorSection");
+const gmDevDoorToggle = document.getElementById("gmDevDoorToggle");
+const gmDevDoorHint = document.getElementById("gmDevDoorHint");
 const floorTransition = document.getElementById("floorTransition");
 const floorTransitionCurrent = document.getElementById("floorTransitionCurrent");
 const floorTransitionNext = document.getElementById("floorTransitionNext");
@@ -1086,6 +1090,7 @@ function clearPuzzleInteractiveState(puzzleIndex, { save = true } = {}) {
 }
 
 let state = loadState();
+let devDoorEnabled = loadDevDoorPreference();
 let statusTimeoutId = null;
 let scanSession = {
   stream: null,
@@ -1210,6 +1215,8 @@ function initialize() {
   attachEventListeners();
   setupInactivityWatcher();
   configureTeamProgressButton();
+  applyDevDoorBodyState();
+  syncDevDoorControls();
   render();
   maybePromptForWin();
   scheduleDashboardSync("init");
@@ -5291,6 +5298,7 @@ function openGmOverrideOverlay(teamId) {
 
   const sanitizedTeam = clampNumber(teamId, 0, TEAM_COUNT - 1);
   gmOverrideSession.teamId = sanitizedTeam;
+  syncDevDoorControls();
 
   const teamName = TEAM_NAMES[sanitizedTeam] ?? `Team ${sanitizedTeam + 1}`;
   if (gmOverrideSubtitle) {
@@ -5342,6 +5350,7 @@ function closeGmOverrideOverlay() {
   }
 
   resetGmOverrideSession();
+  syncDevDoorControls();
   gmOverrideButton?.focus({ preventScroll: true });
 }
 
@@ -5744,6 +5753,9 @@ function detectPlatform() {
   if (!hasMediaDevices) {
     label += " • Camera unavailable";
   }
+  if (isDevDoorEnabled()) {
+    label += " • Dev Door";
+  }
   platformTag.textContent = label;
 }
 
@@ -5787,6 +5799,14 @@ function attachEventListeners() {
       // fallback for browsers blocking direct navigation
       window.open("https://chromedino.com/batman", "_blank", "noopener");
     }
+  });
+
+  gmDevDoorToggle?.addEventListener("change", () => {
+    if (!gmOverrideSession.teamId) {
+      syncDevDoorControls();
+      return;
+    }
+    setDevDoorEnabled(Boolean(gmDevDoorToggle.checked), { fromUser: true });
   });
 
   ensureScannerListeners();
@@ -5911,6 +5931,9 @@ function ensureScannerListeners() {
   }
   scanButton?.addEventListener("click", () => {
     const intent = buildScanIntent();
+    if (attemptDevDoorUnlock(intent)) {
+      return;
+    }
     if (intent.mode === "complete") {
       showStatus("All missions already cleared.");
       return;
@@ -5982,6 +6005,102 @@ function saveState() {
   const encoded = encodeURIComponent(payload);
   document.cookie = `${COOKIE_NAME}=${encoded}; max-age=${maxAge}; path=/; SameSite=Lax`;
   scheduleDashboardSync("state-save");
+}
+
+function loadDevDoorPreference() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return false;
+  }
+  try {
+    const stored = window.localStorage.getItem(DEV_DOOR_STORAGE_KEY);
+    return stored === "1";
+  } catch (error) {
+    return false;
+  }
+}
+
+function persistDevDoorPreference(enabled) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    if (enabled) {
+      window.localStorage.setItem(DEV_DOOR_STORAGE_KEY, "1");
+    } else {
+      window.localStorage.removeItem(DEV_DOOR_STORAGE_KEY);
+    }
+  } catch (error) {
+    // ignore storage errors
+  }
+}
+
+function isDevDoorEnabled() {
+  return Boolean(devDoorEnabled);
+}
+
+function applyDevDoorBodyState() {
+  if (!document?.body) {
+    return;
+  }
+  document.body.classList.toggle("dev-door-enabled", devDoorEnabled);
+}
+
+function syncDevDoorControls() {
+  if (!gmDevDoorToggle) {
+    return;
+  }
+  gmDevDoorToggle.checked = Boolean(devDoorEnabled);
+  const sessionActive = Boolean(gmOverrideSession.teamId);
+  gmDevDoorToggle.disabled = !sessionActive;
+  if (gmDevDoorSection) {
+    gmDevDoorSection.classList.toggle("is-disabled", !sessionActive);
+  }
+  if (gmDevDoorHint) {
+    if (sessionActive) {
+      gmDevDoorHint.textContent = devDoorEnabled
+        ? "Dev door enabled. Unlock buttons skip location scans on this device."
+        : "Check to bypass location scans on this device. Unlock buttons still must be used.";
+    } else {
+      gmDevDoorHint.textContent = devDoorEnabled
+        ? "Dev door enabled. Scan a GM override badge to disable it."
+        : "Requires a GM override scan. Unlock buttons still must be used for each mission.";
+    }
+  }
+}
+
+function setDevDoorEnabled(enabled, { fromUser = false } = {}) {
+  const normalized = Boolean(enabled);
+  if (normalized === devDoorEnabled) {
+    syncDevDoorControls();
+    if (fromUser) {
+      showStatus(
+        normalized
+          ? "Dev door already enabled on this device."
+          : "Dev door already disabled on this device.",
+        "info"
+      );
+    }
+    return;
+  }
+
+  devDoorEnabled = normalized;
+  persistDevDoorPreference(devDoorEnabled);
+  applyDevDoorBodyState();
+  syncDevDoorControls();
+
+  if (fromUser) {
+    showStatus(
+      devDoorEnabled
+        ? "Dev door enabled. Unlock buttons now skip location scans on this device."
+        : "Dev door disabled. Location scans are required again.",
+      devDoorEnabled ? "success" : "info"
+    );
+  }
+
+  if (!isWinView && !isGmSheet) {
+    detectPlatform();
+    render();
+  }
 }
 
 function scheduleDashboardRetry(reason = "retry") {
@@ -8075,17 +8194,24 @@ function renderPuzzle() {
       ? clampNumber(Math.round(unlockArray[nextIndex]), 0, getPuzzleFragmentFullMask(nextIndex) || 0)
       : 0;
     const fragmentsFound = fragmentCount > 1 ? countFragmentBits(fragmentMaskState) : 0;
+    const devDoorActive = isDevDoorEnabled();
     if (fragmentCount > 1) {
-      puzzleBody.textContent = `Locate and scan all ${fragmentCount} QR fragments on this floor to unlock the puzzle.`;
+      puzzleBody.textContent = devDoorActive
+        ? `Dev door active: Click Unlock Mission to bypass scanning all ${fragmentCount} QR fragments.`
+        : `Locate and scan all ${fragmentCount} QR fragments on this floor to unlock the puzzle.`;
     } else {
-      puzzleBody.textContent = "Travel to this location and scan the onsite QR code to unlock the puzzle.";
+      puzzleBody.textContent = devDoorActive
+        ? "Dev door active: Click Unlock Mission to bypass the onsite QR scan."
+        : "Travel to this location and scan the onsite QR code to unlock the puzzle.";
     }
     setPuzzleFeedback("");
     scanButton.disabled = false;
-    scanButton.textContent = fragmentCount > 1 ? "Scan Fragment QR" : "Scan Location QR";
+    scanButton.textContent = devDoorActive ? "Unlock Mission" : fragmentCount > 1 ? "Scan Fragment QR" : "Scan Location QR";
     const fragmentStatusSuffix = fragmentCount > 1 ? ` • ${fragmentsFound}/${fragmentCount} fragments logged` : "";
     setPuzzleLockState("locked", {
-      message: `Locked • Scan ${destination}${fragmentStatusSuffix}`,
+      message: devDoorActive
+        ? `Dev Door Ready • ${destination}${fragmentStatusSuffix}`
+        : `Locked • Scan ${destination}${fragmentStatusSuffix}`,
       actionLabel: scanButton.textContent,
       actionDisabled: scanButton.disabled
     });
@@ -8890,6 +9016,25 @@ function handleGmOverrideCode(teamId, rawValue) {
   return true;
 }
 
+function attemptDevDoorUnlock(intent) {
+  if (!isDevDoorEnabled()) {
+    return false;
+  }
+  if (!intent || intent.mode !== "location") {
+    return false;
+  }
+
+  const puzzleIndex = Number.isInteger(intent.puzzleIndex)
+    ? clampNumber(intent.puzzleIndex, 0, PUZZLE_COUNT - 1)
+    : null;
+  if (puzzleIndex === null) {
+    return false;
+  }
+
+  unlockLocationFromDevDoor(puzzleIndex);
+  return true;
+}
+
 function handleLocationScan(puzzleIndex, unlockInfo = null) {
   if (!state.hasStarted || !Number.isInteger(state.teamId)) {
     updateScanStatus("Scan your starting code before visiting floors.", "error");
@@ -8999,6 +9144,83 @@ function handleLocationScan(puzzleIndex, unlockInfo = null) {
 
   closeScanner(`Location confirmed: ${floorName}.`, "success");
   showStatus(`${floorName} puzzle unlocked.`, "success");
+  triggerConfetti({ theme: "unlock", pieces: 95, spread: 8 });
+
+  window.setTimeout(() => {
+    if (answerInput && !answerInput.disabled) {
+      answerInput.focus({ preventScroll: true });
+    }
+  }, 200);
+
+  return true;
+}
+
+function unlockLocationFromDevDoor(puzzleIndex) {
+  if (!Number.isInteger(puzzleIndex) || puzzleIndex < 0 || puzzleIndex >= PUZZLE_COUNT) {
+    showStatus("That mission isn't available for this device.", "error");
+    return false;
+  }
+
+  if (!state.hasStarted || !Number.isInteger(state.teamId)) {
+    showStatus("Assign a team to this device before unlocking missions.", "error");
+    return false;
+  }
+
+  const floorName = puzzles[puzzleIndex]?.floor ?? "This mission";
+
+  if (state.completions[puzzleIndex]) {
+    showStatus(`${floorName} is already solved.`, "info");
+    return false;
+  }
+
+  const currentSolving = getCurrentSolvingIndex();
+  if (currentSolving !== null && currentSolving !== puzzleIndex) {
+    const activeName = puzzles[currentSolving]?.floor ?? "your current mission";
+    showStatus(`Finish ${activeName} before unlocking another mission.`, "error");
+    return false;
+  }
+
+  const nextIndex = getNextDestinationIndex();
+  if (nextIndex !== puzzleIndex) {
+    showStatus(`${floorName} isn't unlocked yet for your team.`, "error");
+    return false;
+  }
+
+  if (!state.revealed[puzzleIndex]) {
+    showStatus("Solve the current mission to reveal the next destination.", "error");
+    return false;
+  }
+
+  if (!Array.isArray(state.unlockFragments)) {
+    state.unlockFragments = Array.from({ length: PUZZLE_COUNT }, () => 0);
+  }
+
+  const fragmentsArray = state.unlockFragments;
+  const fragmentCount = getPuzzleFragmentCount(puzzleIndex);
+  const fullMask = getPuzzleFragmentFullMask(puzzleIndex);
+  const existingMaskRaw = Number.isFinite(fragmentsArray[puzzleIndex]) ? Math.round(fragmentsArray[puzzleIndex]) : 0;
+  const existingMask = clampNumber(existingMaskRaw, 0, fullMask > 0 ? fullMask : Math.max(existingMaskRaw, 0));
+
+  if (fragmentCount > 1) {
+    fragmentsArray[puzzleIndex] = fullMask > 0 ? fullMask : existingMask;
+  } else if (fullMask > 0) {
+    fragmentsArray[puzzleIndex] = Math.max(existingMask, 1);
+  } else if (!existingMask) {
+    fragmentsArray[puzzleIndex] = 1;
+  }
+
+  if (state.unlocked[puzzleIndex]) {
+    showStatus(`${floorName} is already unlocked.`, "success");
+    return true;
+  }
+
+  state.unlocked[puzzleIndex] = true;
+  state.revealed[puzzleIndex] = true;
+  unlockAnimationQueue.add(puzzleIndex);
+  pendingPuzzleUnlockIndex = puzzleIndex;
+  saveState();
+  render();
+  showStatus(`${floorName} unlocked via Dev Door.`, "success");
   triggerConfetti({ theme: "unlock", pieces: 95, spread: 8 });
 
   window.setTimeout(() => {
