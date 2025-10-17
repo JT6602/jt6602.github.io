@@ -33,17 +33,17 @@
     "Team 11"
   ];
   const TEAM_ORDERS = [
-    [1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 0],
-    [2, 3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 0],
-    [3, 6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 0],
-    [4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 5, 0],
-    [5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 8, 0],
-    [6, 9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 0],
-    [7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 0],
-    [8, 5, 4, 1, 2, 3, 6, 9, 11, 10, 7, 0],
-    [9, 11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 0],
-    [10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 11, 0],
-    [11, 10, 7, 8, 5, 4, 1, 2, 3, 6, 9, 0]
+    [1, 3, 4, 7, 10, 9, 11, 8, 6, 5, 2, 0],
+    [2, 1, 3, 5, 4, 6, 8, 9, 11, 10, 7, 0],
+    [3, 2, 1, 4, 7, 8, 11, 10, 9, 6, 5, 0],
+    [4, 1, 3, 2, 5, 7, 10, 11, 8, 9, 6, 0],
+    [5, 4, 7, 10, 8, 11, 9, 6, 3, 2, 1, 0],
+    [6, 7, 10, 9, 11, 8, 5, 2, 4, 3, 1, 0],
+    [7, 5, 8, 11, 10, 9, 6, 3, 4, 1, 2, 0],
+    [8, 11, 9, 10, 7, 4, 3, 1, 2, 5, 6, 0],
+    [9, 10, 11, 8, 5, 2, 1, 3, 6, 4, 7, 0],
+    [10, 9, 11, 8, 6, 5, 7, 4, 1, 3, 2, 0],
+    [11, 8, 5, 3, 2, 1, 4, 7, 10, 9, 6, 0]
   ];
   const TEAM_COLORS = [
     "#64d5f7",
@@ -106,34 +106,76 @@
 
   function deriveTowerState(entry) {
     const puzzleCount = Number.isFinite(entry.puzzleCount) ? entry.puzzleCount : PUZZLE_LABELS.length;
-    const completions = Array.isArray(entry.completions)
-      ? entry.completions
-      : Array.from({ length: puzzleCount }, () => false);
+    const rawCompletions = Array.isArray(entry.completions) ? entry.completions : [];
+    const rawUnlocked = Array.isArray(entry.unlocked) ? entry.unlocked : [];
+    const completions = Array.from({ length: puzzleCount }, (_, index) => Boolean(rawCompletions[index]));
+    const unlocked = Array.from({ length: puzzleCount }, (_, index) => Boolean(rawUnlocked[index]));
     const order = getTeamOrder(entry.teamId ?? 0);
     const finalIndex = resolveFinalIndex(entry.teamId ?? 0);
-    const solvedCount = Number.isFinite(entry.solved) ? entry.solved : completions.filter(Boolean).length;
+
+    const derivedSolved = completions.filter(Boolean).length;
+    const solvedCount = Number.isFinite(entry.solved) ? Math.max(entry.solved, derivedSolved) : derivedSolved;
 
     const finalFromEntry = entry.finalPuzzleComplete === true;
     const finalFromSolved = puzzleCount > 0 && solvedCount >= puzzleCount;
-    const finalFromCompletions =
-      finalIndex !== null ? Boolean(completions[finalIndex]) : completions.every(Boolean);
+    const finalFromCompletions = finalIndex !== null ? Boolean(completions[finalIndex]) : order.every(index => completions[index]);
     const finalPuzzleComplete = Boolean(finalFromEntry || finalFromSolved || finalFromCompletions || entry.hasWon);
 
     const towerFromEntry = entry.towerComplete === true;
     const towerIndices = order.filter(index => index !== finalIndex);
     const towerFromCompletions = towerIndices.length
-      ? towerIndices.every(index => Boolean(completions[index]))
+      ? towerIndices.every(index => completions[index])
       : puzzleCount > 1
       ? solvedCount >= puzzleCount - 1
       : finalPuzzleComplete;
 
     const towerComplete = finalPuzzleComplete ? true : Boolean(towerFromEntry || towerFromCompletions);
 
+    let lastSolvedRaw = null;
+    for (let position = order.length - 1; position >= 0; position -= 1) {
+      const index = order[position];
+      if (completions[index]) {
+        lastSolvedRaw = index;
+        break;
+      }
+    }
+
+    let nextIndexRaw = null;
+    for (const index of order) {
+      if (!completions[index]) {
+        nextIndexRaw = index;
+        break;
+      }
+    }
+
+    let currentIndexRaw = Number.isInteger(entry.currentPuzzleIndex) ? entry.currentPuzzleIndex : null;
+    if (!Number.isInteger(currentIndexRaw)) {
+      for (const index of order) {
+        if (unlocked[index] && !completions[index]) {
+          currentIndexRaw = index;
+          break;
+        }
+      }
+    }
+    if (!Number.isInteger(currentIndexRaw)) {
+      currentIndexRaw = nextIndexRaw;
+    }
+
+    const currentIndex = normalizeFloorIndex(currentIndexRaw);
+    const nextIndex = normalizeFloorIndex(Number.isInteger(entry.nextPuzzleIndex) ? entry.nextPuzzleIndex : nextIndexRaw);
+    const lastSolvedIndex = normalizeFloorIndex(lastSolvedRaw);
+
     return {
       towerComplete,
       finalPuzzleComplete,
       finalIndex,
-      order
+      order,
+      completions,
+      unlocked,
+      solvedCount,
+      lastSolvedIndex,
+      nextIndex,
+      currentIndex
     };
   }
 
@@ -703,38 +745,51 @@
     }
 
     const color = TEAM_COLORS[entry.teamId % TEAM_COLORS.length];
-    const { towerComplete, finalPuzzleComplete, finalIndex, order } = deriveTowerState(entry);
+    const {
+      towerComplete,
+      finalPuzzleComplete,
+      finalIndex,
+      order,
+      lastSolvedIndex,
+      nextIndex: derivedNextIndex,
+      currentIndex: derivedCurrentIndex
+    } = deriveTowerState(entry);
     const sanitizedOrder = order;
-    const solvedClamped = clampNumber(entry.solved ?? 0, 0, sanitizedOrder.length);
-    const lastSolvedIndex = solvedClamped > 0 ? sanitizedOrder[Math.min(solvedClamped, sanitizedOrder.length) - 1] ?? null : null;
     const finalSolvedIndex = Number.isInteger(finalIndex) ? normalizeFloorIndex(finalIndex) : null;
     const hasFinalWin = finalPuzzleComplete || entry.hasWon;
 
     let currentIndex = normalizeFloorIndex(entry.currentPuzzleIndex);
+    if (!Number.isInteger(currentIndex) && Number.isInteger(derivedCurrentIndex)) {
+      currentIndex = derivedCurrentIndex;
+    }
     if (!Number.isInteger(currentIndex)) {
       if (hasFinalWin && finalSolvedIndex !== null) {
         currentIndex = finalSolvedIndex;
       } else if (towerComplete && finalSolvedIndex !== null) {
         currentIndex = finalSolvedIndex;
-      } else if (lastSolvedIndex !== null) {
+      } else if (Number.isInteger(lastSolvedIndex)) {
         currentIndex = lastSolvedIndex;
       }
     }
     if (!Number.isInteger(currentIndex)) {
-      currentIndex = sanitizedOrder.length ? sanitizedOrder[0] : 0;
+      currentIndex = sanitizedOrder.length ? sanitizedOrder[0] : null;
     }
     currentIndex = normalizeFloorIndex(currentIndex);
 
     let targetIndex = normalizeFloorIndex(entry.nextPuzzleIndex);
     if (hasFinalWin) {
       targetIndex = null;
-    } else if (!Number.isInteger(targetIndex) && towerComplete && finalSolvedIndex !== null) {
-      targetIndex = finalSolvedIndex;
+    } else if (!Number.isInteger(targetIndex)) {
+      if (Number.isInteger(derivedNextIndex)) {
+        targetIndex = derivedNextIndex;
+      } else if (towerComplete && finalSolvedIndex !== null) {
+        targetIndex = finalSolvedIndex;
+      }
     }
 
     let arrowFromIndex = null;
     let arrowToIndex = null;
-    if (targetIndex !== null) {
+    if (Number.isInteger(targetIndex)) {
       const originIndex = Number.isInteger(currentIndex) ? currentIndex : lastSolvedIndex;
       if (Number.isInteger(originIndex) && originIndex !== targetIndex) {
         arrowFromIndex = originIndex;
@@ -1115,7 +1170,16 @@
   }
 
   function describeTowerLocation(entry) {
-    const { towerComplete, finalPuzzleComplete, finalIndex } = deriveTowerState(entry);
+    const {
+      towerComplete,
+      finalPuzzleComplete,
+      finalIndex,
+      lastSolvedIndex,
+      nextIndex,
+      currentIndex,
+      solvedCount
+    } = deriveTowerState(entry);
+
     if (finalPuzzleComplete || entry.hasWon) {
       return {
         primary: "Tower complete",
@@ -1123,11 +1187,17 @@
       };
     }
 
-    const nextLabel = labelFromIndex(entry.nextPuzzleIndex, entry.nextPuzzleLabel);
-    const lastSolvedLabel = entry.solved > 0 ? labelFromIndex(entry.solved - 1) : null;
+    const rawNextIndex = Number.isInteger(entry.nextPuzzleIndex) ? entry.nextPuzzleIndex : nextIndex;
+    const nextLabel = labelFromIndex(rawNextIndex, entry.nextPuzzleLabel);
+    const lastSolvedLabel = labelFromIndex(lastSolvedIndex);
+
+    const rawCurrentIndex = Number.isInteger(entry.currentPuzzleIndex) ? entry.currentPuzzleIndex : currentIndex;
+    const indicesMatch = Number.isInteger(rawCurrentIndex) && Number.isInteger(rawNextIndex)
+      ? rawCurrentIndex === rawNextIndex
+      : Number.isInteger(currentIndex) && currentIndex === nextIndex;
     const currentLabel = labelFromIndex(
-      entry.currentPuzzleIndex,
-      entry.currentPuzzleIndex !== null && entry.currentPuzzleIndex === entry.nextPuzzleIndex ? entry.nextPuzzleLabel : undefined
+      rawCurrentIndex,
+      indicesMatch ? entry.nextPuzzleLabel : undefined
     );
 
     if (!entry.hasStarted) {
@@ -1137,20 +1207,28 @@
       };
     }
 
-    if (towerComplete && finalIndex !== null) {
+    if (towerComplete && finalIndex !== null && !finalPuzzleComplete) {
       const finalLabel = labelFromIndex(finalIndex) ?? "Final mission";
+      const fromLabel = lastSolvedLabel && lastSolvedLabel !== finalLabel ? `From ${lastSolvedLabel}` : null;
       return {
         primary: "Final puzzle active",
-        secondary: `Resolving ${finalLabel}`
+        secondary: fromLabel ? `${fromLabel} → ${finalLabel}` : `Resolving ${finalLabel}`
       };
     }
 
     if (currentLabel) {
-      const secondary = nextLabel && nextLabel !== currentLabel
-        ? `Next: ${nextLabel}`
-        : lastSolvedLabel
-        ? `Last cleared: ${lastSolvedLabel}`
-        : "Currently solving";
+      const fromLabel = lastSolvedLabel && lastSolvedLabel !== currentLabel ? `From ${lastSolvedLabel}` : null;
+      const toLabel = nextLabel && nextLabel !== currentLabel ? `Next: ${nextLabel}` : null;
+      let secondary = null;
+      if (fromLabel && toLabel) {
+        secondary = `${fromLabel} · ${toLabel}`;
+      } else if (fromLabel) {
+        secondary = fromLabel;
+      } else if (toLabel) {
+        secondary = toLabel;
+      } else {
+        secondary = "Currently solving";
+      }
       return {
         primary: `On ${currentLabel}`,
         secondary
@@ -1158,16 +1236,19 @@
     }
 
     if (nextLabel) {
+      const fromLabel = lastSolvedLabel ? `Last cleared: ${lastSolvedLabel}` : null;
       return {
         primary: `Heading to ${nextLabel}`,
-        secondary: lastSolvedLabel ? `Last cleared: ${lastSolvedLabel}` : "Mission unlocked"
+        secondary: fromLabel ?? "Mission unlocked"
       };
     }
 
     if (lastSolvedLabel) {
+      const solvedTotal = Number.isFinite(entry.solved) ? entry.solved : solvedCount;
+      const puzzleTotal = Number.isFinite(entry.puzzleCount) ? entry.puzzleCount : PUZZLE_LABELS.length;
       return {
         primary: `Paused after ${lastSolvedLabel}`,
-        secondary: `${entry.solved} of ${entry.puzzleCount} solved`
+        secondary: `${solvedTotal} of ${puzzleTotal} solved`
       };
     }
 
