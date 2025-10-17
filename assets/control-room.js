@@ -257,7 +257,7 @@ Identify the potion that lets you pass forward through the flames and enter its 
       word: "cables",
       wordBank: ["cables", "sensor", "valves", "motors", "signal"],
       maxMisses: 6,
-      hint: "They link the control room to remote machinery."
+      hint: ""
     },
     qr: QR_CODES.FLOOR_9
   },
