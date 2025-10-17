@@ -108,22 +108,22 @@ const puzzles = [
       intro: "Solve each layer in order. Earlier solutions unlock the later logic check.",
       steps: [
         {
-          id: "cipher-caesar",
+          id: "cipher-double",
           type: "input",
-          label: "Step 1 — Caesar Shift",
-          prompt: "Shift each letter backward by 1 to decode BTDFOE.",
-          solution: "ASCEND",
+          label: "Step 1 — Double-Layer Cipher",
+          prompt: "First, apply an Atbash mirror (A↔Z, B↔Y, …), then shift each resulting letter forward by 2. Decode: XLFIFW.",
+          solution: "SECRET",
           placeholder: "Decoded word",
-          hint: "Reverse a +1 rotation."
+          hint: "Undo the steps in reverse: shift backward 2, then mirror again."
         },
         {
-          id: "cipher-atbash",
+          id: "cipher-number",
           type: "input",
-          label: "Step 2 — Atbash Mirror",
-          prompt: "Mirror the alphabet (A↔Z, B↔Y, ...) to decode OVEVO.",
-          solution: "LEVEL",
+          label: "Step 2 — Number Substitution",
+          prompt: "Convert the numbers to letters (A=1, B=2, …): 19-5-3-18-5-20.",
+          solution: "SECRET",
           placeholder: "Decoded word",
-          hint: "Flip the alphabet end-to-end."
+          hint: "Numbers correspond to alphabetical positions."
         },
         {
           id: "cipher-logic",
@@ -133,15 +133,15 @@ const puzzles = [
           choices: [
             {
               id: "choice-a",
-              label: "They share more than one letter."
+              label: "Both decoded words contain the letter E."
             },
             {
               id: "choice-b",
-              label: "Step 1 answer comes alphabetically before Step 2 answer."
+              label: "Step 1’s answer has more letters than Step 2’s."
             },
             {
               id: "choice-c",
-              label: "Both answers are palindromes."
+              label: "Step 2’s answer is a synonym of Step 1’s."
             }
           ],
           correctChoiceId: "choice-b",
