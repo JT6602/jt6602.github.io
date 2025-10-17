@@ -1289,29 +1289,65 @@
   function parseBooleanSeries(value, length) {
     const size = Number.isInteger(length) && length > 0 ? length : PUZZLE_LABELS.length;
     const result = Array.from({ length: size }, () => false);
+
     if (Array.isArray(value)) {
-      return result.map((_, index) => Boolean(value[index]));
-    }
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      if (!normalized) {
-        return result;
-      }
-      const limit = Math.min(size, normalized.length);
-      for (let index = 0; index < limit; index += 1) {
-        const char = normalized.charAt(index).toLowerCase();
-        if (char === "1" || char === "t" || char === "y") {
-          result[index] = true;
-        } else if (char === "0" || char === "f" || char === "n") {
-          result[index] = false;
-        }
+      for (let index = 0; index < Math.min(value.length, size); index += 1) {
+        result[index] = Boolean(value[index]);
       }
       return result;
     }
+
+    let source = null;
+
     if (typeof value === "number" && Number.isFinite(value)) {
-      const binary = value.toString(2).padStart(size, "0");
-      return result.map((_, index) => binary.charAt(index) === "1");
+      source = Math.trunc(value).toString();
+    } else if (typeof value === "string") {
+      source = value.trim();
+    } else {
+      return result;
     }
+
+    if (!source) {
+      return result;
+    }
+
+    if (/^[0-9]+$/.test(source) && source.length < size) {
+      source = source.padStart(size, "0");
+    }
+
+    const normalized = source.toLowerCase();
+    const tokenPattern = /true|false|t|f|y|n|1|0/g;
+    let tokens = normalized.match(tokenPattern);
+
+    if (!tokens || !tokens.length) {
+      tokens = normalized.split(/[,\s]+/).filter(Boolean);
+    }
+
+    if (!tokens.length) {
+      return result;
+    }
+
+    let resultIndex = 0;
+    for (const token of tokens) {
+      if (resultIndex >= size) {
+        break;
+      }
+      const key = token.trim();
+      if (!key) {
+        continue;
+      }
+      const char = key.charAt(0);
+      if (char === "1" || char === "t" || char === "y") {
+        result[resultIndex] = true;
+        resultIndex += 1;
+        continue;
+      }
+      if (char === "0" || char === "f" || char === "n") {
+        result[resultIndex] = false;
+        resultIndex += 1;
+      }
+    }
+
     return result;
   }
 
@@ -1474,6 +1510,27 @@
     };
   }
 
+  const SHEET_PAYLOAD_COLUMNS = Object.freeze([
+    "TeamId",
+    "TeamName",
+    "HasStarted",
+    "HasWon",
+    "TowerComplete",
+    "FinalPuzzleComplete",
+    "SolvedCount",
+    "PuzzleCount",
+    "ProgressPercent",
+    "CurrentPuzzleIndex",
+    "NextPuzzleIndex",
+    "NextPuzzleLabel",
+    "StartedAt",
+    "RuntimeSeconds",
+    "Reason",
+    "Timestamp",
+    "Completions",
+    "Unlocked"
+  ]);
+
   function encodePayloadAsCsv(payload) {
     if (!payload) {
       return "";
@@ -1491,22 +1548,23 @@
       CurrentPuzzleIndex: Number.isInteger(payload.currentPuzzleIndex) ? payload.currentPuzzleIndex : "",
       NextPuzzleIndex: Number.isInteger(payload.nextPuzzleIndex) ? payload.nextPuzzleIndex : "",
       NextPuzzleLabel: payload.nextPuzzleLabel ?? "",
+      StartedAt: payload.startedAt ?? "",
+      RuntimeSeconds: Number.isFinite(payload.runtimeSeconds) ? payload.runtimeSeconds : "",
       Reason: payload.reason ?? "",
       Timestamp: payload.timestamp ?? new Date().toISOString(),
       Completions: encodeBooleanSeries(payload.completions),
       Unlocked: encodeBooleanSeries(payload.unlocked)
     };
 
-    const headers = Object.keys(record);
-    const values = headers.map(key => encodeCsvValue(record[key]));
-    return `${headers.join(",")}\n${values.join(",")}`;
+    const values = SHEET_PAYLOAD_COLUMNS.map(key => encodeCsvValue(record[key]));
+    return values.join(",");
   }
 
   function encodeBooleanSeries(source) {
     if (!Array.isArray(source) || !source.length) {
       return "";
     }
-    return source.map(value => (value ? "1" : "0")).join("");
+    return source.map(value => (value ? "1" : "0")).join(",");
   }
 
   function encodeCsvValue(value) {
