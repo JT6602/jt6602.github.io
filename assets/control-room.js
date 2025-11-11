@@ -281,9 +281,9 @@ Identify the potion that lets you pass forward through the flames and enter its 
   },
   {
     floor: "Floor 11",
-    prompt: "Replace each letter with the one before it in the alphabet: uijt.",
+    prompt: "I am an odd number. Remove one letter and I become even. What number am I?",
     answerType: ANSWER_TYPES.TEXT,
-    answer: "this",
+    answer: "seven",
     qr: QR_CODES.FLOOR_11
   }
 ];
