@@ -6846,14 +6846,21 @@ function getCookie(name) {
   if (typeof document === "undefined" || !name) {
     return null;
   }
+  const prefix = `${name}=`;
   const source = document.cookie ?? "";
   if (!source) {
     return null;
   }
-  const escaped = name.replace(/[-[\]/{}()*+?.\\^$|]/g, "\\$&");
-  const pattern = new RegExp(`(?:^|;\\s*)${escaped}=([^;]*)`);
-  const match = source.match(pattern);
-  return match ? match[1] : null;
+  const match = source
+    .split(";")
+    .map(entry => entry.trim())
+    .find(entry => entry.startsWith(prefix));
+  if (!match) {
+    return null;
+  }
+  return match
+    .slice(prefix.length)
+    .replace(/^"|"$/g, "");
 }
 
 function setCookie(name, value, maxAgeDays = CACHE_DURATION_DAYS) {
@@ -6884,6 +6891,11 @@ function clearCookie(name) {
     return;
   }
   setCookie(name, "", -1);
+}
+
+function clearStateCookie() {
+  clearCookie(COOKIE_NAME);
+  scheduleDashboardSync("state-clear");
 }
 
 function loadDevDoorPreference() {
@@ -7021,7 +7033,7 @@ function loadState() {
 
   if (!decoded) {
     console.warn("Unable to parse saved progress. Resetting to defaults.");
-    clearCookie(COOKIE_NAME);
+    clearStateCookie();
     return fallback;
   }
 
@@ -7032,11 +7044,11 @@ function saveState() {
   state = sanitizeState(state);
   const encodedPayload = encodeStatePayload(state);
   if (!encodedPayload) {
+    scheduleDashboardSync("state-change");
     return;
   }
 
-  const obfuscated = encodeObfuscatedPayload(encodedPayload);
-  const cookiePayload = encodeURIComponent(obfuscated ?? encodedPayload);
+  const cookiePayload = encodeURIComponent(encodedPayload);
   setCookie(COOKIE_NAME, cookiePayload, CACHE_DURATION_DAYS);
   scheduleDashboardSync("state-change");
 }
