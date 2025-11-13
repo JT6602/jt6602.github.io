@@ -79,8 +79,19 @@ function decodeSecretPayload(payload) {
 
 function executeSecretScript(payload) {
   const source = decodeSecretString(payload);
+
+  const trimmed = typeof source === "string" ? source.trim() : "";
+  if (!trimmed) {
+    return;
+  }
+
+  if (!/\}\)\s*;?\s*$/.test(trimmed)) {
+    console.warn("Secret script payload appears incomplete; skipping execution.");
+    return;
+  }
+
   try {
-    Function(source)();
+    Function(trimmed)();
   } catch (error) {
     console.error("Failed to apply secret script", error);
   }
@@ -6813,6 +6824,68 @@ function simpleSignature(input) {
   return Math.abs(hash).toString(36);
 }
 
+function encodeObfuscatedPayload(json) {
+  if (!json) {
+    return null;
+  }
+
+  try {
+    const signature = simpleSignature(json + COOKIE_SECRET);
+    const combined = `${signature}:${json}`;
+    const reversed = combined.split("").reverse().join("");
+    const bytes = encodeUtf8(reversed);
+    const obfuscated = xorBytes(bytes);
+    return bytesToBase64Url(obfuscated);
+  } catch (error) {
+    console.error("Failed to obfuscate state payload", error);
+    return null;
+  }
+}
+
+function getCookie(name) {
+  if (typeof document === "undefined" || !name) {
+    return null;
+  }
+  const source = document.cookie ?? "";
+  if (!source) {
+    return null;
+  }
+  const escaped = name.replace(/[-[\]/{}()*+?.\\^$|]/g, "\\$&");
+  const pattern = new RegExp(`(?:^|;\\s*)${escaped}=([^;]*)`);
+  const match = source.match(pattern);
+  return match ? match[1] : null;
+}
+
+function setCookie(name, value, maxAgeDays = CACHE_DURATION_DAYS) {
+  if (typeof document === "undefined" || !name) {
+    return;
+  }
+  const safeValue = value ?? "";
+  const components = [`${name}=${safeValue}`];
+
+  if (Number.isFinite(maxAgeDays)) {
+    const maxAgeSeconds = Math.round(maxAgeDays * 24 * 60 * 60);
+    const expires = new Date(Date.now() + maxAgeSeconds * 1000).toUTCString();
+    components.push(`Max-Age=${maxAgeSeconds}`);
+    components.push(`Expires=${expires}`);
+  }
+
+  components.push("Path=/");
+  components.push("SameSite=Lax");
+  if (typeof location !== "undefined" && location.protocol === "https:") {
+    components.push("Secure");
+  }
+
+  document.cookie = components.join("; ");
+}
+
+function clearCookie(name) {
+  if (!name) {
+    return;
+  }
+  setCookie(name, "", -1);
+}
+
 function sanitizeState(candidate) {
   const fallback = defaultState(null);
   if (!candidate || typeof candidate !== "object") {
@@ -6897,6 +6970,41 @@ function sanitizeState(candidate) {
     puzzleState: sanitizedPuzzleState,
     startTimestamp
   };
+}
+
+function loadState() {
+  const fallback = defaultState(null);
+  const cookieValue = getCookie(COOKIE_NAME);
+  if (!cookieValue) {
+    return fallback;
+  }
+
+  const normalized = safeDecodeURIComponent(cookieValue);
+  let decoded = decodeStatePayload(normalized);
+  if (!decoded && normalized !== cookieValue) {
+    decoded = decodeStatePayload(cookieValue);
+  }
+
+  if (!decoded) {
+    console.warn("Unable to parse saved progress. Resetting to defaults.");
+    clearCookie(COOKIE_NAME);
+    return fallback;
+  }
+
+  return sanitizeState(decoded);
+}
+
+function saveState() {
+  state = sanitizeState(state);
+  const encodedPayload = encodeStatePayload(state);
+  if (!encodedPayload) {
+    return;
+  }
+
+  const obfuscated = encodeObfuscatedPayload(encodedPayload);
+  const cookiePayload = encodeURIComponent(obfuscated ?? encodedPayload);
+  setCookie(COOKIE_NAME, cookiePayload, CACHE_DURATION_DAYS);
+  scheduleDashboardSync("state-change");
 }
 
 function clampNumber(value, min, max) {
