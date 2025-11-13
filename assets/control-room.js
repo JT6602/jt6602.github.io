@@ -144,7 +144,7 @@ const puzzles = [
                 label: "Both decoded words contain exactly three distinct vowels."
             }
             ],
-          correctChoiceId: "choice-b",
+          correctChoiceId: "choice-a",
           successMessage: "Logic checks out." 
         }
       ],
