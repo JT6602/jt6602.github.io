@@ -1,6 +1,3 @@
-const TEAM_COUNT = 11;
-const PUZZLE_COUNT = 12;
-const COOKIE_NAME = "towerHuntProgress";
 const CACHE_DURATION_DAYS = 365;
 const VALIDATION_DELAY_MS = 1200;
 const INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
@@ -8,285 +5,121 @@ const WORDLE_FAIL_TIMEOUT_MS = 30 * 1000;
 const HANGMAN_FAIL_TIMEOUT_MS = 30 * 1000;
 const HANGMAN_MAX_SEGMENTS = 6;
 
-const TEAM_NAMES = [
-  "Team 1",
-  "Team 2",
-  "Team 3",
-  "Team 4",
-  "Team 5",
-  "Team 6",
-  "Team 7",
-  "Team 8",
-  "Team 9",
-  "Team 10",
-  "Team 11"
-];
-
-const TEAM_ORDERS = [
-  [1, 3, 4, 7, 10, 9, 11, 8, 6, 5, 2, 0],
-  [2, 1, 3, 5, 4, 6, 8, 9, 11, 10, 7, 0],
-  [3, 2, 1, 4, 7, 8, 11, 10, 9, 6, 5, 0],
-  [4, 1, 3, 2, 5, 7, 10, 11, 8, 9, 6, 0],
-  [5, 4, 7, 10, 8, 11, 9, 6, 3, 2, 1, 0],
-  [6, 7, 10, 9, 11, 8, 5, 2, 4, 3, 1, 0],
-  [7, 5, 8, 11, 10, 9, 6, 3, 4, 1, 2, 0],
-  [8, 11, 9, 10, 7, 4, 3, 1, 2, 5, 6, 0],
-  [9, 10, 11, 8, 5, 2, 1, 3, 6, 4, 7, 0],
-  [10, 9, 11, 8, 6, 5, 7, 4, 1, 3, 2, 0],
-  [11, 8, 5, 3, 2, 1, 4, 7, 10, 9, 6, 0]
-];
-
-const QR_FRAGMENT_CODES = Object.freeze({
-  BASEMENT: Object.freeze(["Z7PX-HL0Q-AV34", "B9TN-4LQ2-XM87", "C3RD-7VJ5-QK60"]),
-  FLOOR_4: Object.freeze(["RX1B-W8Q7-5LZJ", "F4LT-9S2H-MK31", "F4LT-3V8N-QP62"]),
-  FLOOR_10: Object.freeze(["P6ZR-2WQJ-M31T", "T0WR-10QG-FR27", "T0WR-10SL-XB95"])
-});
-
-const QR_CODES = Object.freeze({
-  BASEMENT: QR_FRAGMENT_CODES.BASEMENT[0],
-  FLOOR_1: "M1QF-8RVZ-T6JD",
-  FLOOR_2: "Q4SN-P2LX-9G0B",
-  FLOOR_3: "V9KT-3H2C-LM55",
-  FLOOR_4: QR_FRAGMENT_CODES.FLOOR_4[0],
-  FLOOR_5: "T0HC-4ZKM-PP18",
-  FLOOR_6: "C8FW-J3VQ-7N2S",
-  FLOOR_7: "L5MB-Y6RT-XQ04",
-  FLOOR_8: "H2SV-N9PC-41LJ",
-  FLOOR_9: "G7QD-K0LX-UF82",
-  FLOOR_10: QR_FRAGMENT_CODES.FLOOR_10[0],
-  FLOOR_11: "B3XN-5TLY-VA96"
-});
-
-const START_CODES = Object.freeze({
-  "FRACTAL-DAWN-91QX": 0,
-  "ORBITAL-GLASS-62MT": 1,
-  "VELVET-EMBER-47NS": 2,
-  "SONAR-MOON-18PL": 3,
-  "EMBER-MASK-03VZ": 4,
-  "CRYPTIC-FIELD-76QA": 5,
-  "NEBULA-RIDGE-55LX": 6,
-  "MIRAGE-COIL-24HF": 7,
-  "SAPPHIRE-DUSK-88WR": 8,
-  "PRISM-HARBOR-69KU": 9,
-  "GOSSAMER-VAULT-12EC": 10
-});
-
-const GM_TEAM_CODES = Object.freeze({
-  "GM-FRACTAL-REMAP-742": 0,
-  "GM-ORBITAL-REMAP-953": 1,
-  "GM-VELVET-REMAP-184": 2,
-  "GM-SONAR-REMAP-625": 3,
-  "GM-EMBER-REMAP-307": 4,
-  "GM-CRYPTIC-REMAP-571": 5,
-  "GM-NEBULA-REMAP-468": 6,
-  "GM-MIRAGE-REMAP-259": 7,
-  "GM-SAPPHIRE-REMAP-836": 8,
-  "GM-PRISM-REMAP-914": 9,
-  "GM-GOSSAMER-REMAP-401": 10
-});
-
 const SVG_NS = "http://www.w3.org/2000/svg";
-const GM_PASSWORD = "GoTowerHats";
-const GM_PASSWORD_TOKEN_KEY = "towerHuntGmToken";
-const GM_SESSION_TOKEN_KEY = "towerHuntGmSession";
-const COOKIE_SECRET = "tower-hunt-shield-9317";
-const DEV_DOOR_STORAGE_KEY = "towerHuntDevDoor";
+
+const SECRET_PAYLOAD =
+  "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";
+
+
+const SECRET_FUNCTIONS_PAYLOAD =
+  "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";
+function decodeSecretString(payload) {
+  if (!payload) {
+    return "";
+  }
+  const base64Decoder =
+    typeof globalThis !== "undefined" && typeof globalThis.atob === "function"
+      ? globalThis.atob.bind(globalThis)
+      : typeof atob === "function"
+        ? atob
+        : typeof Buffer === "function"
+          ? input => Buffer.from(input, "base64").toString("binary")
+          : null;
+
+  if (!base64Decoder) {
+    throw new Error("Unable to decode secret payload");
+  }
+
+  const binary = base64Decoder(payload);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index) ^ ((index % 31) + 17);
+  }
+
+  if (typeof TextDecoder === "function") {
+    try {
+      return new TextDecoder().decode(bytes);
+    } catch (error) {
+      // fallback below
+    }
+  }
+
+  if (typeof Buffer === "function") {
+    try {
+      return Buffer.from(bytes).toString("utf8");
+    } catch (error) {
+      // fallback below
+    }
+  }
+
+  let fallback = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    fallback += String.fromCharCode(bytes[index]);
+  }
+
+  try {
+    if (typeof escape === "function") {
+      return decodeURIComponent(escape(fallback));
+    }
+    return decodeURIComponent(fallback);
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function decodeSecretPayload(payload) {
+  const text = decodeSecretString(payload);
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Failed to parse secret payload", error);
+    throw error;
+  }
+}
+
+function executeSecretScript(payload) {
+  const source = decodeSecretString(payload);
+  try {
+    Function(source)();
+  } catch (error) {
+    console.error("Failed to apply secret script", error);
+  }
+}
+
+const decodedSecrets = decodeSecretPayload(SECRET_PAYLOAD);
+const secretStrings = Object.freeze(decodedSecrets.secrets ?? {});
+const TEAM_NAMES = Object.freeze((decodedSecrets.TEAM_NAMES ?? []).slice());
+const TEAM_ORDERS = Object.freeze(
+  (decodedSecrets.TEAM_ORDERS ?? []).map(order => Object.freeze(order.slice()))
+);
+const QR_FRAGMENT_CODES = Object.freeze(
+  Object.fromEntries(
+    Object.entries(decodedSecrets.QR_FRAGMENT_CODES ?? {}).map(([key, values]) => [
+      key,
+      Object.freeze([...(values ?? [])])
+    ])
+  )
+);
+const QR_CODES = Object.freeze({ ...(decodedSecrets.QR_CODES ?? {}) });
+const START_CODES = Object.freeze({ ...(decodedSecrets.START_CODES ?? {}) });
+const GM_TEAM_CODES = Object.freeze({ ...(decodedSecrets.GM_TEAM_CODES ?? {}) });
+const puzzles = (decodedSecrets.puzzles ?? []).map(puzzle => ({ ...puzzle }));
+const COOKIE_NAME = secretStrings.cookieName ?? "towerHuntProgress";
+const GM_PASSWORD = secretStrings.gmPassword ?? "GoTowerHats";
+const GM_PASSWORD_TOKEN_KEY = secretStrings.gmPasswordTokenKey ?? "towerHuntGmToken";
+const GM_SESSION_TOKEN_KEY = secretStrings.gmSessionTokenKey ?? "towerHuntGmSession";
+const COOKIE_SECRET = secretStrings.cookieSecret ?? "tower-hunt-shield-9317";
+const DEV_DOOR_STORAGE_KEY = secretStrings.devDoorStorageKey ?? "towerHuntDevDoor";
+const TEAM_COUNT = TEAM_NAMES.length;
+const PUZZLE_COUNT = puzzles.length;
+
+executeSecretScript(SECRET_FUNCTIONS_PAYLOAD);
 
 const ANSWER_TYPES = Object.freeze({
   TEXT: "text",
   PUZZLE: "puzzle"
 });
 
-
-const puzzles = [
-  {
-    floor: "Basement",
-    prompt: "Solve the multi-step cipher with its logic twist; progression triggers automatically once cracked.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    cipherChallenge: {
-      title: "Cipher Relay",
-      intro: "Solve each layer in order. Earlier solutions unlock the later logic check.",
-      steps: [
-        {
-          id: "cipher-double",
-          type: "input",
-          label: "Step 1 — Double-Layer Cipher",
-          prompt: "First, apply an Atbash mirror (A↔Z, B↔Y, …), then shift each resulting letter forward by 2. Decode: YNHVU.",
-          solution: "DOUGH",
-          placeholder: "Decoded word",
-          hint: "Undo the steps in reverse: shift backward 2, then mirror again."
-        },
-        {
-          id: "cipher-number",
-          type: "input",
-          label: "Step 2 — Number Substitution",
-          prompt: "Convert the numbers to letters (A=1, B=2, …): 22-15-3-1-12.",
-          solution: "VOCAL",
-          placeholder: "Decoded word",
-          hint: "Numbers correspond to alphabetical positions."
-        },
-        {
-          id: "cipher-logic",
-          type: "choice",
-          label: "Step 3 — Logic Link",
-          prompt: "Only one of these statements is true about your decoded words. Which one?",
-            choices: [
-            {
-                id: "choice-a",
-                label: "If you convert each letter of both decoded words to its A=1, B=2, … value and sum them, Step 1’s total is exactly 2 greater than Step 2’s."
-            },
-            {
-                id: "choice-b",
-                label: "Step 2’s answer would appear first in a standard English dictionary."
-            },
-            {
-                id: "choice-c",
-                label: "Both decoded words contain exactly three distinct vowels."
-            }
-            ],
-          correctChoiceId: "choice-a",
-          successMessage: "Logic checks out." 
-        }
-      ],
-      completionMessage: "Cipher relay complete."
-    },
-    qr: QR_CODES.BASEMENT,
-    qrFragments: QR_FRAGMENT_CODES.BASEMENT
-  },
-  {
-    floor: "Floor 1",
-    prompt: "Unscramble AELORTVE.",
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "elevator",
-    qr: QR_CODES.FLOOR_1
-  },
-  {
-    floor: "Floor 2",
-    prompt: `Danger lies before you, while safety lies behind.
-Two of us will help you, whichever you would find.
-One among us seven will let you move ahead,
-Another will transport the drinker back instead.
-Two among our number hold only nettle wine,
-Three of us are killers, waiting hidden in line.
-Choose, unless you wish to stay here for evermore,
-\nTo help you in your choice, we give you these clues four:
-\n1. However slyly the poison tries to hide, you will always find some on nettle wine's left side.
-\n2. Different are those who stand at either end; if you would move onwards neither is your friend.
-\n3. As you see clearly, all are different size; neither dwarf nor giant holds death in their insides.
-\n4. The second left and the second on the right are twins once you taste them, though different at first sight.
-\n
-Identify the potion that lets you pass forward through the flames and enter its color.`,
-    promptImage: {
-      src: "image.png",
-      alt: "Seven bottles of potion arranged in a line on a table."
-    },
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "blue",
-    qr: QR_CODES.FLOOR_2
-  },
-  {
-    floor: "Floor 3",
-    prompt: "Decode tmdmt with a Caesar shift of -8.",
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "level",
-    qr: QR_CODES.FLOOR_3
-  },
-  {
-    floor: "Floor 4",
-    prompt: "Find the words panel, lever, cable, gauge, and wires hidden in the grid to progress.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    wordSearch: {
-      size: 8,
-      words: ["panel", "lever", "cable", "gauge", "wires"],
-      grid: [
-        "P A N E L S X L",
-        "G Q T H M A N E",
-        "A R I O P L D V",
-        "U C A B L E T E",
-        "G S Y R K F H R",
-        "E L C N O P T A",
-        "B U W I R E S G",
-        "J M Q D Z H V C"
-      ]
-    },
-    qr: QR_CODES.FLOOR_4,
-    qrFragments: QR_FRAGMENT_CODES.FLOOR_4
-  },
-  {
-    floor: "Floor 5",
-    prompt:
-      "You see a 3×3 grid of switches (ON/OFF). Toggling a switch flips itself and its orthogonal neighbors. Goal: turn all switches OFF. Start in a random mixed state.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    switchPuzzle: {
-      gridSize: 3
-    },
-    qr: QR_CODES.FLOOR_5
-  },
-  {
-    floor: "Floor 6",
-    prompt: "Play a systems-themed Wordle. Guess the five-letter term within six attempts.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    wordle: {
-      solution: "relay",
-      wordBank: ["relay", "servo", "plant", "input", "valve"],
-      maxGuesses: 6,
-      hint: "Each guess must be a five-letter English word related to control systems."
-    },
-    qr: QR_CODES.FLOOR_6
-  },
-  {
-    floor: "Floor 7",
-    prompt:
-      "The day before two days after the day before tomorrow is Saturday. What day is it today?",
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "friday",
-    qr: QR_CODES.FLOOR_7
-  },
-  {
-    floor: "Floor 8",
-    prompt: "Decode the Morse code .-. .. -.. -.. .-.. .",
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "riddle",
-    qr: QR_CODES.FLOOR_8
-  },
-  {
-    floor: "Floor 9",
-    prompt: "Play hangman to reveal the systems keyword before the figure is completed.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    hangman: {
-      word: "cables",
-      wordBank: ["cables", "sensor", "valves", "motors", "signal"],
-      maxMisses: 6,
-      hint: ""
-    },
-    qr: QR_CODES.FLOOR_9
-  },
-  {
-    floor: "Floor 10",
-    prompt: "Match card pairs until the hidden word is revealed to progress.",
-    answerType: ANSWER_TYPES.PUZZLE,
-    memoryGame: {
-      finalWord: "BEACON",
-      pairs: [
-        { id: "letter-o", face: "O" },
-        { id: "letter-b", face: "B" },
-        { id: "letter-a", face: "A" },
-        { id: "letter-n", face: "N" },
-        { id: "letter-c", face: "C" },
-        { id: "letter-e", face: "E" }
-      ]
-    },
-    qr: QR_CODES.FLOOR_10,
-    qrFragments: QR_FRAGMENT_CODES.FLOOR_10
-  },
-  {
-    floor: "Floor 11",
-    prompt: "I am an odd number. Remove one letter and I become even. What number am I?",
-    answerType: ANSWER_TYPES.TEXT,
-    answer: "seven",
-    qr: QR_CODES.FLOOR_11
-  }
-];
 
 const PUZZLE_FRAGMENT_DATA = Object.freeze(
   puzzles.map(puzzle => {
@@ -6005,64 +5838,13 @@ function ensureScannerListeners() {
 }
 
 
-function loadState() {
-  const cookieValue = getCookie(COOKIE_NAME);
-  if (!cookieValue) {
-    return defaultState(null);
-  }
 
-  const normalized = safeDecodeURIComponent(cookieValue);
-  let decoded = decodeStatePayload(normalized);
-  if (!decoded && normalized !== cookieValue) {
-    decoded = decodeStatePayload(cookieValue);
-  }
-  if (decoded) {
-    return sanitizeState(decoded);
-  }
 
-  console.warn("Failed to parse cookie, resetting progress");
-  return defaultState(null);
-}
 
-function saveState() {
-  state = sanitizeState(state);
-  const payload = encodeStatePayload(state);
-  if (!payload) {
-    scheduleDashboardSync("state-save");
-    return;
-  }
-  const maxAge = CACHE_DURATION_DAYS * 24 * 60 * 60;
-  const encoded = encodeURIComponent(payload);
-  document.cookie = `${COOKIE_NAME}=${encoded}; max-age=${maxAge}; path=/; SameSite=Lax`;
-  scheduleDashboardSync("state-save");
-}
 
-function loadDevDoorPreference() {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return false;
-  }
-  try {
-    const stored = window.localStorage.getItem(DEV_DOOR_STORAGE_KEY);
-    return stored === "1";
-  } catch (error) {
-    return false;
-  }
-}
 
-function persistDevDoorPreference(enabled) {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return;
-  }
-  try {
-    if (enabled) {
-      window.localStorage.setItem(DEV_DOOR_STORAGE_KEY, "1");
-    } else {
-      window.localStorage.removeItem(DEV_DOOR_STORAGE_KEY);
-    }
-  } catch (error) {
-    // ignore storage errors
-  }
-}
+
+
 
 function isDevDoorEnabled() {
   return Boolean(devDoorEnabled);
@@ -6839,19 +6621,9 @@ function setupDashboardDebugApi() {
   }
 }
 
-function clearStateCookie() {
-  document.cookie = `${COOKIE_NAME}=; max-age=0; path=/; SameSite=Lax`;
-}
 
-function getCookie(name) {
-  const prefix = `${name}=`;
-  return document.cookie
-    .split(";")
-    .map(entry => entry.trim())
-    .find(entry => entry.startsWith(prefix))
-    ?.slice(prefix.length)
-    ?.replace(/^"|"$/g, "");
-}
+
+
 
 function safeDecodeURIComponent(value) {
   if (typeof value !== "string") {
