@@ -111,8 +111,8 @@ const puzzles = [
           id: "cipher-double",
           type: "input",
           label: "Step 1 — Double-Layer Cipher",
-          prompt: "First, apply an Atbash mirror (A↔Z, B↔Y, …), then shift each resulting letter forward by 2. Decode: XLFIFW.",
-          solution: "SECRET",
+          prompt: "First, apply an Atbash mirror (A↔Z, B↔Y, …), then shift each resulting letter forward by 2. Decode: YNHVU.",
+          solution: "DOUGH",
           placeholder: "Decoded word",
           hint: "Undo the steps in reverse: shift backward 2, then mirror again."
         },
@@ -120,8 +120,8 @@ const puzzles = [
           id: "cipher-number",
           type: "input",
           label: "Step 2 — Number Substitution",
-          prompt: "Convert the numbers to letters (A=1, B=2, …): 19-5-3-18-5-20.",
-          solution: "SECRET",
+          prompt: "Convert the numbers to letters (A=1, B=2, …): 22-15-3-1-12.",
+          solution: "VOCAL",
           placeholder: "Decoded word",
           hint: "Numbers correspond to alphabetical positions."
         },
@@ -130,20 +130,20 @@ const puzzles = [
           type: "choice",
           label: "Step 3 — Logic Link",
           prompt: "Only one of these statements is true about your decoded words. Which one?",
-          choices: [
+            choices: [
             {
-              id: "choice-a",
-              label: "Both decoded words contain the letter E."
+                id: "choice-a",
+                label: "If you convert each letter of both decoded words to its A=1, B=2, … value and sum them, Step 1’s total is exactly 2 greater than Step 2’s."
             },
             {
-              id: "choice-b",
-              label: "Step 1’s answer has more letters than Step 2’s."
+                id: "choice-b",
+                label: "Step 2’s answer would appear first in a standard English dictionary."
             },
             {
-              id: "choice-c",
-              label: "Step 2’s answer is a synonym of Step 1’s."
+                id: "choice-c",
+                label: "Both decoded words contain exactly three distinct vowels."
             }
-          ],
+            ],
           correctChoiceId: "choice-b",
           successMessage: "Logic checks out." 
         }
@@ -237,9 +237,9 @@ Identify the potion that lets you pass forward through the flames and enter its 
   {
     floor: "Floor 7",
     prompt:
-      "Solve the system: C + D = 7, D + E = 9, C + O = 18, and O - E = 10. Map each variable's value to a letter (A=1, B=2, ...) and read the four-letter code.",
+      "The day before two days after the day before tomorrow is Saturday. What day is it today?",
     answerType: ANSWER_TYPES.TEXT,
-    answer: "code",
+    answer: "friday",
     qr: QR_CODES.FLOOR_7
   },
   {
