@@ -6886,6 +6886,40 @@ function clearCookie(name) {
   setCookie(name, "", -1);
 }
 
+function loadDevDoorPreference() {
+  if (typeof localStorage === "undefined") {
+    return false;
+  }
+
+  try {
+    const stored = localStorage.getItem(DEV_DOOR_STORAGE_KEY);
+    if (stored === null) {
+      return false;
+    }
+    if (stored === "1" || stored === "true") {
+      return true;
+    }
+    if (stored === "0" || stored === "false") {
+      return false;
+    }
+    return Boolean(JSON.parse(stored));
+  } catch (error) {
+    console.warn("Unable to read dev door preference; defaulting to disabled.", error);
+    return false;
+  }
+}
+
+function persistDevDoorPreference(enabled) {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  try {
+    localStorage.setItem(DEV_DOOR_STORAGE_KEY, enabled ? "1" : "0");
+  } catch (error) {
+    console.warn("Unable to persist dev door preference.", error);
+  }
+}
+
 function sanitizeState(candidate) {
   const fallback = defaultState(null);
   if (!candidate || typeof candidate !== "object") {
